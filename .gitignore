@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# Except skills directory
+!skills/
+!skills/**
+
+# And these files
+!.gitignore
+!README.md
+skills/dotnet-csharp.zip
