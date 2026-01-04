@@ -1,3 +1,9 @@
+---
+name: neatoo
+description: Neatoo DDD framework for .NET with Blazor WebAssembly. Use when building domain entities with EntityBase, implementing business rules and validation, creating factories with [Factory] attribute, setting up client-server communication with RemoteFactory, working with aggregates and parent-child relationships, or troubleshooting source generator issues.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(dotnet:*), WebFetch, WebSearch
+---
+
 # Neatoo Framework Skill
 
 ## Description
