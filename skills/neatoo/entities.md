@@ -33,6 +33,9 @@ public interface IPerson : IEntityBase
 ### Class Implementation
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {
@@ -129,6 +132,9 @@ Note: Cancellation only occurs before the `[Insert]`/`[Update]`/`[Delete]` metho
 Use `ValidateBase<T>` for objects that need validation but are not persisted independently.
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class SearchCriteria : ValidateBase<SearchCriteria>, ISearchCriteria
 {
@@ -166,6 +172,8 @@ internal partial class SearchCriteria : ValidateBase<SearchCriteria>, ISearchCri
 Value Objects represent concepts defined by attributes, not identity. Use plain classes with `[Factory]`:
 
 ```csharp
+using Neatoo.RemoteFactory;
+
 [Factory]
 public class Money
 {
@@ -205,6 +213,9 @@ public class Money
 ### Using Value Objects in Entities
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Order : EntityBase<Order>, IOrder
 {
@@ -248,6 +259,9 @@ Collections of child entities use `EntityListBase<I>`. The list is a simple cont
 The list constructor-injects the child factory and provides helper methods:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IOrderLineList : IEntityListBase<IOrderLine>
 {
     IOrderLine AddLine();
@@ -302,6 +316,9 @@ internal partial class OrderLineList
 When the UI manages child creation directly:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IOrderLineList : IEntityListBase<IOrderLine>
 {
 }

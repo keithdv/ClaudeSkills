@@ -93,19 +93,23 @@ All Neatoo operations route through one endpoint: `/api/neatoo`
 ```bash
 dotnet add package Neatoo
 dotnet add package Neatoo.RemoteFactory
+dotnet add package Neatoo.RemoteFactory.AspNetCore  # Server only
 ```
 
 ### Program.cs Configuration
 
 ```csharp
 using Neatoo;
+using Neatoo.RemoteFactory;
+using Neatoo.RemoteFactory.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Neatoo services in LOCAL mode (server executes operations)
-builder.Services.AddNeatooServices(
-    NeatooFactory.Local,
-    typeof(Person).Assembly);  // Assembly containing your entities
+// Add Neatoo core services in SERVER mode (registers factories, IEntityBaseServices, etc.)
+builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(Person).Assembly);
+
+// Add Neatoo ASP.NET Core endpoint infrastructure
+builder.Services.AddNeatooAspNetCore(typeof(Person).Assembly);
 
 // Register your DbContext and services
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -116,23 +120,21 @@ builder.Services.AddScoped<IDbContext>(sp =>
 
 var app = builder.Build();
 
-// Map the Neatoo endpoint
-app.MapPost("/api/neatoo", async (HttpContext context) =>
-{
-    var portal = context.RequestServices
-        .GetRequiredService<INeatooJsonPortal>();
-    return await portal.Execute(context);
-});
+// Map the Neatoo endpoint with cancellation support and correlation ID
+app.UseNeatoo();
 
 app.Run();
 ```
+
+> **Important**: Both `AddNeatooServices` and `AddNeatooAspNetCore` are required. `AddNeatooServices` registers the core Neatoo infrastructure (factories, `IEntityBaseServices<T>`, etc.) while `AddNeatooAspNetCore` adds the HTTP endpoint handling.
 
 ### NeatooFactory Modes
 
 | Mode | Description | Use Case |
 |------|-------------|----------|
-| `NeatooFactory.Local` | Executes operations locally | Server-side |
-| `NeatooFactory.Remote` | Proxies to remote server | Client-side |
+| `NeatooFactory.Server` | Executes operations locally with ASP.NET Core | Production server |
+| `NeatooFactory.Remote` | Proxies operations to remote server | Blazor WebAssembly client |
+| `NeatooFactory.Logical` | Executes operations locally without server infrastructure | Testing, WPF |
 
 ## Client Setup (Blazor WebAssembly)
 
@@ -147,36 +149,36 @@ dotnet add package Neatoo.RemoteFactory
 
 ```csharp
 using Neatoo;
+using Neatoo.RemoteFactory;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 // Add Neatoo services in REMOTE mode (operations sent to server)
-builder.Services.AddNeatooServices(
-    NeatooFactory.Remote,
-    typeof(IPerson).Assembly);  // Assembly containing your interfaces
+builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 
-// Configure the remote portal
-builder.Services.AddRemoteNeatooPortal(
-    new Uri(builder.HostEnvironment.BaseAddress + "api/neatoo"));
+// Configure the remote HttpClient for RemoteFactory
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+{
+    return new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
+});
 
 await builder.Build().RunAsync();
 ```
 
 ### HTTP Client Configuration
 
-The `AddRemoteNeatooPortal` configures an `HttpClient` for Neatoo requests:
+Register a keyed `HttpClient` using `RemoteFactoryServices.HttpClientKey`:
 
 ```csharp
-// Custom configuration
-builder.Services.AddRemoteNeatooPortal(
-    new Uri(builder.HostEnvironment.BaseAddress + "api/neatoo"),
-    httpClientBuilder =>
+// Custom configuration with timeout
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+{
+    return new HttpClient
     {
-        httpClientBuilder.ConfigureHttpClient(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(5);
-        });
-    });
+        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+        Timeout = TimeSpan.FromMinutes(5)
+    };
+});
 ```
 
 ## Project Structure
@@ -415,6 +417,13 @@ The ID propagates via:
 
 ```csharp
 // Program.cs
+using Neatoo;
+using Neatoo.RemoteFactory;
+using Neatoo.RemoteFactory.AspNetCore;
+
+builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(Person).Assembly);
+builder.Services.AddNeatooAspNetCore(typeof(Person).Assembly);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -426,24 +435,28 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Neatoo endpoint with authorization
-app.MapPost("/api/neatoo", async (HttpContext context) =>
-{
-    var portal = context.RequestServices
-        .GetRequiredService<INeatooJsonPortal>();
-    return await portal.Execute(context);
-}).RequireAuthorization();
+// UseNeatoo() maps /api/neatoo - add authorization via endpoint filter
+app.UseNeatoo();
 ```
+
+> **Note**: For authorization on the Neatoo endpoint, use `[AuthorizeFactory]` attributes on your factory methods. See the Authorization reference for details.
 
 ### Client-Side Token Handling
 
 ```csharp
-builder.Services.AddRemoteNeatooPortal(
-    new Uri(builder.HostEnvironment.BaseAddress + "api/neatoo"),
-    httpClientBuilder =>
+// Register HttpClient with authorization handler
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+{
+    var authService = sp.GetRequiredService<IAuthService>();
+    var handler = new AuthorizationMessageHandler(authService)
     {
-        httpClientBuilder.AddHttpMessageHandler<AuthorizationMessageHandler>();
-    });
+        InnerHandler = new HttpClientHandler()
+    };
+    return new HttpClient(handler)
+    {
+        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+    };
+});
 
 // Custom handler to add JWT token
 public class AuthorizationMessageHandler : DelegatingHandler
@@ -551,12 +564,12 @@ catch (TaskCanceledException)
 
 ### Running Locally (Testing/Debugging)
 
-You can run the client without a server by using Local mode:
+You can run without a server by using Logical mode:
 
 ```csharp
 // For testing without server
 builder.Services.AddNeatooServices(
-    NeatooFactory.Local,  // Changes to local mode
+    NeatooFactory.Logical,  // Logical mode for local execution
     typeof(Person).Assembly);
 
 // Register services normally
@@ -570,18 +583,14 @@ var isClientSide = builder.HostEnvironment.IsEnvironment("ClientSide");
 
 if (isClientSide)
 {
-    builder.Services.AddNeatooServices(
-        NeatooFactory.Remote,
-        typeof(IPerson).Assembly);
+    builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 
-    builder.Services.AddRemoteNeatooPortal(
-        new Uri(builder.HostEnvironment.BaseAddress + "api/neatoo"));
+    builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+        new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 }
 else
 {
-    builder.Services.AddNeatooServices(
-        NeatooFactory.Local,
-        typeof(Person).Assembly);
+    builder.Services.AddNeatooServices(NeatooFactory.Logical, typeof(Person).Assembly);
 
     // Register local services
 }
@@ -644,12 +653,12 @@ person = await personFactory.Save(person);
 
 ## WPF Applications
 
-For WPF apps, use Local mode since there's no client-server split:
+For WPF apps, use Logical mode since there's no client-server split:
 
 ```csharp
 // App.xaml.cs or service configuration
 services.AddNeatooServices(
-    NeatooFactory.Local,
+    NeatooFactory.Logical,
     typeof(Person).Assembly);
 
 services.AddDbContext<AppDbContext>(options =>
@@ -661,12 +670,10 @@ services.AddDbContext<AppDbContext>(options =>
 If WPF needs to call a central server:
 
 ```csharp
-services.AddNeatooServices(
-    NeatooFactory.Remote,
-    typeof(IPerson).Assembly);
+services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 
-services.AddRemoteNeatooPortal(
-    new Uri("https://api.myapp.com/api/neatoo"));
+services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+    new HttpClient { BaseAddress = new Uri("https://api.myapp.com/") });
 ```
 
 ## Best Practices
@@ -833,7 +840,7 @@ public class Order : EntityBase<Order>, IFactoryOnCancelled
 
 ## Common Pitfalls
 
-1. **Wrong NeatooFactory mode** - Server needs Local, Client needs Remote
+1. **Wrong NeatooFactory mode** - Server needs `Server`, Client needs `Remote`, Standalone (WPF/tests) needs `Logical`
 2. **Missing [Remote] attribute** - Server methods won't execute on server
 3. **Referencing Domain from Client** - Client should only reference Shared
 4. **Not configuring authentication** - Endpoint unprotected by default

@@ -25,6 +25,9 @@ An Order with OrderLines is an aggregate:
 ### Aggregate Root
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IOrder : IEntityBase
 {
     Guid? Id { get; set; }
@@ -69,6 +72,9 @@ internal partial class Order : EntityBase<Order>, IOrder
 ### Child Entity
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IOrderLine : IEntityBase
 {
     Guid? Id { get; set; }
@@ -104,6 +110,9 @@ internal partial class OrderLine : EntityBase<OrderLine>, IOrderLine
 ### Child Collection
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IOrderLineList : IEntityListBase<IOrderLine>
 {
     Task<IOrderLine> AddLine();
@@ -358,6 +367,9 @@ line.Quantity = 5;
 Override to react when any descendant changes:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Order : EntityBase<Order>, IOrder
 {
@@ -385,6 +397,9 @@ internal partial class Order : EntityBase<Order>, IOrder
 ### In Collections - HandleNeatooPropertyChanged
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class OrderLineList
     : EntityListBase<IOrderLine>, IOrderLineList
@@ -461,6 +476,9 @@ public class QuantityLimitRule : RuleBase<IOrderLine>
 ### Root Save Method
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Order : EntityBase<Order>, IOrder
 {
@@ -511,6 +529,9 @@ internal partial class Order : EntityBase<Order>, IOrder
 ### Collection Save Method
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class OrderLineList
     : EntityListBase<IOrderLine>, IOrderLineList
@@ -575,6 +596,9 @@ Order (Root)
 ```
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class OrderLine : EntityBase<OrderLine>, IOrderLine
 {

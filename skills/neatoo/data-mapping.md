@@ -277,6 +277,9 @@ public async Task<bool> Fetch(
 ### Child Collection Fetch
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class PersonPhoneList
     : EntityListBase<IPersonPhone>, IPersonPhoneList
@@ -383,6 +386,9 @@ public async Task Update([Service] IDbContext db)
 ## Complete Entity Example
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {

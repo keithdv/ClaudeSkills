@@ -91,6 +91,9 @@ Access via indexer: `entity[nameof(entity.PropertyName)]`
 ### Basic Entity Pattern
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 public interface IPerson : IEntityBase
 {
     Guid? Id { get; set; }
@@ -292,25 +295,26 @@ public async Task<bool> Fetch([Service] IDbContext db)
 
 **Server (Program.cs):**
 ```csharp
-builder.Services.AddNeatooServices(
-    NeatooFactory.Local,
-    typeof(Person).Assembly);
+using Neatoo;
+using Neatoo.RemoteFactory;
+using Neatoo.RemoteFactory.AspNetCore;
 
-app.MapPost("/api/neatoo", async (HttpContext context) =>
-{
-    var portal = context.RequestServices.GetRequiredService<INeatooJsonPortal>();
-    return await portal.Execute(context);
-});
+// Both calls are required
+builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(Person).Assembly);
+builder.Services.AddNeatooAspNetCore(typeof(Person).Assembly);
+
+app.UseNeatoo();  // Maps /api/neatoo with cancellation support
 ```
 
 **Client (Program.cs):**
 ```csharp
-builder.Services.AddNeatooServices(
-    NeatooFactory.Remote,
-    typeof(IPerson).Assembly);
+using Neatoo;
+using Neatoo.RemoteFactory;
 
-builder.Services.AddRemoteNeatooPortal(
-    new Uri(builder.HostEnvironment.BaseAddress + "api/neatoo"));
+builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
+
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+    new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 ```
 
 ## Supporting Reference Files
@@ -351,5 +355,5 @@ This skill includes detailed reference documentation:
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | v10.4.0 (Collapse Base Layer) | 2026-01-04 |
-| RemoteFactory | v10.4.0 (CancellationToken) | 2026-01-04 |
+| Neatoo | v10.6.0 | 2026-01-05 |
+| RemoteFactory | v10.5.0 | 2026-01-05 |

@@ -17,6 +17,9 @@ Neatoo's rules engine handles both **validation** (is the data correct?) and **t
 The simplest validation uses standard .NET data annotations:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {
@@ -431,6 +434,9 @@ public class UniqueProductRule : RuleBase<IOrderLine>
 When one item changes, siblings may need revalidation:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class OrderLineList
     : EntityListBase<IOrderLine>, IOrderLineList

@@ -23,6 +23,9 @@ The `[Factory]` attribute marks classes for factory generation. Neatoo's source 
 For this entity:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {
@@ -512,6 +515,9 @@ Use `[Execute]` for operations that don't follow the standard CRUD lifecycle.
 ### Command Pattern
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class ChangePasswordCommand : Base<ChangePasswordCommand>, IChangePasswordCommand
 {
@@ -564,6 +570,9 @@ else
 ### Query Pattern
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class CustomerSearchQuery
     : Base<CustomerSearchQuery>, ICustomerSearchQuery
@@ -673,6 +682,9 @@ public void Create()
 Collections typically have `[Fetch]` and `[Update]` methods:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class OrderLineList
     : EntityListBase<IOrderLine>, IOrderLineList
@@ -724,6 +736,9 @@ internal partial class OrderLineList
 You can have multiple methods for each operation:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {

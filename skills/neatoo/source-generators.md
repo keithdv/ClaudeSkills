@@ -9,6 +9,9 @@ Neatoo uses Roslyn source generators to create factory interfaces, implementatio
 ### For [Factory] Classes
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 // Your code:
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
@@ -278,15 +281,25 @@ public static class NeatooServiceExtensions
 ### Usage
 
 ```csharp
-// Server
-builder.Services.AddNeatooServices(
-    NeatooFactory.Local,
-    typeof(Person).Assembly);
+// Server (use Neatoo.RemoteFactory.AspNetCore for ASP.NET Core)
+using Neatoo;
+using Neatoo.RemoteFactory;
+using Neatoo.RemoteFactory.AspNetCore;
+
+builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(Person).Assembly);
+builder.Services.AddNeatooAspNetCore(typeof(Person).Assembly);
+app.UseNeatoo();
 
 // Client
-builder.Services.AddNeatooServices(
-    NeatooFactory.Remote,
-    typeof(IPerson).Assembly);
+using Neatoo;
+using Neatoo.RemoteFactory;
+
+builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+    new HttpClient { BaseAddress = new Uri("http://localhost:5001/") });
+
+// Standalone (WPF or Integration Tests)
+builder.Services.AddNeatooServices(NeatooFactory.Logical, typeof(Person).Assembly);
 ```
 
 ## Factory Implementation Details
@@ -361,6 +374,9 @@ internal class PersonFactory : IPersonFactory
 For `EntityListBase` collections:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class PersonPhoneList
     : EntityListBase<IPersonPhone>, IPersonPhoneList
@@ -400,6 +416,9 @@ public interface IPersonPhoneListFactory
 Multiple methods generate multiple factory methods:
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {
@@ -541,6 +560,9 @@ private readonly ICustomService _customService;
 ### Use Interfaces for Public API
 
 ```csharp
+using Neatoo;
+using Neatoo.RemoteFactory;
+
 // Interface is public
 public interface IPerson : IEntityBase
 {
