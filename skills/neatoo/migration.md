@@ -2,7 +2,7 @@
 
 ## Migrate to 10.5.0 (RemoteFactory CancellationToken Support)
 
-**Release:** 10.5.0 (Planned)
+**Release:** 10.6.0 (Released 2026-01-05)
 **Breaking Changes:** Minor - infrastructure delegates/interfaces updated
 
 ### Summary
