@@ -10,6 +10,7 @@ Every interface member gets a dedicated Handler class in its interface spy prope
 | Property | `{InterfaceName}_{PropertyName}Handler` | `IInterface.PropertyName` |
 | Indexer | `{InterfaceName}_{KeyType}IndexerHandler` | `IInterface.StringIndexer`, `IInterface.IntIndexer`, etc. |
 | Event | `{InterfaceName}_{EventName}Handler` | `IInterface.EventName` |
+| Generic Method | `{InterfaceName}_{MethodName}Handler` | `IInterface.MethodName.Of<T>()` |
 
 ## Method Handler
 
@@ -404,6 +405,8 @@ Assert.Equal(5, knockOff.IProcessor.Increment.LastCallArg);  // Original input v
 | Property | `GetCount`, `SetCount`, `LastSetValue`, `OnGet`, `OnSet` | Backing field |
 | Indexer | `GetCount`, `SetCount`, `AllGetKeys`, `AllSetEntries`, `OnGet`, `OnSet` | Backing dictionary |
 | Event | `SubscribeCount`, `UnsubscribeCount`, `RaiseCount`, `AllRaises` | Handlers (use `Clear()` to remove) |
+| Generic Method | All typed handlers, `CalledTypeArguments` | - |
+| Generic Method `.Of<T>()` | `CallCount`, `AllCalls`, `OnCall` | - |
 
 ## Async Method Handlers
 
@@ -424,16 +427,120 @@ knockOff.IRepository.SaveAsync.OnCall = (ko, entity) =>
     Task.FromException<int>(new DbException("Failed"));
 ```
 
-## Default Return Values
+## Generic Method Handlers
 
-Without callback or user method:
+Generic methods use a two-tier handler with the `.Of<T>()` pattern.
 
-| Type | Default |
-|------|---------|
-| `Task` | `Task.CompletedTask` |
-| `Task<T>` | `Task.FromResult(default(T))` |
-| `ValueTask` | `default(ValueTask)` |
-| `ValueTask<T>` | `new ValueTask<T>(default(T))` |
-| Reference types (nullable) | `null` |
-| Reference types (non-nullable) | throws `InvalidOperationException` |
-| Value types | `default(T)` |
+### Base Handler Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `TotalCallCount` | `int` | Total calls across all type arguments |
+| `WasCalled` | `bool` | `true` if called with any type argument |
+| `CalledTypeArguments` | `IReadOnlyList<Type>` | All type arguments used |
+
+### Base Handler Methods
+
+| Method | Description |
+|--------|-------------|
+| `Of<T>()` | Get typed handler for specific type argument(s) |
+| `Reset()` | Clear all typed handlers |
+
+For multiple type parameters: `Of<T1, T2>()` or `Of<T1, T2, T3>()`.
+
+### Typed Handler Properties (via `.Of<T>()`)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `CallCount` | `int` | Calls with this type argument |
+| `WasCalled` | `bool` | `true` if `CallCount > 0` |
+| `LastCallArg` | `T?` | Last non-generic argument (if method has params) |
+| `AllCalls` | `IReadOnlyList<T>` | All non-generic arguments |
+| `OnCall` | Delegate | Callback for this type argument |
+
+### Typed Handler Methods
+
+| Method | Description |
+|--------|-------------|
+| `Reset()` | Clear this typed handler |
+
+### OnCall Signatures
+
+| Method Signature | OnCall Type |
+|------------------|-------------|
+| `void M<T>()` | `Action<TKnockOff>?` |
+| `void M<T>(T value)` | `Action<TKnockOff, T>?` |
+| `T M<T>()` | `Func<TKnockOff, T>?` |
+| `T M<T>(string json)` | `Func<TKnockOff, string, T>?` |
+| `TOut M<TIn, TOut>(TIn input)` | `Func<TKnockOff, TIn, TOut>?` |
+
+### Examples
+
+```csharp
+// Configure per type
+knockOff.ISerializer.Deserialize.Of<User>().OnCall = (ko, json) =>
+    JsonSerializer.Deserialize<User>(json)!;
+
+// Per-type tracking
+Assert.Equal(2, knockOff.ISerializer.Deserialize.Of<User>().CallCount);
+Assert.Equal("{...}", knockOff.ISerializer.Deserialize.Of<User>().LastCallArg);
+
+// Aggregate tracking
+Assert.Equal(5, knockOff.ISerializer.Deserialize.TotalCallCount);
+var types = knockOff.ISerializer.Deserialize.CalledTypeArguments;
+
+// Multiple type parameters
+knockOff.IConverter.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
+
+// Reset single type vs all types
+knockOff.ISerializer.Deserialize.Of<User>().Reset();  // Single type
+knockOff.ISerializer.Deserialize.Reset();              // All types
+```
+
+### Smart Defaults for Generic Methods
+
+Without `OnCall`, generic methods use runtime defaults:
+
+| Return Type | Default Behavior |
+|-------------|------------------|
+| Value type | `default(T)` |
+| Type with parameterless ctor | `new T()` |
+| Nullable reference (`T?`) | `null` |
+| Other | Throws `InvalidOperationException` |
+
+## Smart Default Return Values
+
+Without callback or user method, KnockOff returns sensible defaults:
+
+| Return Type | Default Value | Example |
+|-------------|---------------|---------|
+| Value types | `default` | `int` → `0`, `bool` → `false` |
+| Nullable refs | `null` | `string?` → `null` |
+| Types with `new()` | `new T()` | `List<T>` → empty list |
+| Collection interfaces | concrete type | `IList<T>` → `new List<T>()` |
+| `Task` | `Task.CompletedTask` | async void-like |
+| `Task<T>` | `Task.FromResult(smartDefault)` | applies smart default to `T` |
+| `ValueTask` | `default(ValueTask)` | async void-like |
+| `ValueTask<T>` | `new ValueTask<T>(smartDefault)` | applies smart default to `T` |
+| Other non-nullable | throws `InvalidOperationException` | `string`, `IDisposable` |
+
+**Collection Interface Mapping:**
+
+| Interface | Concrete Type |
+|-----------|---------------|
+| `IEnumerable<T>`, `ICollection<T>`, `IList<T>` | `List<T>` |
+| `IReadOnlyList<T>`, `IReadOnlyCollection<T>` | `List<T>` |
+| `IDictionary<K,V>`, `IReadOnlyDictionary<K,V>` | `Dictionary<K,V>` |
+| `ISet<T>` | `HashSet<T>` |
+
+```csharp
+// Examples of smart defaults
+service.GetCount();       // 0 (int)
+service.GetItems();       // new List<string>()
+service.GetIList();       // new List<string>() (from IList<string>)
+service.GetOptional();    // null (nullable ref)
+service.GetDisposable();  // throws (can't instantiate interface)
+
+// Task<T> applies smart default to inner type
+await service.GetListAsync();  // Task.FromResult(new List<string>())
+```

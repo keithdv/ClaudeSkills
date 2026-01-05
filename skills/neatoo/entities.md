@@ -5,12 +5,10 @@
 Neatoo provides a hierarchy of base classes, each adding capabilities:
 
 ```
-Base<T>                    - Property management, INotifyPropertyChanged
-  ValidateBase<T>          - Validation, rules engine, PropertyMessages
+ValidateBase<T>            - Property management, INotifyPropertyChanged, validation, rules engine
     EntityBase<T>          - Persistence awareness, modification tracking, IsNew/IsDeleted
 
-ListBase<I>                - Observable collection, parent-child
-  ValidateListBase<I>      - Validation aggregation across items
+ValidateListBase<I>        - Observable collection, parent-child, validation aggregation
     EntityListBase<I>      - DeletedList, persistence integration
 ```
 
@@ -93,8 +91,8 @@ internal partial class Person : EntityBase<Person>, IPerson
 | `IsDeleted` | bool | Delete() was called |
 | `IsSavable` | bool | `IsModified && IsValid && !IsBusy && !IsChild` |
 | `IsChild` | bool | Part of parent aggregate |
-| `Parent` | IBase? | Immediate parent in object graph |
-| `Root` | IBase? | Aggregate root (null if this IS the root) |
+| `Parent` | IValidateBase? | Immediate parent in object graph |
+| `Root` | IValidateBase? | Aggregate root (null if this IS the root) |
 | `ModifiedProperties` | IEnumerable<string> | Names of changed properties |
 | `PropertyMessages` | IReadOnlyCollection | Validation messages |
 
@@ -107,6 +105,24 @@ The framework uses entity state to route Save() calls:
 | true | false | `[Insert]` |
 | false | false | `[Update]` |
 | any | true | `[Delete]` |
+
+### Save with Cancellation
+
+Save operations support `CancellationToken` for graceful shutdown or navigation:
+
+```csharp
+try
+{
+    person = await person.Save(cancellationToken);
+}
+catch (OperationCanceledException)
+{
+    // Save was cancelled before persistence began
+    // Entity remains in its original state
+}
+```
+
+Note: Cancellation only occurs before the `[Insert]`/`[Update]`/`[Delete]` method executes. Once persistence begins, cancellation is not supported to avoid partial writes.
 
 ## ValidateBase<T> - Validation Without Persistence
 
@@ -144,30 +160,6 @@ internal partial class SearchCriteria : ValidateBase<SearchCriteria>, ISearchCri
 - `IsValid`, `IsSelfValid`, `PropertyMessages`
 - `IsBusy`, `IsSelfBusy` for async rules
 - No persistence tracking (no IsNew, IsModified, IsDeleted)
-
-## Base<T> - Minimal Property Management
-
-Use `Base<T>` for simple property containers without validation.
-
-```csharp
-[Factory]
-public class Configuration : Base<Configuration>
-{
-    public Configuration(IBaseServices<Configuration> services)
-        : base(services)
-    {
-    }
-
-    public partial string? ConnectionString { get; set; }
-    public partial int Timeout { get; set; }
-}
-```
-
-### Base<T> Features
-
-- Property management via PropertyManager
-- `INotifyPropertyChanged` implementation
-- No validation, no persistence tracking
 
 ## Value Objects
 

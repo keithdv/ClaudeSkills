@@ -273,6 +273,105 @@ if (person.IsValid)
 }
 ```
 
+## Cancellation Support
+
+All async operations support `CancellationToken` for graceful shutdown, navigation, or timeouts.
+
+### Running Rules with Cancellation
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+try
+{
+    await entity.RunRules(RunRulesFlag.All, cts.Token);
+}
+catch (OperationCanceledException)
+{
+    // Validation was cancelled
+    // entity.IsValid == false (marked invalid via MarkInvalid)
+}
+```
+
+### Waiting for Tasks with Cancellation
+
+```csharp
+try
+{
+    await entity.WaitForTasks(cancellationToken);
+}
+catch (OperationCanceledException)
+{
+    // Wait was cancelled - running tasks still complete
+}
+```
+
+### Save with Cancellation
+
+```csharp
+try
+{
+    person = await person.Save(cancellationToken);
+}
+catch (OperationCanceledException)
+{
+    // Cancelled before persistence began
+}
+```
+
+### Async Rules with CancellationToken
+
+Async rules receive the cancellation token:
+
+```csharp
+public class UniqueEmailRule : AsyncRuleBase<IPerson>
+{
+    protected override async Task<IRuleMessages> Execute(
+        IPerson target,
+        CancellationToken? token = null)
+    {
+        // Pass token to async operations
+        var exists = await _service.CheckAsync(target.Email, token ?? CancellationToken.None);
+
+        // Or check manually
+        token?.ThrowIfCancellationRequested();
+
+        return exists ? Error(nameof(target.Email), "In use") : None;
+    }
+}
+```
+
+### Fluent Rules with CancellationToken
+
+```csharp
+// Token is passed to your delegate
+RuleManager.AddActionAsync(
+    async (target, token) => target.Rate = await service.GetRateAsync(target.ZipCode, token),
+    t => t.ZipCode);
+
+RuleManager.AddValidationAsync(
+    async (target, token) => await service.ExistsAsync(target.Email, token) ? "In use" : "",
+    t => t.Email);
+```
+
+### Cancellation Design Philosophy
+
+| Principle | Behavior |
+|-----------|----------|
+| **For stopping, not recovering** | Cancellation marks the object invalid |
+| **Running tasks complete** | Only waiting is cancelled, not executing tasks |
+| **No mid-persistence cancellation** | Save only cancels before Insert/Update/Delete |
+| **Recovery requires re-validation** | Call `RunRules(RunRulesFlag.All)` to clear cancelled state |
+
+### When to Use Cancellation
+
+| Scenario | Pattern |
+|----------|---------|
+| Component disposal | `cts.Cancel()` in `Dispose()` |
+| Navigation away | Cancel before changing routes |
+| Request timeout | `new CancellationTokenSource(TimeSpan.FromSeconds(n))` |
+| User-initiated | Button triggers `cts.Cancel()` |
+
 ## Cross-Entity Validation
 
 ### Accessing Parent
@@ -639,3 +738,5 @@ protected override IRuleMessages Execute(IPerson target)
 3. **Circular rule dependencies** - A triggers B triggers A (use LoadProperty to break)
 4. **Database access in sync rules** - Use async rules for database operations
 5. **Overusing LoadProperty** - Cascading is a feature; only use LoadProperty for circular references
+6. **Not handling OperationCanceledException** - When using cancellation tokens, handle the exception
+7. **Expecting recovery after cancellation** - Cancellation marks object invalid; must call `RunRules(RunRulesFlag.All)` to recover

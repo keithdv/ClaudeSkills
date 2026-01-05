@@ -5,6 +5,9 @@
 !skills/
 !skills/**
 
+!agents/
+!agents/**
+
 # And these files
 !.gitignore
 !README.md

@@ -295,6 +295,120 @@ public partial IOrderLineList? Lines { get; set; }
 public string FullName => $"{FirstName} {LastName}";
 ```
 
+### Ordinal Serialization (10.2.0+)
+
+Ordinal serialization reduces payload sizes by 40-50% by using numeric indices instead of property names:
+
+```csharp
+// Named format (legacy)
+{"firstName":"John","lastName":"Doe","age":30}
+
+// Ordinal format (default since 10.2.0)
+{"0":"John","1":"Doe","2":30}
+```
+
+#### Configuration
+
+```csharp
+// Server configuration
+builder.Services.AddNeatooServices(
+    NeatooFactory.Local,
+    typeof(Person).Assembly,
+    options =>
+    {
+        options.SerializationFormat = SerializationFormat.Ordinal; // Default
+        // options.SerializationFormat = SerializationFormat.Named; // Legacy
+    });
+```
+
+#### Format Negotiation
+
+The `X-Neatoo-Format` HTTP header controls format selection:
+
+| Header Value | Format |
+|--------------|--------|
+| `ordinal` | Compact numeric indices (default) |
+| `named` | Traditional property names |
+
+Client and server automatically negotiate format via this header.
+
+## Logging and Distributed Tracing (10.3.0+)
+
+RemoteFactory provides structured logging with CorrelationId for distributed tracing.
+
+### Setup
+
+```csharp
+// Server Program.cs
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.SetMinimumLevel(LogLevel.Information);
+});
+
+var app = builder.Build();
+
+// Enable ambient logging for static contexts
+NeatooLogging.SetLoggerFactory(
+    app.Services.GetRequiredService<ILoggerFactory>());
+```
+
+### CorrelationId
+
+Requests are traced across client and server with a unique correlation ID:
+
+```
+[a1b2c3d4] Remote delegate call started: PersonFactory+FetchByIdDelegate
+[a1b2c3d4] Handling remote request for delegate PersonFactory+FetchByIdDelegate
+[a1b2c3d4] Factory operation Fetch started for Person
+[a1b2c3d4] Factory operation Fetch completed for Person in 12ms
+[a1b2c3d4] Remote request completed in 45ms
+```
+
+The ID propagates via:
+- `CorrelationContext.CorrelationId` ambient property (AsyncLocal)
+- `X-Correlation-Id` HTTP header
+
+### Event ID Ranges
+
+| Range | Subsystem | Examples |
+|-------|-----------|----------|
+| 1xxx | Serialization | Serialize, Deserialize, Format selection |
+| 2xxx | Factory Operations | Create, Fetch, Insert, Update, Delete |
+| 3xxx | Remote Calls (Client) | HTTP request/response, errors |
+| 4xxx | Converter Factory | Converter creation, cache hits |
+| 5xxx | Authorization | Auth checks, grants, denials |
+| 6xxx | Service Registration | DI registration events |
+| 7xxx | Server-Side Handling | Request handling, completion |
+| 8xxx | Factory Lifecycle | Start, Complete, Cancelled |
+
+### Logger Categories
+
+| Category | Purpose |
+|----------|---------|
+| `Neatoo.RemoteFactory.Internal.FactoryCore` | Factory operation lifecycle |
+| `Neatoo.RemoteFactory.Internal.NeatooJsonSerializer` | Serialization events |
+| `Neatoo.RemoteFactory.Server` | Server-side request handling |
+
+### Recommended Configuration
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Neatoo.RemoteFactory": "Information"
+    }
+  }
+}
+```
+
+| Environment | Recommended Level |
+|-------------|------------------|
+| Production | Information |
+| Development | Debug |
+| Troubleshooting | Trace |
+
 ## Authentication Integration
 
 ### Server-Side Authentication
@@ -606,6 +720,117 @@ public async Task<IPerson?> FetchWithFallback(Guid id)
 }
 ```
 
+## Cancellation Support
+
+### How It Works
+
+Cancellation flows from client to server via HTTP connection state:
+
+```
+CLIENT                                          SERVER
+┌─────────────────────────────────────┐         ┌─────────────────────────────────────┐
+│ factory.FetchAsync(id, ct)          │         │                                     │
+│   │                                 │         │                                     │
+│   ▼                                 │         │                                     │
+│ HttpClient.SendAsync(request, ct) ──┼── TCP ──┼──► HttpContext.RequestAborted       │
+│   │                                 │         │         │                           │
+│   │  ct.Cancel() ───────────────────┼─► X ────┼─► fires │                           │
+│   │                                 │  close  │         ▼                           │
+│   ▼                                 │  conn   │    Server stops processing          │
+│ OperationCanceledException          │         │                                     │
+└─────────────────────────────────────┘         └─────────────────────────────────────┘
+```
+
+### Client Usage
+
+```csharp
+// With explicit CancellationToken
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+try
+{
+    var person = await personFactory.FetchAsync(id, cts.Token);
+}
+catch (OperationCanceledException)
+{
+    // Request was cancelled (timeout or explicit cancellation)
+}
+
+// Cancel on user action
+private CancellationTokenSource? _cts;
+
+async Task LoadData()
+{
+    _cts?.Cancel();
+    _cts = new CancellationTokenSource();
+
+    try
+    {
+        Data = await factory.FetchAsync(id, _cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        // Previous request cancelled, new one in progress
+    }
+}
+```
+
+### Server-Side Handling
+
+The server combines multiple cancellation sources:
+
+| Source | When it fires |
+|--------|---------------|
+| `HttpContext.RequestAborted` | Client disconnects, browser closes, network failure |
+| `IHostApplicationLifetime.ApplicationStopping` | Server graceful shutdown |
+
+Both trigger the same CancellationToken in your factory methods.
+
+### Domain Method Implementation
+
+```csharp
+[Remote]
+[Fetch]
+public async Task<bool> FetchAsync(
+    Guid id,
+    CancellationToken cancellationToken,
+    [Service] IDbContext db)
+{
+    // Pass token to EF Core
+    var entity = await db.Orders
+        .Include(o => o.Lines)
+        .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+
+    if (entity == null) return false;
+
+    // Check at safe points for long operations
+    cancellationToken.ThrowIfCancellationRequested();
+
+    // ... process data
+    return true;
+}
+```
+
+### Lifecycle Hooks
+
+```csharp
+[Factory]
+public class Order : EntityBase<Order>, IFactoryOnCancelled
+{
+    public void FactoryCancelled(FactoryOperation operation)
+    {
+        // Clean up resources when operation is cancelled
+        _tempFile?.Delete();
+    }
+}
+```
+
+### Best Practices
+
+1. **Pass CancellationToken to all async calls** - EF Core, HttpClient, file I/O
+2. **Check cancellation at safe points** - Before expensive operations
+3. **Use transactions for atomicity** - Cancellation between DB calls leaves partial state
+4. **Handle OperationCanceledException** - Don't let it crash your UI
+
 ## Common Pitfalls
 
 1. **Wrong NeatooFactory mode** - Server needs Local, Client needs Remote
@@ -613,3 +838,4 @@ public async Task<IPerson?> FetchWithFallback(Guid id)
 3. **Referencing Domain from Client** - Client should only reference Shared
 4. **Not configuring authentication** - Endpoint unprotected by default
 5. **Large payloads** - Include only needed data in responses
+6. **Ignoring CancellationToken** - Operations continue after client disconnects

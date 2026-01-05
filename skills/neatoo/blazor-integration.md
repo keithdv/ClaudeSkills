@@ -6,7 +6,7 @@ Neatoo entities implement `INotifyPropertyChanged`, enabling automatic UI update
 
 ## Automatic UI Binding
 
-All Neatoo entities inherit from `Base<T>` which implements `INotifyPropertyChanged`:
+All Neatoo entities inherit from `ValidateBase<T>` which implements `INotifyPropertyChanged`:
 
 ```razor
 @page "/person/edit/{Id:guid}"

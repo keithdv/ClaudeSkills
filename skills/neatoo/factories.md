@@ -460,6 +460,25 @@ person.Delete();
 person = await personFactory.Save(person);  // Calls [Delete]
 ```
 
+### Save with Cancellation
+
+Save operations support `CancellationToken` for graceful shutdown, navigation, or timeouts:
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+try
+{
+    person = await personFactory.Save(person, cts.Token);
+}
+catch (OperationCanceledException)
+{
+    // Save was cancelled before persistence began
+}
+```
+
+Cancellation only occurs before the `[Insert]`/`[Update]`/`[Delete]` method executes. Once persistence begins, the operation completes to avoid partial writes.
+
 ## Critical: Always Reassign After Save
 
 **IMPORTANT**: `Save()` returns a new object instance. You must reassign:

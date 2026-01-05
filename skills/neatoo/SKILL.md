@@ -17,7 +17,7 @@ Neatoo is a Domain-Driven Design (DDD) framework for .NET that simplifies buildi
 
 Use this skill when:
 
-- Building domain entities with EntityBase, ValidateBase, or Base classes
+- Building domain entities with EntityBase or ValidateBase classes
 - Implementing business rules and validation logic
 - Creating factory classes with [Factory] attribute
 - Setting up client-server communication with RemoteFactory
@@ -25,6 +25,9 @@ Use this skill when:
 - Implementing data mapping between domain and persistence entities
 - Building Blazor UI components with MudNeatoo
 - Configuring authorization for factory operations
+- Implementing cancellation support with CancellationToken and IFactoryOnCancelled
+- Configuring logging and distributed tracing with CorrelationId
+- Optimizing serialization with ordinal format
 - Troubleshooting Neatoo source generator issues
 - Understanding Neatoo's property system and meta-properties
 
@@ -44,18 +47,18 @@ Use this skill when:
 | `[Remote]` | Method runs on server | Factory method |
 | `[Service]` | Inject service into method/record | Method parameter or record parameter |
 | `[AuthorizeFactory]` | Define authorization rule | Authorization method |
+| `IFactoryOnCancelled` | Cleanup callback on cancellation | Interface on entity |
+| `IFactoryOnCancelledAsync` | Async cleanup on cancellation | Interface on entity |
 
 **Note**: C# records (10.1.0+) support `[Create]` on the type declaration for concise Value Objects.
 
 ### Class Hierarchy
 
 ```
-Base<T>                    - INotifyPropertyChanged, property management
-  ValidateBase<T>          - Adds validation, rules engine
+ValidateBase<T>            - INotifyPropertyChanged, property management, validation, rules engine
     EntityBase<T>          - Adds persistence awareness, modification tracking
 
-ListBase<I>                - Observable collection
-  ValidateListBase<I>      - Adds validation aggregation
+ValidateListBase<I>        - Observable collection, validation aggregation
     EntityListBase<I>      - Adds DeletedList, persistence
 ```
 
@@ -314,16 +317,17 @@ builder.Services.AddRemoteNeatooPortal(
 
 This skill includes detailed reference documentation:
 
-- **entities.md** - EntityBase, ValidateBase, Base classes, Value Objects
+- **entities.md** - EntityBase, ValidateBase classes, Value Objects
 - **aggregates.md** - Aggregate roots, entity graphs, parent-child propagation
 - **rules.md** - Rules engine, validation attributes, custom rules
 - **factories.md** - Factory operations, Commands & Queries pattern
-- **client-server.md** - RemoteFactory, serialization, single endpoint
+- **client-server.md** - RemoteFactory, serialization, logging, CorrelationId
 - **properties.md** - Meta-properties, INotifyPropertyChanged, dirty tracking
 - **blazor-integration.md** - MudNeatoo components, binding patterns
 - **source-generators.md** - What gets generated, marker attributes
 - **data-mapping.md** - Factory methods (rules paused), IsModified patterns
 - **authorization.md** - AuthorizeFactory, role-based access
+- **migration.md** - Version migration guides (10.4.0: Base layer collapse)
 
 ## Common Pitfalls
 
@@ -347,5 +351,5 @@ This skill includes detailed reference documentation:
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | v10.3.0 (ContainingList) | 2026-01-03 |
-| RemoteFactory | `27760f8` | 2026-01-01 |
+| Neatoo | v10.4.0 (Collapse Base Layer) | 2026-01-04 |
+| RemoteFactory | v10.4.0 (CancellationToken) | 2026-01-04 |

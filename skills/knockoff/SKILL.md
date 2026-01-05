@@ -147,22 +147,53 @@ knockOff.IParser.TryParse.OnCall =
     });
 ```
 
+## Smart Default Return Values
+
+KnockOff returns sensible defaults for unconfigured methods instead of throwing:
+
+| Return Type | Default Value | Example |
+|-------------|---------------|---------|
+| Value types | `default` | `int` → `0`, `bool` → `false` |
+| Nullable refs | `null` | `string?` → `null` |
+| Types with `new()` | `new T()` | `List<T>` → empty list |
+| Collection interfaces | concrete type | `IList<T>` → `new List<T>()` |
+| Other non-nullable | throws | `string`, `IDisposable` |
+
+```csharp
+var knockOff = new ServiceKnockOff();
+IService service = knockOff;
+
+// No configuration needed
+var count = service.GetCount();       // 0 (value type)
+var items = service.GetItems();       // new List<string>() (has new())
+var list = service.GetIList();        // new List<string>() (IList<T> → List<T>)
+var optional = service.GetOptional(); // null (nullable ref)
+
+// Only throws for types that can't be safely defaulted
+service.GetDisposable();  // throws - can't instantiate IDisposable
+```
+
+**Collection Interface Mapping:**
+
+| Interface | Concrete Type |
+|-----------|---------------|
+| `IEnumerable<T>`, `ICollection<T>`, `IList<T>` | `List<T>` |
+| `IReadOnlyList<T>`, `IReadOnlyCollection<T>` | `List<T>` |
+| `IDictionary<K,V>`, `IReadOnlyDictionary<K,V>` | `Dictionary<K,V>` |
+| `ISet<T>` | `HashSet<T>` |
+
 ## Stub Minimalism
 
 **Only stub what the test needs.** Don't implement every interface member.
 
-KnockOff generates explicit interface implementations for ALL members. Members without user-defined behavior:
-- **Non-nullable returns**: throw `InvalidOperationException` (fail-fast)
-- **Nullable returns**: return `null`/`default`
-- **Void methods**: execute silently (tracking still works)
-
 ```csharp
-// GOOD - minimal stub for a test that only calls GetUser
+// GOOD - minimal stub, most methods just work with smart defaults
 [KnockOff]
 public partial class UserServiceKnockOff : IUserService
 {
+    // Only define methods needing custom behavior
     protected User GetUser(int id) => new User { Id = id };
-    // SaveUser, GetAllAsync, DeleteUser will throw if called - good!
+    // GetCount returns 0, GetUsers() returns new List<User>(), etc.
 }
 ```
 
@@ -251,10 +282,11 @@ knockOff.IPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
 ```
 1. Callback (if set) → takes precedence
 2. User method (if defined) → fallback for methods
-3. Default:
-   - Properties: backing field value
-   - Methods: null for nullable, throw for non-nullable, silent for void
-   - Indexers: backing dictionary, then null/throw based on nullability
+3. Smart default:
+   - Properties: backing field (initialized via smart defaults)
+   - Methods: smart default (value types→default, new()→new T(), etc.)
+   - Indexers: backing dictionary, then smart default
+   - Void methods: execute silently
 ```
 
 ## Verification Patterns
@@ -339,10 +371,12 @@ Assert.Equal(value1, store["key1"]);
 | Ref parameters | Supported |
 | Async methods (Task, Task<T>, ValueTask, ValueTask<T>) | Supported |
 | Generic interfaces (concrete types) | Supported |
+| Generic methods (via `.Of<T>()` pattern) | Supported |
 | Multiple interfaces | Supported |
 | Interface inheritance | Supported |
 | Indexers | Supported |
 | Events | Supported |
+| Nested classes | Supported |
 | User method detection | Supported |
 | OnCall/OnGet/OnSet callbacks | Supported |
 | Named tuple argument tracking | Supported |
@@ -420,6 +454,56 @@ knockOff.IEventSource.DataReceived.Reset();  // Clears tracking, keeps handlers
 knockOff.IEventSource.DataReceived.Clear();  // Clears tracking AND handlers
 ```
 
+### Generic Methods
+
+Generic methods use the `.Of<T>()` pattern for type-specific configuration:
+
+```csharp
+public interface ISerializer
+{
+    T Deserialize<T>(string json);
+    TOut Convert<TIn, TOut>(TIn input);
+}
+
+[KnockOff]
+public partial class SerializerKnockOff : ISerializer { }
+
+var knockOff = new SerializerKnockOff();
+ISerializer service = knockOff;
+
+// Configure behavior per type argument
+knockOff.ISerializer.Deserialize.Of<User>().OnCall = (ko, json) =>
+    JsonSerializer.Deserialize<User>(json)!;
+
+knockOff.ISerializer.Deserialize.Of<Order>().OnCall = (ko, json) =>
+    new Order { Id = 123 };
+
+// Per-type call tracking
+service.Deserialize<User>("{...}");
+service.Deserialize<User>("{...}");
+service.Deserialize<Order>("{...}");
+
+Assert.Equal(2, knockOff.ISerializer.Deserialize.Of<User>().CallCount);
+Assert.Equal(1, knockOff.ISerializer.Deserialize.Of<Order>().CallCount);
+
+// Aggregate tracking across all type arguments
+Assert.Equal(3, knockOff.ISerializer.Deserialize.TotalCallCount);
+Assert.True(knockOff.ISerializer.Deserialize.WasCalled);
+
+// See which types were called
+var types = knockOff.ISerializer.Deserialize.CalledTypeArguments;
+// [typeof(User), typeof(Order)]
+
+// Multiple type parameters
+knockOff.ISerializer.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
+
+// Smart defaults for unconfigured generic methods:
+// - Value types → default(T)
+// - Types with new() → new T()
+// - Nullable returns → null
+// - Other → throws InvalidOperationException
+```
+
 ### Method Overloads
 
 When an interface has overloaded methods, each overload gets its own handler with a **numeric suffix** (1-based):
@@ -459,6 +543,45 @@ Methods without overloads don't get a suffix:
 ```csharp
 knockOff.IEmailService.SendEmail.CallCount;  // Single method - no suffix
 ```
+
+### Nested Classes
+
+KnockOff stubs can be nested inside test classes:
+
+```csharp
+public partial class UserServiceTests  // Must be partial!
+{
+    [KnockOff]
+    public partial class RepositoryKnockOff : IRepository { }
+
+    [Fact]
+    public void Test_Something()
+    {
+        var knockOff = new RepositoryKnockOff();
+        // ...
+    }
+}
+```
+
+**Critical:** All containing classes must be `partial`. This is a C# requirement—the generator produces partial class wrappers that must merge with your declarations.
+
+```csharp
+// ❌ Won't compile
+public class MyTests
+{
+    [KnockOff]
+    public partial class ServiceKnockOff : IService { }
+}
+
+// ✅ Correct
+public partial class MyTests
+{
+    [KnockOff]
+    public partial class ServiceKnockOff : IService { }
+}
+```
+
+Works at any nesting depth—just ensure every class in the hierarchy is `partial`.
 
 ### Out Parameters
 
