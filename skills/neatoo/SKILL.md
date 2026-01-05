@@ -351,5 +351,5 @@ This skill includes detailed reference documentation:
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | v10.4.0 (Collapse Base Layer) | 2026-01-04 |
-| RemoteFactory | v10.4.0 (CancellationToken) | 2026-01-04 |
+| Neatoo | v10.6.0 (RemoteFactory Upgrade) | 2026-01-05 |
+| RemoteFactory | v10.5.0 (CancellationToken) | 2026-01-05 |
