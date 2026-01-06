@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Search",
+      "Read",
+      "Update",
+      "Grep",
+      "Bash",
+      "Glob",
+      "Write",
+      "Edit(C:\\Users\\KeithVoels\\.claude\\skills\\**)",
+      "Edit(C:\\Users\\KeithVoels\\.claude\\agents\\**)",
+      "Edit(C:\\Users\\KeithVoels\\.claude\\settings.json)",
+      "Edit(C:\\src\\**)",
+      "Edit(C:\\Users\\KeithVoels\\source\\repos\\**)",
+      "Read(C:\\Users\\KeithVoels\\.claude\\skills\\**)",
+      "Read(C:\\Users\\KeithVoels\\.claude\\agents\\**)",
+      "Read(C:\\src\\**)",
+      "Read(C:\\Users\\KeithVoels\\source\\repost\\**)",
+      "Search(C:\\Users\\KeithVoels\\**)",
+      "Search(~\\**)",
+      "Grep(C:\\Users\\KeithVoels\\.claude\\**)",
+      "Glob(C:\\Users\\KeithVoels\\.claude\\skills\\**)",
+      "Glob(C:\\Users\\KeithVoels\\.claude\\agents\\**)",
+      "Glob(C:\\src\\**)",
+      "Glob(C:\\Users\\KeithVoels\\source\\repos\\**)",
+      "Write(C:\\Users\\KeithVoels\\.claude\\skills\\**)",
+      "Write(C:\\Users\\KeithVoels\\.claude\\agents\\**)",
+      "Write(C:\\Users\\KeithVoels\\.claude\\settings.json)",
+      "Write(C:\\src\\**)",
+      "Write(C:\\Users\\KeithVoels\\source\\repos\\**)"
+    ]
+  },
+  "additionalDirectories": ["C:\\Users\\KeithVoels\\source\\repos", "C:\\src", "C:\\Users\\KeithVoels\\.claude\\skills", "C:\\Users\\KeithVoels\\.claude\\agents"],
+  "alwaysThinkingEnabled": true,
+  "model": "opus",
+  "permissionMode": "acceptEdits"
+}
