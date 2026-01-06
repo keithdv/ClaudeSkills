@@ -59,38 +59,57 @@ All Neatoo entities inherit from `ValidateBase<T>` which implements `INotifyProp
 dotnet add package Neatoo.Blazor.MudNeatoo
 ```
 
-### MudNeatooTextField
+### Namespaces
+
+Add these to your `_Imports.razor`:
 
 ```razor
-@using Neatoo.Blazor.MudNeatoo
-
-<MudNeatooTextField For="() => _person.FirstName"
-                    Label="First Name"
-                    Required="true" />
-
-<MudNeatooTextField For="() => _person.Email"
-                    Label="Email"
-                    InputType="InputType.Email" />
+@using Neatoo.Blazor.MudNeatoo.Components
+@using Neatoo.Blazor.MudNeatoo.Validation
 ```
 
+### MudNeatooTextField
+
+**IMPORTANT**: MudNeatoo components use `EntityProperty` parameter with the entity indexer, not a `For` expression.
+
+```razor
+@* Access property via entity indexer *@
+<MudNeatooTextField T="string?"
+                    EntityProperty="@(_person[nameof(_person.FirstName)])"
+                    Placeholder="First Name" />
+
+<MudNeatooTextField T="string?"
+                    EntityProperty="@(_person[nameof(_person.Email)])"
+                    Placeholder="Email" />
+```
+
+**Parameters:**
+- `EntityProperty` - The entity property from indexer (required)
+- `T` - Type parameter for the value type
+- `Placeholder` - Placeholder text
+- `HelperText` - Helper text below the field
+- `Variant` - MudBlazor variant styling
+- `Margin` - MudBlazor margin setting
+- `Lines` - For multiline text
+- `Adornment`, `AdornmentIcon`, `AdornmentColor` - Icon adornments
+- `Class` - CSS class
+
 **Features:**
-- Automatic two-way binding
+- Automatic two-way binding via entity property
 - Displays validation messages from PropertyMessages
 - Shows busy indicator during async validation
 - Applies error styling when invalid
-- Uses [DisplayName] attribute if Label not specified
 
 ### MudNeatooNumericField
 
 ```razor
-<MudNeatooNumericField For="() => _orderLine.Quantity"
-                       Label="Quantity"
-                       Min="1"
-                       Max="1000" />
+<MudNeatooNumericField T="int"
+                       EntityProperty="@(_orderLine[nameof(_orderLine.Quantity)])"
+                       Placeholder="Quantity" />
 
-<MudNeatooNumericField For="() => _orderLine.UnitPrice"
-                       Label="Unit Price"
-                       Format="C2"
+<MudNeatooNumericField T="decimal"
+                       EntityProperty="@(_orderLine[nameof(_orderLine.UnitPrice)])"
+                       Placeholder="Unit Price"
                        Adornment="Adornment.Start"
                        AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
 ```
@@ -98,21 +117,19 @@ dotnet add package Neatoo.Blazor.MudNeatoo
 ### MudNeatooDatePicker
 
 ```razor
-<MudNeatooDatePicker For="() => _order.OrderDate"
-                     Label="Order Date"
-                     Required="true" />
+<MudNeatooDatePicker EntityProperty="@(_order[nameof(_order.OrderDate)])"
+                     Placeholder="Order Date" />
 
-<MudNeatooDatePicker For="() => _order.ShipDate"
-                     Label="Ship Date"
-                     MinDate="@_order.OrderDate" />
+<MudNeatooDatePicker EntityProperty="@(_order[nameof(_order.ShipDate)])"
+                     Placeholder="Ship Date" />
 ```
 
 ### MudNeatooSelect
 
 ```razor
 @* Enum binding *@
-<MudNeatooSelect For="() => _phone.PhoneType"
-                 Label="Phone Type">
+<MudNeatooSelect T="PhoneType"
+                 EntityProperty="@(_phone[nameof(_phone.PhoneType)])">
     @foreach (PhoneType type in Enum.GetValues<PhoneType>())
     {
         <MudSelectItem Value="@type">@type</MudSelectItem>
@@ -120,9 +137,8 @@ dotnet add package Neatoo.Blazor.MudNeatoo
 </MudNeatooSelect>
 
 @* Collection binding *@
-<MudNeatooSelect For="() => _order.CustomerId"
-                 Label="Customer"
-                 T="Guid?">
+<MudNeatooSelect T="Guid?"
+                 EntityProperty="@(_order[nameof(_order.CustomerId)])">
     @foreach (var customer in _customers)
     {
         <MudSelectItem Value="@customer.Id">@customer.Name</MudSelectItem>
@@ -133,11 +149,11 @@ dotnet add package Neatoo.Blazor.MudNeatoo
 ### MudNeatooCheckBox
 
 ```razor
-<MudNeatooCheckBox For="() => _order.IsRush"
-                   Label="Rush Order" />
+<MudNeatooCheckBox T="bool"
+                   EntityProperty="@(_order[nameof(_order.IsRush)])" />
 
-<MudNeatooCheckBox For="() => _person.IsActive"
-                   Label="Active"
+<MudNeatooCheckBox T="bool"
+                   EntityProperty="@(_person[nameof(_person.IsActive)])"
                    Color="Color.Primary" />
 ```
 
@@ -149,8 +165,18 @@ dotnet add package Neatoo.Blazor.MudNeatoo
 @* With custom styling *@
 <NeatooValidationSummary Entity="_person"
                          Class="validation-errors"
-                         ShowPropertyNames="true" />
+                         IncludePropertyNames="true" />
 ```
+
+**Parameters:**
+- `Entity` - The entity implementing IValidateMetaProperties (required)
+- `ShowHeader` - Show/hide the header
+- `HeaderText` - Custom header text
+- `Variant` - MudBlazor variant styling
+- `Dense` - Dense display mode
+- `Elevation` - Paper elevation
+- `Class` - CSS class
+- `IncludePropertyNames` - Include property names with messages
 
 ## Manual Binding Patterns
 
@@ -218,7 +244,7 @@ dotnet add package Neatoo.Blazor.MudNeatoo
     private IEnumerable<IPropertyMessage> GetMessagesFor(string propertyName)
     {
         return _person.PropertyMessages
-            .Where(m => m.PropertyName == propertyName);
+            .Where(m => m.Property.Name == propertyName);
     }
 }
 ```
@@ -431,13 +457,15 @@ dotnet add package Neatoo.Blazor.MudNeatoo
     <Columns>
         <PropertyColumn Property="x => x.ProductName" Title="Product">
             <EditTemplate>
-                <MudNeatooTextField For="() => context.Item.ProductName" />
+                <MudNeatooTextField T="string?"
+                                   EntityProperty="@(context.Item[nameof(context.Item.ProductName)])" />
             </EditTemplate>
         </PropertyColumn>
 
         <PropertyColumn Property="x => x.Quantity" Title="Qty">
             <EditTemplate>
-                <MudNeatooNumericField For="() => context.Item.Quantity" />
+                <MudNeatooNumericField T="int"
+                                      EntityProperty="@(context.Item[nameof(context.Item.Quantity)])" />
             </EditTemplate>
         </PropertyColumn>
 
@@ -613,9 +641,15 @@ else
 {
     <MudPaper Class="pa-4">
         <MudForm>
-            <MudNeatooTextField For="() => _person.FirstName" Label="First Name" />
-            <MudNeatooTextField For="() => _person.LastName" Label="Last Name" />
-            <MudNeatooTextField For="() => _person.Email" Label="Email" />
+            <MudNeatooTextField T="string?"
+                               EntityProperty="@(_person[nameof(_person.FirstName)])"
+                               Placeholder="First Name" />
+            <MudNeatooTextField T="string?"
+                               EntityProperty="@(_person[nameof(_person.LastName)])"
+                               Placeholder="Last Name" />
+            <MudNeatooTextField T="string?"
+                               EntityProperty="@(_person[nameof(_person.Email)])"
+                               Placeholder="Email" />
 
             @if (!_person.IsValid)
             {

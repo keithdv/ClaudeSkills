@@ -91,8 +91,11 @@ Access via indexer: `entity[nameof(entity.PropertyName)]`
 ### Basic Entity Pattern
 
 ```csharp
+using System.ComponentModel.DataAnnotations;
 using Neatoo;
 using Neatoo.RemoteFactory;
+
+namespace MyApp.Domain;
 
 public interface IPerson : IEntityBase
 {
@@ -128,61 +131,10 @@ internal partial class Person : EntityBase<Person>, IPerson
     {
         // Initialize new entity
     }
-
-    [Remote]
-    [Fetch]
-    public async Task<bool> Fetch([Service] IDbContext db)
-    {
-        var entity = await db.Persons.FindAsync(Id);
-        if (entity == null) return false;
-
-        // Rules are paused in factory methods
-        Id = entity.Id;
-        FirstName = entity.FirstName;
-        LastName = entity.LastName;
-        return true;
-    }
-
-    [Remote]
-    [Insert]
-    public async Task Insert([Service] IDbContext db)
-    {
-        Id = Guid.NewGuid();
-        var entity = new PersonEntity
-        {
-            Id = Id.Value,
-            FirstName = FirstName,
-            LastName = LastName
-        };
-        db.Persons.Add(entity);
-        await db.SaveChangesAsync();
-    }
-
-    [Remote]
-    [Update]
-    public async Task Update([Service] IDbContext db)
-    {
-        var entity = await db.Persons.FindAsync(Id);
-        if (this[nameof(FirstName)].IsModified)
-            entity.FirstName = FirstName;
-        if (this[nameof(LastName)].IsModified)
-            entity.LastName = LastName;
-        await db.SaveChangesAsync();
-    }
-
-    [Remote]
-    [Delete]
-    public async Task Delete([Service] IDbContext db)
-    {
-        var entity = await db.Persons.FindAsync(Id);
-        if (entity != null)
-        {
-            db.Persons.Remove(entity);
-            await db.SaveChangesAsync();
-        }
-    }
 }
 ```
+
+For database operations (Fetch, Insert, Update, Delete), see the **data-mapping.md** reference file.
 
 ### Record Value Objects (10.1.0+)
 
@@ -273,7 +225,7 @@ person = await personFactory.Save(person);
 
 ### Data Loading Pattern
 
-In factory methods, **rules are paused** - use property setters directly:
+In factory methods, **rules are paused** - use property setters directly. See **data-mapping.md** for full CRUD examples and infrastructure setup.
 
 ```csharp
 [Remote]
@@ -293,29 +245,44 @@ public async Task<bool> Fetch([Service] IDbContext db)
 
 ### Client-Server Setup
 
+**Required NuGet Packages:**
+- **Domain project**: `Neatoo`, `Neatoo.RemoteFactory`
+- **Server project**: `Neatoo.RemoteFactory.AspNetCore` (+ reference to Domain project)
+- **Client project**: Reference to Domain project (gets Neatoo packages transitively)
+
 **Server (Program.cs):**
 ```csharp
 using Neatoo;
 using Neatoo.RemoteFactory;
 using Neatoo.RemoteFactory.AspNetCore;
+using MyApp.Domain;  // Import your domain namespace
 
-// Both calls are required
-builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(Person).Assembly);
-builder.Services.AddNeatooAspNetCore(typeof(Person).Assembly);
+var builder = WebApplication.CreateBuilder(args);
+
+// Both calls are required - use a public type (like interface) to get assembly
+builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembly);
+builder.Services.AddNeatooAspNetCore(typeof(IPerson).Assembly);
+
+var app = builder.Build();
 
 app.UseNeatoo();  // Maps /api/neatoo with cancellation support
+
+app.Run();
 ```
 
 **Client (Program.cs):**
 ```csharp
 using Neatoo;
 using Neatoo.RemoteFactory;
+using MyApp.Domain;  // Import your domain namespace
 
 builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 
 builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
     new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 ```
+
+**Note**: Use a public type (like the interface `IPerson`) to get the assembly reference. The entity class is typically `internal`.
 
 ## Supporting Reference Files
 
@@ -342,6 +309,8 @@ This skill includes detailed reference documentation:
 5. **Not handling null from Fetch** - Fetch returns null/false when not found
 6. **Checking IsValid instead of IsSavable** - IsSavable includes all necessary checks
 7. **Overusing LoadProperty** - Cascading rules are a feature; LoadProperty only for circular references
+8. **Missing namespace declaration** - Entities without a namespace generate into `MissingNamespace`
+9. **Missing using for validation attributes** - `[Required]` needs `using System.ComponentModel.DataAnnotations;`
 
 ## Repository References
 

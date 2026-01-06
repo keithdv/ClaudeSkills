@@ -129,6 +129,9 @@ For complex validation logic, create custom rule classes:
 ### Rule Base Class
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class EmailDomainRule : RuleBase<IPerson>
 {
     private readonly string[] _allowedDomains;
@@ -142,18 +145,20 @@ public class EmailDomainRule : RuleBase<IPerson>
     protected override IRuleMessages Execute(IPerson target)
     {
         if (string.IsNullOrEmpty(target.Email))
-            return None;  // Let [Required] handle empty
+            return RuleMessages.None;  // Let [Required] handle empty
 
         var domain = target.Email.Split('@').LastOrDefault();
 
         if (!_allowedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
         {
-            return Error(
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(
                 nameof(target.Email),
-                $"Email domain must be one of: {string.Join(", ", _allowedDomains)}");
+                $"Email domain must be one of: {string.Join(", ", _allowedDomains)}"));
+            return messages;
         }
 
-        return None;
+        return RuleMessages.None;
     }
 }
 ```
@@ -172,6 +177,9 @@ public Person(IEntityBaseServices<Person> services) : base(services)
 ### Multiple Trigger Properties
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class DateRangeRule : RuleBase<IDateRange>
 {
     public DateRangeRule()
@@ -182,16 +190,18 @@ public class DateRangeRule : RuleBase<IDateRange>
     protected override IRuleMessages Execute(IDateRange target)
     {
         if (target.StartDate == null || target.EndDate == null)
-            return None;
+            return RuleMessages.None;
 
         if (target.EndDate < target.StartDate)
         {
-            return Error(
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(
                 nameof(target.EndDate),
-                "End date must be after start date");
+                "End date must be after start date"));
+            return messages;
         }
 
-        return None;
+        return RuleMessages.None;
     }
 }
 ```
@@ -221,7 +231,10 @@ protected override IRuleMessages Execute(IOrder target)
 For validation requiring database access, use async rules:
 
 ```csharp
-public class UniqueEmailRule : RuleBaseAsync<IPerson>
+using Neatoo;
+using Neatoo.Rules;
+
+public class UniqueEmailRule : AsyncRuleBase<IPerson>
 {
     private readonly IEmailService _emailService;
 
@@ -231,18 +244,22 @@ public class UniqueEmailRule : RuleBaseAsync<IPerson>
         _emailService = emailService;
     }
 
-    protected override async Task<IRuleMessages> ExecuteAsync(IPerson target)
+    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
     {
         if (string.IsNullOrEmpty(target.Email))
-            return None;
+            return RuleMessages.None;
 
         var exists = await _emailService.EmailExistsAsync(
             target.Email,
             target.Id);  // Exclude current entity
 
-        return exists
-            ? Error(nameof(target.Email), "Email address is already registered")
-            : None;
+        if (exists)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Email), "Email address is already registered"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -327,6 +344,9 @@ catch (OperationCanceledException)
 Async rules receive the cancellation token:
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class UniqueEmailRule : AsyncRuleBase<IPerson>
 {
     protected override async Task<IRuleMessages> Execute(
@@ -339,7 +359,13 @@ public class UniqueEmailRule : AsyncRuleBase<IPerson>
         // Or check manually
         token?.ThrowIfCancellationRequested();
 
-        return exists ? Error(nameof(target.Email), "In use") : None;
+        if (exists)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Email), "In use"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -380,6 +406,9 @@ RuleManager.AddValidationAsync(
 ### Accessing Parent
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class QuantityLimitRule : RuleBase<IOrderLine>
 {
     public QuantityLimitRule()
@@ -390,15 +419,18 @@ public class QuantityLimitRule : RuleBase<IOrderLine>
     protected override IRuleMessages Execute(IOrderLine target)
     {
         var order = target.Parent as IOrder;
-        if (order == null) return None;
+        if (order == null) return RuleMessages.None;
 
         // Business rule: VIP customers can order more
         var maxQuantity = order.CustomerType == CustomerType.VIP ? 1000 : 100;
 
-        return target.Quantity > maxQuantity
-            ? Error(nameof(target.Quantity),
-                   $"Maximum quantity is {maxQuantity}")
-            : None;
+        if (target.Quantity > maxQuantity)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Quantity), $"Maximum quantity is {maxQuantity}"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -406,6 +438,9 @@ public class QuantityLimitRule : RuleBase<IOrderLine>
 ### Accessing Siblings
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class UniqueProductRule : RuleBase<IOrderLine>
 {
     public UniqueProductRule()
@@ -416,15 +451,19 @@ public class UniqueProductRule : RuleBase<IOrderLine>
     protected override IRuleMessages Execute(IOrderLine target)
     {
         var order = target.Parent as IOrder;
-        if (order?.Lines == null) return None;
+        if (order?.Lines == null) return RuleMessages.None;
 
         var isDuplicate = order.Lines
             .Where(l => l != target)
             .Any(l => l.ProductName == target.ProductName);
 
-        return isDuplicate
-            ? Error(nameof(target.ProductName), "Product already in order")
-            : None;
+        if (isDuplicate)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.ProductName), "Product already in order"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -504,16 +543,19 @@ public async Task<bool> Fetch([Service] IDbContext db)
 When a rule sets a property, **dependent rules run automatically**. This cascading behavior is intentional and essential for maintaining domain consistency.
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class OrderTotalRule : RuleBase<IOrder>
 {
-    public override IRuleMessages Execute(IOrder target)
+    protected override IRuleMessages Execute(IOrder target)
     {
         var total = target.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0;
 
         // Property setter triggers any rules that depend on Total - this is correct!
         target.Total = total;
 
-        return None;
+        return RuleMessages.None;
     }
 }
 ```
@@ -532,31 +574,34 @@ LoadProperty(nameof(target.InternalValue), calculated);
 ### Creating Messages
 
 ```csharp
+using Neatoo.Rules;
+
 // Single error
-return Error(nameof(target.Email), "Invalid email");
+var messages = new RuleMessages();
+messages.Add(new RuleMessage(nameof(target.Email), "Invalid email"));
+return messages;
 
 // No errors
-return None;
+return RuleMessages.None;
 
 // Multiple errors
-return new[]
-{
-    (nameof(target.StartDate), "Start date is required"),
-    (nameof(target.EndDate), "End date is required")
-}.AsRuleMessages();
+var messages = new RuleMessages();
+messages.Add(new RuleMessage(nameof(target.StartDate), "Start date is required"));
+messages.Add(new RuleMessage(nameof(target.EndDate), "End date is required"));
+return messages;
 ```
 
 ### Message Severity
 
+RuleMessage constructor accepts an optional severity parameter:
+
 ```csharp
-// Error - prevents save
-return Error(propertyName, message);
+using Neatoo.Rules;
 
-// Warning - allows save but shows warning
-return Warning(propertyName, message);
+// Error (default) - prevents save
+messages.Add(new RuleMessage(propertyName, message));  // Severity.Error is default
 
-// Information - informational message
-return Info(propertyName, message);
+// For different severities, check the RuleMessage constructor overloads
 ```
 
 ### Accessing Messages
@@ -583,7 +628,10 @@ For validation requiring database access:
 ### Pattern 1: Async Rule with Injected Service
 
 ```csharp
-public class UniqueEmailRule : RuleBaseAsync<IPerson>
+using Neatoo;
+using Neatoo.Rules;
+
+public class UniqueEmailRule : AsyncRuleBase<IPerson>
 {
     private readonly IPersonRepository _repository;
 
@@ -593,18 +641,22 @@ public class UniqueEmailRule : RuleBaseAsync<IPerson>
         _repository = repository;
     }
 
-    protected override async Task<IRuleMessages> ExecuteAsync(IPerson target)
+    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
     {
         if (string.IsNullOrEmpty(target.Email))
-            return None;
+            return RuleMessages.None;
 
         var exists = await _repository.EmailExistsAsync(
             target.Email,
             target.Id);
 
-        return exists
-            ? Error(nameof(target.Email), "Email already registered")
-            : None;
+        if (exists)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Email), "Email already registered"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -625,7 +677,10 @@ public Person(
 Check only on server to avoid unnecessary API calls:
 
 ```csharp
-public class UniqueEmailRule : RuleBaseAsync<IPerson>
+using Neatoo;
+using Neatoo.Rules;
+
+public class UniqueEmailRule : AsyncRuleBase<IPerson>
 {
     private readonly IPersonRepository? _repository;
 
@@ -635,20 +690,24 @@ public class UniqueEmailRule : RuleBaseAsync<IPerson>
         _repository = repository;
     }
 
-    protected override async Task<IRuleMessages> ExecuteAsync(IPerson target)
+    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
     {
         // Skip on client (repository not available)
         if (_repository == null)
-            return None;
+            return RuleMessages.None;
 
         // Full check on server
         var exists = await _repository.EmailExistsAsync(
             target.Email,
             target.Id);
 
-        return exists
-            ? Error(nameof(target.Email), "Email already registered")
-            : None;
+        if (exists)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Email), "Email already registered"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -681,6 +740,9 @@ RuleManager.AddRule(new FullNameLengthRule());  // Triggers on FullName
 ### Keep Rules Focused
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 // GOOD - single responsibility
 public class EmailFormatRule : RuleBase<IPerson>
 {
@@ -690,9 +752,9 @@ public class EmailFormatRule : RuleBase<IPerson>
     }
 }
 
-public class UniqueEmailRule : RuleBaseAsync<IPerson>
+public class UniqueEmailRule : AsyncRuleBase<IPerson>
 {
-    protected override async Task<IRuleMessages> ExecuteAsync(IPerson target)
+    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
     {
         // Only checks uniqueness
     }
@@ -730,7 +792,7 @@ protected override IRuleMessages Execute(IPerson target)
 {
     // Let [Required] handle null/empty
     if (string.IsNullOrEmpty(target.Email))
-        return None;
+        return RuleMessages.None;
 
     // Now validate format
     // ...

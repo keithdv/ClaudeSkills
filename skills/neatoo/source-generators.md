@@ -483,13 +483,18 @@ var restored = JsonSerializer.Deserialize<IPerson>(json);
 
 ### Viewing Generated Code
 
-In Visual Studio:
+**In Visual Studio:**
 1. Expand Dependencies > Analyzers > Neatoo.SourceGenerators
 2. View generated `.g.cs` files
 
-In Rider:
-1. Navigate to generated sources folder
-2. Files are in `obj/Generated/`
+**In Rider / VS Code:**
+1. Add `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>` to your `.csproj` PropertyGroup
+2. Build the project
+3. Files are in `obj/Debug/net10.0/generated/`
+
+**Generated File Locations:**
+- Property implementations: `Neatoo.BaseGenerator/Neatoo.BaseGenerator.PartialBaseGenerator/{Namespace}.{ClassName}.g.cs`
+- Factory interface/class: `Neatoo.Generator/Neatoo.Factory/{Namespace}.{ClassName}Factory.g.cs`
 
 ### Common Generator Errors
 

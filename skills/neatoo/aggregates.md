@@ -115,7 +115,7 @@ using Neatoo.RemoteFactory;
 
 public interface IOrderLineList : IEntityListBase<IOrderLine>
 {
-    Task<IOrderLine> AddLine();
+    IOrderLine AddLine();
     void RemoveLine(IOrderLine line);
     decimal CalculateTotal();
 }
@@ -126,16 +126,14 @@ internal partial class OrderLineList
 {
     private readonly IOrderLineFactory _lineFactory;
 
-    public OrderLineList(
-        IEntityListBaseServices<IOrderLine> services,
-        IOrderLineFactory lineFactory) : base(services)
+    public OrderLineList(IOrderLineFactory lineFactory)
     {
         _lineFactory = lineFactory;
     }
 
-    public async Task<IOrderLine> AddLine()
+    public IOrderLine AddLine()
     {
-        var line = await _lineFactory.Create();
+        var line = _lineFactory.Create();
         Add(line);
         return line;
     }
@@ -149,8 +147,13 @@ internal partial class OrderLineList
     {
         return this.Sum(l => l.LineTotal);
     }
+
+    [Create]
+    public void Create() { }
 }
 ```
+
+**Note:** `EntityListBase<T>` has a parameterless base constructor. Inject dependencies you need (like child factories) directly in your constructor.
 
 ## Parent-Child Relationships
 
@@ -426,6 +429,9 @@ internal partial class OrderLineList
 ### Rules Accessing Siblings
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class UniqueProductRule : RuleBase<IOrderLine>
 {
     public UniqueProductRule()
@@ -434,15 +440,19 @@ public class UniqueProductRule : RuleBase<IOrderLine>
     protected override IRuleMessages Execute(IOrderLine target)
     {
         var parent = target.Parent as IOrder;
-        if (parent?.Lines == null) return None;
+        if (parent?.Lines == null) return RuleMessages.None;
 
         var isDuplicate = parent.Lines
             .Where(l => l != target)
             .Any(l => l.ProductName == target.ProductName);
 
-        return isDuplicate
-            ? Error(nameof(target.ProductName), "Product already exists in order")
-            : None;
+        if (isDuplicate)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.ProductName), "Product already exists in order"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -450,6 +460,9 @@ public class UniqueProductRule : RuleBase<IOrderLine>
 ### Rules Accessing Root
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class QuantityLimitRule : RuleBase<IOrderLine>
 {
     public QuantityLimitRule()
@@ -463,10 +476,13 @@ public class QuantityLimitRule : RuleBase<IOrderLine>
         // Business rule: VIP customers can order more
         var maxQuantity = order?.CustomerType == CustomerType.VIP ? 1000 : 100;
 
-        return target.Quantity > maxQuantity
-            ? Error(nameof(target.Quantity),
-                   $"Maximum quantity is {maxQuantity}")
-            : None;
+        if (target.Quantity > maxQuantity)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Quantity), $"Maximum quantity is {maxQuantity}"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```
@@ -732,6 +748,9 @@ public partial Guid? CustomerId { get; set; }
 ### Enforce Invariants at Root Level
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class OrderTotalRule : RuleBase<IOrder>
 {
     public OrderTotalRule()
@@ -739,9 +758,13 @@ public class OrderTotalRule : RuleBase<IOrder>
 
     protected override IRuleMessages Execute(IOrder target)
     {
-        return target.Total <= 0
-            ? Error(nameof(target.Total), "Order total must be greater than zero")
-            : None;
+        if (target.Total <= 0)
+        {
+            var messages = new RuleMessages();
+            messages.Add(new RuleMessage(nameof(target.Total), "Order total must be greater than zero"));
+            return messages;
+        }
+        return RuleMessages.None;
     }
 }
 ```

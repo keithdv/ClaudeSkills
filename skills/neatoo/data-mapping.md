@@ -4,6 +4,63 @@
 
 Data mapping in Neatoo transfers property values between domain entities and persistence entities. This is done through explicit property assignments in factory methods, giving you full control over data flow between rich domain objects and flat EF Core database entities.
 
+## Prerequisites
+
+Before implementing CRUD operations, you need:
+
+### 1. Persistence Entity (EF Core entity)
+
+```csharp
+namespace MyApp.Domain;
+
+public class PersonEntity
+{
+    public Guid Id { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+}
+```
+
+### 2. Database Context Interface
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+namespace MyApp.Domain;
+
+public interface IDbContext
+{
+    DbSet<PersonEntity> Persons { get; }
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+```
+
+### 3. DbContext Implementation (Server-side)
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
+namespace MyApp.Infrastructure;
+
+public class AppDbContext : DbContext, IDbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<PersonEntity> Persons => Set<PersonEntity>();
+}
+```
+
+### 4. DI Registration (Server Program.cs)
+
+```csharp
+// Add EF Core with your database provider
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
+// Register as IDbContext for injection into domain entities
+builder.Services.AddScoped<IDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+```
+
 ## Key Methods
 
 | Method | Purpose | When to Use |
@@ -44,16 +101,19 @@ public async Task<bool> Fetch([Service] IDbContext db)
 ### Example - Cascading Rules
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 public class OrderTotalRule : RuleBase<IOrder>
 {
-    public override IRuleMessages Execute(IOrder target)
+    protected override IRuleMessages Execute(IOrder target)
     {
         var total = target.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0;
 
         // Property setter triggers any rules that depend on Total - this is correct!
         target.Total = total;
 
-        return None;
+        return RuleMessages.None;
     }
 }
 ```
@@ -76,16 +136,19 @@ protected void LoadProperty(string propertyName, object? value)
 ### Circular Reference Example
 
 ```csharp
+using Neatoo;
+using Neatoo.Rules;
+
 // Only use LoadProperty when you need to break a circular reference
 public class RuleA : RuleBase<IOrder>
 {
-    public override IRuleMessages Execute(IOrder target)
+    protected override IRuleMessages Execute(IOrder target)
     {
         // This would normally trigger RuleB, which triggers RuleA...
         // Use LoadProperty ONLY to break the cycle
         LoadProperty(nameof(target.InternalValue), calculated);
 
-        return None;
+        return RuleMessages.None;
     }
 }
 ```
@@ -286,7 +349,7 @@ internal partial class PersonPhoneList
 {
     private readonly IPersonPhoneFactory _phoneFactory;
 
-    public PersonPhoneList(IPersonPhoneFactory phoneFactory) : base()
+    public PersonPhoneList(IPersonPhoneFactory phoneFactory)
     {
         _phoneFactory = phoneFactory;
     }
@@ -300,6 +363,9 @@ internal partial class PersonPhoneList
             Add(phone);
         }
     }
+
+    [Create]
+    public void Create() { }
 }
 ```
 
