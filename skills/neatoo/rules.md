@@ -967,6 +967,81 @@ internal class ContactPhoneList : EntityListBase<IContactPhone>, IContactPhoneLi
 ```
 <!-- /snippet -->
 
+## Anti-Pattern: Validation in Factory Methods
+
+**Never put business validation in `[Insert]` or `[Update]` factory methods.**
+
+### Where Validation Belongs
+
+| Validation Type | Correct Location | WRONG Location |
+|-----------------|------------------|----------------|
+| Required fields | `[Required]` attribute | Factory methods |
+| Format validation | `[RegularExpression]`, `[EmailAddress]` | Factory methods |
+| Range/length checks | `[Range]`, `[StringLength]` | Factory methods |
+| Cross-property rules | `RuleBase<T>` | Factory methods |
+| Database lookups (uniqueness, overlap) | `AsyncRuleBase<T>` + Command | Factory methods |
+
+### Why Factory Validation is Wrong
+
+<!-- snippet: docs:database-dependent-validation:anti-pattern -->
+```csharp
+/// <summary>
+/// ANTI-PATTERN: Do NOT put validation in factory methods.
+/// This example shows what NOT to do.
+/// </summary>
+/// <remarks>
+/// Problems with this approach:
+/// 1. Poor UX - Users only see errors after clicking Save
+/// 2. Throws exceptions instead of validation messages
+/// 3. Bypasses rule system - no IsBusy, no UI integration
+/// 4. Returns HTTP 500 instead of validation error
+/// </remarks>
+public static class AntiPatternExample
+{
+    /// <summary>
+    /// BAD: Validation logic inside Insert method.
+    /// </summary>
+    public static async Task Insert_AntiPattern(
+        IUserWithEmail user,
+        IUserRepository repo)
+    {
+        // DON'T DO THIS - validation only runs at save time!
+        if (await repo.EmailExistsAsync(user.Email!, null))
+            throw new InvalidOperationException("Email already in use");
+
+        // ... persistence would go here
+    }
+}
+```
+<!-- /snippet -->
+
+Problems with this approach:
+1. **Poor UX** - Users only see errors after clicking Save
+2. **Throws exceptions** - Instead of validation messages
+3. **Bypasses rule system** - No IsBusy, no UI integration
+4. **HTTP 500 errors** - Instead of validation error responses
+
+### Correct Pattern: AsyncRuleBase + Command
+
+See the Database-Dependent Async Rule section above for the correct pattern using:
+1. A Command with `[Execute]` for the database check
+2. An `AsyncRuleBase<T>` that calls the command
+3. Clean factory methods with only persistence logic
+
+### Decision Guide
+
+When implementing validation that requires database access:
+
+1. **Ask**: "Does this need to check the database?"
+   - No → Use `[Required]`, `[Range]`, `RuleBase<T>`, etc.
+   - Yes → Continue to step 2
+
+2. **Create a Command** with `[Execute]` method for the database logic
+
+3. **Create an AsyncRuleBase** that calls the command
+
+4. **Register the rule** in DI and add to RuleManager
+
 ## Common Pitfalls
 
 1. **Forgetting trigger properties** - Rules only run when specified properties change
