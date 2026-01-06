@@ -682,3 +682,49 @@ public async Task NetworkError_ShowsRetryOption()
     await Expect(Page.GetByText("Network error")).ToBeHiddenAsync();
 }
 ```
+
+## Assertions (Auto-Retrying)
+
+Playwright assertions automatically retry until the condition is met or timeout:
+
+```csharp
+// Element visibility
+await Expect(Page.GetByRole(AriaRole.Alert)).ToBeVisibleAsync();
+await Expect(Page.GetByTestId("loading")).ToBeHiddenAsync();
+
+// Text content
+await Expect(Page.GetByRole(AriaRole.Heading)).ToHaveTextAsync("Dashboard");
+await Expect(Page.GetByTestId("count")).ToContainTextAsync("5");
+
+// Form state
+await Expect(Page.GetByLabel("Email")).ToBeEditableAsync();
+await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Save" })).ToBeDisabledAsync();
+
+// Page state
+await Expect(Page).ToHaveTitleAsync("My App - Dashboard");
+await Expect(Page).ToHaveURLAsync(new Regex("/dashboard$"));
+
+// Count
+await Expect(Page.GetByRole(AriaRole.Row)).ToHaveCountAsync(10);
+
+// Custom timeout
+await Expect(Page.GetByText("Processing complete"))
+    .ToBeVisibleAsync(new() { Timeout = 30000 });
+```
+
+## Actionability (Auto-Waiting)
+
+Playwright automatically waits for elements to be actionable before performing actions:
+
+| Action | Waits For |
+|--------|-----------|
+| `ClickAsync()` | Visible, Stable, Receives Events, Enabled |
+| `FillAsync()` | Visible, Enabled, Editable |
+| `CheckAsync()` | Visible, Stable, Receives Events, Enabled |
+| `SelectOptionAsync()` | Visible, Enabled |
+
+```csharp
+// No manual waiting needed - Playwright handles it
+await Page.GetByLabel("Email").FillAsync("test@example.com");
+await Page.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
+```

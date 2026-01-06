@@ -80,6 +80,91 @@ context.RegisterSourceOutput(batchedPipeline, (spc, models) => {
 });
 ```
 
+## Complete IIncrementalGenerator Example
+
+This is a fully-functional generator implementation showing all the key patterns:
+
+```csharp
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Immutable;
+using System.Text;
+
+namespace MyGenerators;
+
+[Generator]
+public class MyGenerator : IIncrementalGenerator
+{
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        // Step 1: Register the marker attribute (runs once at start)
+        context.RegisterPostInitializationOutput(static ctx =>
+        {
+            ctx.AddSource("MyAttribute.g.cs", """
+                namespace MyGenerators
+                {
+                    [System.AttributeUsage(System.AttributeTargets.Class)]
+                    internal sealed class GenerateAttribute : System.Attribute { }
+                }
+                """);
+        });
+
+        // Step 2: Build the pipeline using ForAttributeWithMetadataName
+        var pipeline = context.SyntaxProvider.ForAttributeWithMetadataName(
+            fullyQualifiedMetadataName: "MyGenerators.GenerateAttribute",
+            predicate: static (node, _) => node is ClassDeclarationSyntax,
+            transform: static (ctx, _) => GetModel(ctx)
+        ).Where(static m => m is not null);
+
+        // Step 3: Register output generation
+        context.RegisterSourceOutput(pipeline, static (spc, model) =>
+        {
+            if (model is null) return;
+
+            var code = GenerateCode(model.Value);
+            spc.AddSource($"{model.Value.ClassName}.g.cs", code);
+        });
+    }
+
+    private static MyModel? GetModel(GeneratorAttributeSyntaxContext ctx)
+    {
+        if (ctx.TargetSymbol is not INamedTypeSymbol typeSymbol)
+            return null;
+
+        return new MyModel(
+            Namespace: typeSymbol.ContainingNamespace.IsGlobalNamespace
+                ? null
+                : typeSymbol.ContainingNamespace.ToDisplayString(),
+            ClassName: typeSymbol.Name
+        );
+    }
+
+    private static string GenerateCode(MyModel model)
+    {
+        var sb = new StringBuilder();
+
+        if (model.Namespace is not null)
+        {
+            sb.AppendLine($"namespace {model.Namespace}");
+            sb.AppendLine("{");
+        }
+
+        sb.AppendLine($"    partial class {model.ClassName}");
+        sb.AppendLine("    {");
+        sb.AppendLine("        public static string GeneratedMethod() => \"Hello from generator!\";");
+        sb.AppendLine("    }");
+
+        if (model.Namespace is not null)
+            sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+}
+
+// CRITICAL: Use records for automatic value equality (enables caching)
+internal readonly record struct MyModel(string? Namespace, string ClassName);
+```
+
 ## ForAttributeWithMetadataName - The Recommended API
 
 **This is 99x more efficient than CreateSyntaxProvider** for attribute-based generators.
@@ -91,6 +176,12 @@ context.SyntaxProvider.ForAttributeWithMetadataName(
     transform: static (context, cancellationToken) => ExtractModel(context)
 );
 ```
+
+This method:
+- Uses compiler's internal attribute tracking (extremely fast)
+- Skips most syntax tree processing
+- Handles attribute aliases automatically
+- Is the **recommended default** for any generator triggered by attributes
 
 ### Parameters
 

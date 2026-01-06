@@ -30,8 +30,6 @@ dotnet add package QuestPDF
 
 ## Quick Start
 
-### Minimal Document
-
 ```csharp
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
@@ -64,117 +62,15 @@ Document.Create(container =>
 }).GeneratePdf("report.pdf");
 ```
 
-### IDocument Pattern (Recommended)
+## Common Pitfalls
 
-```csharp
-public class ReportDocument : IDocument
-{
-    public ReportModel Model { get; }
-
-    public ReportDocument(ReportModel model) => Model = model;
-
-    public DocumentMetadata GetMetadata() => new DocumentMetadata
-    {
-        Title = "My Report",
-        Author = "System",
-        CreationDate = DateTimeOffset.Now
-    };
-
-    public DocumentSettings GetSettings() => DocumentSettings.Default;
-
-    public void Compose(IDocumentContainer container)
-    {
-        container.Page(page =>
-        {
-            page.Size(PageSizes.A4);
-            page.Margin(50);
-            page.DefaultTextStyle(x => x.FontSize(11));
-
-            page.Header().Element(ComposeHeader);
-            page.Content().Element(ComposeContent);
-            page.Footer().Element(ComposeFooter);
-        });
-    }
-
-    void ComposeHeader(IContainer container) { /* ... */ }
-    void ComposeContent(IContainer container) { /* ... */ }
-    void ComposeFooter(IContainer container) { /* ... */ }
-}
-
-// Generate
-var document = new ReportDocument(model);
-document.GeneratePdf("report.pdf");
-document.GeneratePdfAndShow();         // Opens in default viewer
-byte[] bytes = document.GeneratePdf(); // Returns byte array
-```
-
-## Core Components
-
-### Page Structure
-
-```csharp
-container.Page(page =>
-{
-    // Configuration
-    page.Size(PageSizes.A4);              // or .Landscape()
-    page.Margin(50);                       // all sides
-    page.DefaultTextStyle(x => x.FontSize(10));
-
-    // Content slots (all repeat on each page)
-    page.Header().Text("Header");
-    page.Content().Column(/* main content */);
-    page.Footer().Text("Footer");
-
-    // Overlay slots
-    page.Background().Image("watermark.png");  // behind content
-    page.Foreground().Text("CONFIDENTIAL");    // in front of content
-});
-```
-
-### Layout Fundamentals
-
-| Component | Purpose | Key Methods |
-|-----------|---------|-------------|
-| **Column** | Vertical stacking | `.Spacing()`, `.Item()` |
-| **Row** | Horizontal layout | `.ConstantItem()`, `.RelativeItem()`, `.AutoItem()` |
-| **Table** | Grid layout with headers/footers | `.ColumnsDefinition()`, `.Cell()` |
-| **Inlined** | Flowing/wrapping elements | `.Spacing()`, `.AlignCenter()` |
-| **Layers** | Stacked content (watermarks) | `.Layer()`, `.PrimaryLayer()` |
-| **Decoration** | Repeating section headers | `.Before()`, `.Content()`, `.After()` |
-
-### Text Fundamentals
-
-```csharp
-// Simple styled text
-container.Text("Title").FontSize(24).Bold().FontColor(Colors.Blue.Darken2);
-
-// Multi-style text block
-container.Text(text =>
-{
-    text.Span("Normal, ");
-    text.Span("bold, ").Bold();
-    text.Span("colored.").FontColor(Colors.Red.Medium);
-
-    text.EmptyLine();
-
-    text.Span("Page ");
-    text.CurrentPageNumber();
-    text.Span(" of ");
-    text.TotalPages();
-});
-```
-
-### Common Styling
-
-```csharp
-container
-    .Background(Colors.Blue.Lighten4)
-    .Border(1).BorderColor(Colors.Grey.Medium)
-    .Padding(10)
-    .Width(200).Height(100)
-    .AlignCenter().AlignMiddle()
-    .Text("Styled box");
-```
+| Pitfall | Solution |
+|---------|----------|
+| Constraint conflicts | Ensure parent containers provide sufficient space for width/height constraints |
+| Header/Footer height | Combined header + footer must leave space for content |
+| Image loading | Load images once and reuse for performance |
+| Text overflow | Use `.ClampLines()` or ensure adequate width |
+| DateTime metadata | Use `DateTimeOffset.Now` instead of `DateTime.Now` |
 
 ## Additional Resources
 
@@ -186,16 +82,6 @@ For detailed guidance, see:
 - [Images & Media](images-media.md) - Loading, scaling, SVG, optimization
 - [Page Flow](page-flow.md) - Page breaks, sections, navigation, conditional rendering
 - [Report Patterns](report-patterns.md) - Invoices, data tables, reusable components
-
-## Common Pitfalls
-
-| Pitfall | Solution |
-|---------|----------|
-| Constraint conflicts | Ensure parent containers provide sufficient space for width/height constraints |
-| Header/Footer height | Combined header + footer must leave space for content |
-| Image loading | Load images once and reuse for performance |
-| Text overflow | Use `.ClampLines()` or ensure adequate width |
-| DateTime metadata | Use `DateTimeOffset.Now` instead of `DateTime.Now` |
 
 ## API Reference
 

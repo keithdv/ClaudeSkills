@@ -19,17 +19,19 @@ KnockOff provides **two complementary patterns** for customizing stub behavior:
 | **User Methods** | Compile-time | All tests | Consistent defaults |
 | **Callbacks** | Runtime | Per-test | Test-specific overrides |
 
+<!-- snippet: skill:SKILL:duality-pattern -->
 ```csharp
 // Pattern 1: User method (compile-time default)
 [KnockOff]
-public partial class ServiceKnockOff : IService
+public partial class SkServiceKnockOff : ISkService
 {
     protected int GetValue(int id) => id * 2;  // Default for all tests
 }
 
 // Pattern 2: Callback (runtime override)
-knockOff.IService.GetValue.OnCall = (ko, id) => id * 100;  // Override for this test
+// knockOff.ISkService.GetValue.OnCall = (ko, id) => id * 100;  // Override for this test
 ```
+<!-- /snippet -->
 
 **Priority Order**: Callback → User method → Default
 
@@ -43,20 +45,25 @@ dotnet add package KnockOff
 
 ### 1. Create KnockOff Stub
 
+<!-- snippet: skill:SKILL:quick-start-interface -->
 ```csharp
-public interface IDataService
+public interface ISkDataService
 {
     string Name { get; set; }
     string? GetDescription(int id);
     int GetCount();
 }
+```
+<!-- /snippet -->
 
+<!-- snippet: skill:SKILL:quick-start-stub -->
+```csharp
 [KnockOff]
-public partial class DataServiceKnockOff : IDataService
+public partial class SkDataServiceKnockOff : ISkDataService
 {
     private readonly int _count;
 
-    public DataServiceKnockOff(int count = 42) => _count = count;
+    public SkDataServiceKnockOff(int count = 42) => _count = count;
 
     // Define behavior for non-nullable method
     protected int GetCount() => _count;
@@ -64,6 +71,7 @@ public partial class DataServiceKnockOff : IDataService
     // GetDescription not defined - returns null by default
 }
 ```
+<!-- /snippet -->
 
 ### 2. Use in Tests
 
@@ -94,58 +102,76 @@ public void Test_DataService()
 
 Each interface gets its own spy property for tracking and configuration:
 
+<!-- snippet: skill:SKILL:interface-spy-access -->
 ```csharp
-knockOff.IUserService.GetUser       // Method handler
-knockOff.IUserService.Name          // Property handler
-knockOff.IPropertyStore.StringIndexer // Indexer handler
-knockOff.IEventSource.DataReceived  // Event handler
+[KnockOff]
+public partial class SkSpyExampleKnockOff : ISkUserService, ISkPropertyStore, ISkEventSource { }
+
+// Access patterns:
+// knockOff.ISkUserService.GetUser       // Method handler
+// knockOff.ISkPropertyStore.StringIndexer // Indexer handler
+// knockOff.ISkEventSource.DataReceived  // Event handler
 ```
+<!-- /snippet -->
 
 ### Multiple Interfaces
 
 When implementing multiple interfaces, each has a separate spy:
 
+<!-- snippet: skill:SKILL:multiple-interfaces -->
 ```csharp
 [KnockOff]
-public partial class DataContextKnockOff : IRepository, IUnitOfWork { }
+public partial class SkDataContextKnockOff : ISkRepository, ISkUnitOfWork { }
 
-// Access via interface spy properties
-knockOff.IRepository.Save.WasCalled
-knockOff.IUnitOfWork.Commit.WasCalled
+// Access via interface spy properties:
+// knockOff.ISkRepository.Save.WasCalled
+// knockOff.ISkUnitOfWork.Commit.WasCalled
 
-// Use AsXxx() for explicit casting
-IRepository repo = knockOff.AsRepository();
-IUnitOfWork uow = knockOff.AsUnitOfWork();
+// Use AsXxx() for explicit casting:
+// ISkRepository repo = knockOff.AsSkRepository();
+// ISkUnitOfWork uow = knockOff.AsSkUnitOfWork();
 ```
+<!-- /snippet -->
 
 ## OnCall API
 
 **Callbacks use property assignment** with `OnCall =`:
 
+<!-- snippet: skill:SKILL:oncall-patterns -->
 ```csharp
+[KnockOff]
+public partial class SkOnCallKnockOff : ISkOnCallService { }
+
 // No parameters
-knockOff.IService.Clear.OnCall = (ko) => { };
+// knockOff.ISkOnCallService.Clear.OnCall = (ko) => { };
 
 // Single parameter
-knockOff.IRepository.GetById.OnCall = (ko, id) => new User { Id = id };
+// knockOff.ISkOnCallService.GetById.OnCall = (ko, id) => new SkUser { Id = id };
 
 // Multiple parameters - individual params, not tuples
-knockOff.IService.Find.OnCall = (ko, name, active) =>
-    users.Where(u => u.Name == name && u.Active == active).ToList();
+// knockOff.ISkOnCallService.Find.OnCall = (ko, name, active) =>
+//     users.Where(u => u.Name == name && u.Active == active).ToList();
 
 // Void method
-knockOff.IService.Save.OnCall = (ko, entity) => { /* logic */ };
+// knockOff.ISkOnCallService.Save.OnCall = (ko, entity) => { /* logic */ };
 ```
+<!-- /snippet -->
 
 **Out/Ref parameters** - use explicit delegate type:
 
+<!-- snippet: skill:SKILL:oncall-out-ref -->
 ```csharp
-knockOff.IParser.TryParse.OnCall =
-    (IParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-    {
-        return int.TryParse(input, out result);
-    });
+[KnockOff]
+public partial class SkParserKnockOff : ISkParser { }
+
+// Out/Ref parameters - use explicit delegate type:
+// knockOff.ISkParser.TryParse.OnCall =
+//     (ISkParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
+//     {
+//         return int.TryParse(input, out result);
+//     });
 ```
+<!-- /snippet -->
 
 ## Smart Default Return Values
 
@@ -159,19 +185,24 @@ KnockOff returns sensible defaults for unconfigured methods instead of throwing:
 | Collection interfaces | concrete type | `IList<T>` → `new List<T>()` |
 | Other non-nullable | throws | `string`, `IDisposable` |
 
+<!-- snippet: skill:SKILL:smart-defaults -->
 ```csharp
-var knockOff = new ServiceKnockOff();
-IService service = knockOff;
+[KnockOff]
+public partial class SkSmartDefaultKnockOff : ISkSmartDefaultService { }
 
-// No configuration needed
-var count = service.GetCount();       // 0 (value type)
-var items = service.GetItems();       // new List<string>() (has new())
-var list = service.GetIList();        // new List<string>() (IList<T> → List<T>)
-var optional = service.GetOptional(); // null (nullable ref)
+// var knockOff = new SkSmartDefaultKnockOff();
+// ISkSmartDefaultService service = knockOff;
 
-// Only throws for types that can't be safely defaulted
-service.GetDisposable();  // throws - can't instantiate IDisposable
+// No configuration needed:
+// var count = service.GetCount();       // 0 (value type)
+// var items = service.GetItems();       // new List<string>() (has new())
+// var list = service.GetIList();        // new List<string>() (IList<T> -> List<T>)
+// var optional = service.GetOptional(); // null (nullable ref)
+
+// Only throws for types that can't be safely defaulted:
+// service.GetDisposable();  // throws - can't instantiate IDisposable
 ```
+<!-- /snippet -->
 
 **Collection Interface Mapping:**
 
@@ -220,14 +251,16 @@ knockOff.IService.GetUser.Reset();  // Clears tracking AND callbacks
 
 Define protected methods matching interface signatures:
 
+<!-- snippet: skill:SKILL:customization-user-method -->
 ```csharp
 [KnockOff]
-public partial class RepoKnockOff : IRepository
+public partial class SkRepoKnockOff : ISkRepoService
 {
-    protected User? GetById(int id) => new User { Id = id };
-    protected Task<User?> GetByIdAsync(int id) => Task.FromResult<User?>(new User { Id = id });
+    protected SkUser? GetById(int id) => new SkUser { Id = id };
+    protected Task<SkUser?> GetByIdAsync(int id) => Task.FromResult<SkUser?>(new SkUser { Id = id });
 }
 ```
+<!-- /snippet -->
 
 Rules:
 - Must be `protected`
@@ -238,44 +271,60 @@ Rules:
 
 #### Method Callbacks
 
+<!-- snippet: skill:SKILL:customization-callbacks-method -->
 ```csharp
+[KnockOff]
+public partial class SkCallbackMethodKnockOff : ISkCallbackService { }
+
 // Void method
-knockOff.IService.DoWork.OnCall = (ko) => { /* custom logic */ };
+// knockOff.ISkCallbackService.DoWork.OnCall = (ko) => { /* custom logic */ };
 
 // Return method (single param)
-knockOff.IRepository.GetById.OnCall = (ko, id) => new User { Id = id };
+// knockOff.ISkCallbackService.GetById.OnCall = (ko, id) =>
+//     new SkUser { Id = id, Name = "Mocked" };
 
 // Return method (multiple params) - individual parameters
-knockOff.IService.Find.OnCall = (ko, name, includeDeleted) =>
-    users.Where(u => u.Name == name).ToList();
+// knockOff.ISkCallbackService.Search.OnCall = (ko, query, limit, offset) =>
+//     results.Skip(offset).Take(limit).ToList();
 ```
+<!-- /snippet -->
 
 #### Property Callbacks
 
+<!-- snippet: skill:SKILL:customization-callbacks-property -->
 ```csharp
-knockOff.IService.Name.OnGet = (ko) => "Computed Value";
-knockOff.IService.Name.OnSet = (ko, value) =>
-{
-    // Custom setter logic
-    // Note: Does NOT store in backing field when OnSet is set
-};
+// knockOff.ISkCallbackService.CurrentUser.OnGet = (ko) =>
+//     new SkUser { Name = "TestUser" };
+
+// knockOff.ISkCallbackService.CurrentUser.OnSet = (ko, value) =>
+// {
+//     capturedUser = value;
+//     // Note: Value does NOT go to backing field
+// };
 ```
+<!-- /snippet -->
 
 #### Indexer Callbacks
 
+<!-- snippet: skill:SKILL:customization-callbacks-indexer -->
 ```csharp
-knockOff.IPropertyStore.StringIndexer.OnGet = (ko, key) => key switch
-{
-    "admin" => adminUser,
-    _ => null
-};
+[KnockOff]
+public partial class SkCallbackIndexerKnockOff : ISkCallbackPropertyStore { }
 
-knockOff.IPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
-{
-    // Custom setter logic
-    // Note: Does NOT store in backing dictionary when OnSet is set
-};
+// knockOff.ISkCallbackPropertyStore.StringIndexer.OnGet = (ko, key) => key switch
+// {
+//     "admin" => adminConfig,
+//     "guest" => guestConfig,
+//     _ => null
+// };
+
+// knockOff.ISkCallbackPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
+// {
+//     // Custom logic
+//     // Note: Value does NOT go to backing dictionary
+// };
 ```
+<!-- /snippet -->
 
 ### Priority Order
 
@@ -293,68 +342,90 @@ knockOff.IPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
 
 ### Call Tracking
 
+<!-- snippet: skill:SKILL:verification-call-tracking -->
 ```csharp
+[KnockOff]
+public partial class SkVerificationKnockOff : ISkVerificationService { }
+
 // Basic
-Assert.True(knockOff.IService.GetUser.WasCalled);
-Assert.Equal(3, knockOff.IService.GetUser.CallCount);
+// Assert.True(knockOff.ISkVerificationService.GetUser.WasCalled);
+// Assert.Equal(3, knockOff.ISkVerificationService.GetUser.CallCount);
 
 // Arguments (single param)
-Assert.Equal(42, knockOff.IService.GetUser.LastCallArg);
-Assert.Equal([1, 2, 42], knockOff.IService.GetUser.AllCalls);
+// Assert.Equal(42, knockOff.ISkVerificationService.GetUser.LastCallArg);
+// Assert.Equal([1, 2, 42], knockOff.ISkVerificationService.GetUser.AllCalls);
 
 // Arguments (multiple params - named tuple)
-var args = knockOff.IService.Create.LastCallArgs;
-Assert.Equal("Test", args?.name);
-Assert.Equal(100, args?.value);
+// var args = knockOff.ISkVerificationService.Create.LastCallArgs;
+// Assert.Equal("Test", args?.name);
+// Assert.Equal(100, args?.value);
 
 // Destructuring
-if (knockOff.IService.Create.LastCallArgs is var (name, value))
-{
-    Assert.Equal("Test", name);
-}
+// if (knockOff.ISkVerificationService.Create.LastCallArgs is var (name, value))
+// {
+//     Assert.Equal("Test", name);
+// }
 ```
+<!-- /snippet -->
 
 ### Property Tracking
 
+<!-- snippet: skill:SKILL:verification-property-tracking -->
 ```csharp
-Assert.Equal(2, knockOff.IService.Name.GetCount);
-Assert.Equal(3, knockOff.IService.Name.SetCount);
-Assert.Equal("LastValue", knockOff.IService.Name.LastSetValue);
+// Assert.Equal(2, knockOff.ISkVerificationService.Name.GetCount);
+// Assert.Equal(3, knockOff.ISkVerificationService.Name.SetCount);
+// Assert.Equal("LastValue", knockOff.ISkVerificationService.Name.LastSetValue);
 ```
+<!-- /snippet -->
 
 ### Indexer Tracking
 
+<!-- snippet: skill:SKILL:verification-indexer-tracking -->
 ```csharp
-Assert.Equal("key1", knockOff.IPropertyStore.StringIndexer.LastGetKey);
-Assert.Equal(["key1", "key2"], knockOff.IPropertyStore.StringIndexer.AllGetKeys);
+[KnockOff]
+public partial class SkVerificationIndexerKnockOff : ISkVerificationPropertyStore { }
 
-var setEntry = knockOff.IPropertyStore.StringIndexer.LastSetEntry;
-Assert.Equal("key", setEntry?.key);
-Assert.Equal(value, setEntry?.value);
+// Assert.Equal("key1", knockOff.ISkVerificationPropertyStore.StringIndexer.LastGetKey);
+// Assert.Equal(["key1", "key2"], knockOff.ISkVerificationPropertyStore.StringIndexer.AllGetKeys);
+
+// var setEntry = knockOff.ISkVerificationPropertyStore.StringIndexer.LastSetEntry;
+// Assert.Equal("key", setEntry?.key);
+// Assert.Equal(value, setEntry?.value);
 ```
+<!-- /snippet -->
 
 ## Backing Storage
 
 ### Properties
 
+<!-- snippet: skill:SKILL:backing-properties -->
 ```csharp
+[KnockOff]
+public partial class SkBackingServiceKnockOff : ISkBackingService { }
+
 // Direct access to backing field (interface-prefixed)
-knockOff.IService_NameBacking = "Pre-populated value";
+// knockOff.ISkBackingService_NameBacking = "Pre-populated value";
 
 // Without OnGet, getter returns backing field
-Assert.Equal("Pre-populated value", service.Name);
+// Assert.Equal("Pre-populated value", service.Name);
 ```
+<!-- /snippet -->
 
 ### Indexers
 
+<!-- snippet: skill:SKILL:backing-indexers -->
 ```csharp
+[KnockOff]
+public partial class SkBackingPropertyStoreKnockOff : ISkBackingPropertyStore { }
+
 // Pre-populate backing dictionary (interface-prefixed)
-knockOff.IPropertyStore_StringIndexerBacking["key1"] = value1;
-knockOff.IPropertyStore_StringIndexerBacking["key2"] = value2;
+// knockOff.ISkBackingPropertyStore_StringIndexerBacking["key1"] = value1;
+// knockOff.ISkBackingPropertyStore_StringIndexerBacking["key2"] = value2;
 
 // Without OnGet, getter checks backing dictionary
-Assert.Equal(value1, store["key1"]);
+// Assert.Equal(value1, store["key1"]);
 ```
+<!-- /snippet -->
 
 **Important**: `Reset()` does NOT clear backing storage.
 
@@ -385,159 +456,148 @@ Assert.Equal(value1, store["key1"]);
 
 ### Conditional Returns
 
+<!-- snippet: skill:SKILL:pattern-conditional -->
 ```csharp
-knockOff.IService.GetUser.OnCall = (ko, id) => id switch
-{
-    1 => new User { Name = "Admin" },
-    2 => new User { Name = "Guest" },
-    _ => null
-};
+[KnockOff]
+public partial class SkPatternServiceKnockOff : ISkPatternService { }
+
+// knockOff.ISkPatternService.GetUser.OnCall = (ko, id) => id switch
+// {
+//     1 => new SkUser { Name = "Admin" },
+//     2 => new SkUser { Name = "Guest" },
+//     _ => null
+// };
 ```
+<!-- /snippet -->
 
 ### Throwing Exceptions
 
+<!-- snippet: skill:SKILL:pattern-exceptions -->
 ```csharp
-knockOff.IService.Connect.OnCall = (ko) =>
-    throw new TimeoutException("Connection failed");
+// knockOff.ISkPatternService.Connect.OnCall = (ko) =>
+//     throw new TimeoutException("Connection failed");
 
-knockOff.IService.SaveAsync.OnCall = (ko, entity) =>
-    Task.FromException<int>(new DbException("Save failed"));
+// knockOff.ISkPatternService.SaveAsync.OnCall = (ko, entity) =>
+//     Task.FromException<int>(new DbException("Save failed"));
 ```
+<!-- /snippet -->
 
 ### Sequential Returns
 
+<!-- snippet: skill:SKILL:pattern-sequential -->
 ```csharp
-var results = new Queue<int>([1, 2, 3]);
-knockOff.IService.GetNext.OnCall = (ko) => results.Dequeue();
+// var results = new Queue<int>([1, 2, 3]);
+// knockOff.ISkPatternService.GetNext.OnCall = (ko) => results.Dequeue();
 ```
+<!-- /snippet -->
 
 ### Async Methods
 
+<!-- snippet: skill:SKILL:pattern-async -->
 ```csharp
-knockOff.IRepository.GetUserAsync.OnCall = (ko, id) =>
-    Task.FromResult<User?>(new User { Id = id });
+[KnockOff]
+public partial class SkAsyncPatternRepositoryKnockOff : ISkAsyncPatternRepository { }
 
-knockOff.IRepository.SaveAsync.OnCall = (ko, entity) =>
-    Task.FromResult(1);
+// knockOff.ISkAsyncPatternRepository.GetUserAsync.OnCall = (ko, id) =>
+//     Task.FromResult<SkUser?>(new SkUser { Id = id });
+
+// knockOff.ISkAsyncPatternRepository.SaveAsync.OnCall = (ko, entity) =>
+//     Task.FromResult(1);
 ```
+<!-- /snippet -->
 
 ### Events
 
+<!-- snippet: skill:SKILL:pattern-events -->
 ```csharp
-public interface IEventSource
-{
-    event EventHandler<string> DataReceived;
-    event Action<int> ProgressChanged;
-}
-
 [KnockOff]
-public partial class EventSourceKnockOff : IEventSource { }
+public partial class SkEventPatternSourceKnockOff : ISkEventPatternSource { }
 
-var knockOff = new EventSourceKnockOff();
-IEventSource source = knockOff;
+// var knockOff = new SkEventPatternSourceKnockOff();
+// ISkEventPatternSource source = knockOff;
 
 // Subscribe tracking
-source.DataReceived += (s, e) => Console.WriteLine(e);
-Assert.Equal(1, knockOff.IEventSource.DataReceived.SubscribeCount);
-Assert.True(knockOff.IEventSource.DataReceived.HasSubscribers);
+// source.DataReceived += (s, e) => Console.WriteLine(e);
+// Assert.Equal(1, knockOff.ISkEventPatternSource.DataReceived.SubscribeCount);
+// Assert.True(knockOff.ISkEventPatternSource.DataReceived.HasSubscribers);
 
 // Raise events from tests
-knockOff.IEventSource.DataReceived.Raise("test data");
-Assert.True(knockOff.IEventSource.DataReceived.WasRaised);
-Assert.Equal(1, knockOff.IEventSource.DataReceived.RaiseCount);
+// knockOff.ISkEventPatternSource.DataReceived.Raise("test data");
+// Assert.True(knockOff.ISkEventPatternSource.DataReceived.WasRaised);
+// Assert.Equal(1, knockOff.ISkEventPatternSource.DataReceived.RaiseCount);
 
 // Action-style events
-knockOff.IEventSource.ProgressChanged.Raise(75);
+// knockOff.ISkEventPatternSource.ProgressChanged.Raise(75);
 
 // Reset vs Clear
-knockOff.IEventSource.DataReceived.Reset();  // Clears tracking, keeps handlers
-knockOff.IEventSource.DataReceived.Clear();  // Clears tracking AND handlers
+// knockOff.ISkEventPatternSource.DataReceived.Reset();  // Clears tracking, keeps handlers
+// knockOff.ISkEventPatternSource.DataReceived.Clear();  // Clears tracking AND handlers
 ```
+<!-- /snippet -->
 
 ### Generic Methods
 
 Generic methods use the `.Of<T>()` pattern for type-specific configuration:
 
+<!-- snippet: skill:SKILL:pattern-generics -->
 ```csharp
-public interface ISerializer
-{
-    T Deserialize<T>(string json);
-    TOut Convert<TIn, TOut>(TIn input);
-}
-
 [KnockOff]
-public partial class SerializerKnockOff : ISerializer { }
+public partial class SkGenericSerializerKnockOff : ISkGenericSerializer { }
 
-var knockOff = new SerializerKnockOff();
-ISerializer service = knockOff;
+// var knockOff = new SkGenericSerializerKnockOff();
+// ISkGenericSerializer service = knockOff;
 
 // Configure behavior per type argument
-knockOff.ISerializer.Deserialize.Of<User>().OnCall = (ko, json) =>
-    JsonSerializer.Deserialize<User>(json)!;
+// knockOff.ISkGenericSerializer.Deserialize.Of<SkUser>().OnCall = (ko, json) =>
+//     JsonSerializer.Deserialize<SkUser>(json)!;
 
-knockOff.ISerializer.Deserialize.Of<Order>().OnCall = (ko, json) =>
-    new Order { Id = 123 };
+// knockOff.ISkGenericSerializer.Deserialize.Of<SkOrder>().OnCall = (ko, json) =>
+//     new SkOrder { Id = 123 };
 
 // Per-type call tracking
-service.Deserialize<User>("{...}");
-service.Deserialize<User>("{...}");
-service.Deserialize<Order>("{...}");
+// service.Deserialize<SkUser>("{...}");
+// service.Deserialize<SkUser>("{...}");
+// service.Deserialize<SkOrder>("{...}");
 
-Assert.Equal(2, knockOff.ISerializer.Deserialize.Of<User>().CallCount);
-Assert.Equal(1, knockOff.ISerializer.Deserialize.Of<Order>().CallCount);
+// Assert.Equal(2, knockOff.ISkGenericSerializer.Deserialize.Of<SkUser>().CallCount);
+// Assert.Equal(1, knockOff.ISkGenericSerializer.Deserialize.Of<SkOrder>().CallCount);
 
 // Aggregate tracking across all type arguments
-Assert.Equal(3, knockOff.ISerializer.Deserialize.TotalCallCount);
-Assert.True(knockOff.ISerializer.Deserialize.WasCalled);
+// Assert.Equal(3, knockOff.ISkGenericSerializer.Deserialize.TotalCallCount);
+// Assert.True(knockOff.ISkGenericSerializer.Deserialize.WasCalled);
 
 // See which types were called
-var types = knockOff.ISerializer.Deserialize.CalledTypeArguments;
-// [typeof(User), typeof(Order)]
+// var types = knockOff.ISkGenericSerializer.Deserialize.CalledTypeArguments;
+// // [typeof(SkUser), typeof(SkOrder)]
 
 // Multiple type parameters
-knockOff.ISerializer.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
-
-// Smart defaults for unconfigured generic methods:
-// - Value types → default(T)
-// - Types with new() → new T()
-// - Nullable returns → null
-// - Other → throws InvalidOperationException
+// knockOff.ISkGenericSerializer.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
 ```
+<!-- /snippet -->
 
 ### Method Overloads
 
 When an interface has overloaded methods, each overload gets its own handler with a **numeric suffix** (1-based):
 
+<!-- snippet: skill:SKILL:pattern-overloads -->
 ```csharp
-public interface IOverloadedService
-{
-    void Process(string data);                           // Overload 1
-    void Process(string data, int priority);             // Overload 2
-    void Process(string data, int priority, bool async); // Overload 3
-}
-
 [KnockOff]
-public partial class OverloadedServiceKnockOff : IOverloadedService { }
+public partial class SkOverloadedServiceKnockOff : ISkOverloadedService { }
 
-var knockOff = new OverloadedServiceKnockOff();
-IOverloadedService service = knockOff;
+// var knockOff = new SkOverloadedServiceKnockOff();
+// ISkOverloadedService service = knockOff;
 
 // Each overload has its own handler (1-based numbering)
-knockOff.IOverloadedService.Process1.CallCount;  // Calls to Process(string)
-knockOff.IOverloadedService.Process2.CallCount;  // Calls to Process(string, int)
-knockOff.IOverloadedService.Process3.CallCount;  // Calls to Process(string, int, bool)
+// knockOff.ISkOverloadedService.Process1.CallCount;  // Calls to Process(string)
+// knockOff.ISkOverloadedService.Process2.CallCount;  // Calls to Process(string, int)
+// knockOff.ISkOverloadedService.Process3.CallCount;  // Calls to Process(string, int, bool)
 
 // Set callbacks for each overload
-knockOff.IOverloadedService.Process1.OnCall = (ko, data) => { /* 1-param */ };
-knockOff.IOverloadedService.Process2.OnCall = (ko, data, priority) => { /* 2-param */ };
-knockOff.IOverloadedService.Process3.OnCall = (ko, data, priority, async) => { /* 3-param */ };
-
-// Proper types - no nullable wrappers
-var args = knockOff.IOverloadedService.Process3.LastCallArgs;
-Assert.Equal("test", args.Value.data);
-Assert.Equal(5, args.Value.priority);  // int, not int?
-Assert.True(args.Value.async);
+// knockOff.ISkOverloadedService.Process1.OnCall = (ko, data) => { /* 1-param */ };
+// knockOff.ISkOverloadedService.Process2.OnCall = (ko, data, priority) => { /* 2-param */ };
+// knockOff.ISkOverloadedService.Process3.OnCall = (ko, data, priority, async) => { /* 3-param */ };
 ```
+<!-- /snippet -->
 
 Methods without overloads don't get a suffix:
 ```csharp
@@ -548,20 +608,19 @@ knockOff.IEmailService.SendEmail.CallCount;  // Single method - no suffix
 
 KnockOff stubs can be nested inside test classes:
 
+<!-- snippet: skill:SKILL:pattern-nested -->
 ```csharp
-public partial class UserServiceTests  // Must be partial!
+public partial class SkUserServiceTests  // Must be partial!
 {
     [KnockOff]
-    public partial class RepositoryKnockOff : IRepository { }
+    public partial class SkRepoNestedKnockOff : ISkRepository { }
 
-    [Fact]
-    public void Test_Something()
-    {
-        var knockOff = new RepositoryKnockOff();
-        // ...
-    }
+    // In test method:
+    // var knockOff = new SkRepoNestedKnockOff();
+    // ...
 }
 ```
+<!-- /snippet -->
 
 **Critical:** All containing classes must be `partial`. This is a C# requirement—the generator produces partial class wrappers that must merge with your declarations.
 
@@ -587,70 +646,62 @@ Works at any nesting depth—just ensure every class in the hierarchy is `partia
 
 Methods with `out` parameters are fully supported. Out parameters are outputs, not inputs, so they're excluded from tracking but included in callbacks.
 
+<!-- snippet: skill:SKILL:pattern-out-params -->
 ```csharp
-public interface IParser
-{
-    bool TryParse(string input, out int result);
-    void GetData(out string name, out int count);
-}
-
 [KnockOff]
-public partial class ParserKnockOff : IParser { }
+public partial class SkOutParamParserKnockOff : ISkOutParamParser { }
 
-var knockOff = new ParserKnockOff();
-IParser parser = knockOff;
+// var knockOff = new SkOutParamParserKnockOff();
+// ISkOutParamParser parser = knockOff;
 
 // Callback requires explicit delegate type for out/ref
-knockOff.IParser.TryParse.OnCall =
-    (IParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-    {
-        if (int.TryParse(input, out result))
-            return true;
-        result = 0;
-        return false;
-    });
+// knockOff.ISkOutParamParser.TryParse.OnCall =
+//     (ISkOutParamParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
+//     {
+//         if (int.TryParse(input, out result))
+//             return true;
+//         result = 0;
+//         return false;
+//     });
 
 // Call the method
-var success = parser.TryParse("42", out var value);
-Assert.True(success);
-Assert.Equal(42, value);
+// var success = parser.TryParse("42", out var value);
+// Assert.True(success);
+// Assert.Equal(42, value);
 
 // Tracking only includes INPUT params (not out params)
-Assert.Equal("42", knockOff.IParser.TryParse.LastCallArg);
-Assert.Equal(1, knockOff.IParser.TryParse.CallCount);
+// Assert.Equal("42", knockOff.ISkOutParamParser.TryParse.LastCallArg);
+// Assert.Equal(1, knockOff.ISkOutParamParser.TryParse.CallCount);
 ```
+<!-- /snippet -->
 
 ### Ref Parameters
 
 Methods with `ref` parameters track the **input value** (before any callback modification).
 
+<!-- snippet: skill:SKILL:pattern-ref-params -->
 ```csharp
-public interface IProcessor
-{
-    void Increment(ref int value);
-    bool TryUpdate(string key, ref string value);
-}
-
 [KnockOff]
-public partial class ProcessorKnockOff : IProcessor { }
+public partial class SkRefProcessorKnockOff : ISkRefProcessor { }
 
-var knockOff = new ProcessorKnockOff();
-IProcessor processor = knockOff;
+// var knockOff = new SkRefProcessorKnockOff();
+// ISkRefProcessor processor = knockOff;
 
 // Callback can modify ref params - explicit delegate type required
-knockOff.IProcessor.Increment.OnCall =
-    (IProcessor_IncrementHandler.IncrementDelegate)((ko, ref int value) =>
-    {
-        value = value * 2;  // Double it
-    });
+// knockOff.ISkRefProcessor.Increment.OnCall =
+//     (ISkRefProcessor_IncrementHandler.IncrementDelegate)((ko, ref int value) =>
+//     {
+//         value = value * 2;  // Double it
+//     });
 
-int x = 5;
-processor.Increment(ref x);
-Assert.Equal(10, x);  // Modified by callback
+// int x = 5;
+// processor.Increment(ref x);
+// Assert.Equal(10, x);  // Modified by callback
 
 // Tracking captures INPUT value (before modification)
-Assert.Equal(5, knockOff.IProcessor.Increment.LastCallArg);
+// Assert.Equal(5, knockOff.ISkRefProcessor.Increment.LastCallArg);
 ```
+<!-- /snippet -->
 
 ## Moq Migration Quick Reference
 
@@ -672,3 +723,16 @@ For detailed guidance, see:
 - [Customization Patterns](customization-patterns.md) - Deep dive on user methods vs callbacks
 - [Handler API Reference](handler-api.md) - Complete API for all handler types
 - [Moq Migration](moq-migration.md) - Step-by-step migration patterns
+
+## Skill Sync Status
+
+All code examples in this skill are sourced from compiled, tested samples in the KnockOff repository.
+
+| Repository | Samples Location | Sync Script |
+|------------|------------------|-------------|
+| [KnockOff](https://github.com/yourusername/KnockOff) | `src/Tests/KnockOff.Documentation.Samples/Skills/` | `scripts/extract-snippets.ps1` |
+
+To update skill files after modifying samples:
+```powershell
+.\scripts\extract-snippets.ps1 -Update
+```

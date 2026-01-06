@@ -1,5 +1,52 @@
 # Layout Components
 
+## Quick Reference
+
+### Layout Fundamentals
+
+| Component | Purpose | Key Methods |
+|-----------|---------|-------------|
+| **Column** | Vertical stacking | `.Spacing()`, `.Item()` |
+| **Row** | Horizontal layout | `.ConstantItem()`, `.RelativeItem()`, `.AutoItem()` |
+| **Table** | Grid layout with headers/footers | `.ColumnsDefinition()`, `.Cell()` |
+| **Inlined** | Flowing/wrapping elements | `.Spacing()`, `.AlignCenter()` |
+| **Layers** | Stacked content (watermarks) | `.Layer()`, `.PrimaryLayer()` |
+| **Decoration** | Repeating section headers | `.Before()`, `.Content()`, `.After()` |
+
+### Text Fundamentals
+
+```csharp
+// Simple styled text
+container.Text("Title").FontSize(24).Bold().FontColor(Colors.Blue.Darken2);
+
+// Multi-style text block
+container.Text(text =>
+{
+    text.Span("Normal, ");
+    text.Span("bold, ").Bold();
+    text.Span("colored.").FontColor(Colors.Red.Medium);
+
+    text.EmptyLine();
+
+    text.Span("Page ");
+    text.CurrentPageNumber();
+    text.Span(" of ");
+    text.TotalPages();
+});
+```
+
+### Common Styling
+
+```csharp
+container
+    .Background(Colors.Blue.Lighten4)
+    .Border(1).BorderColor(Colors.Grey.Medium)
+    .Padding(10)
+    .Width(200).Height(100)
+    .AlignCenter().AlignMiddle()
+    .Text("Styled box");
+```
+
 ## Page Component
 
 The Page is the foundational container for document structure.

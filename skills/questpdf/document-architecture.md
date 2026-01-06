@@ -21,6 +21,52 @@ public interface IDocument
 }
 ```
 
+## Basic IDocument Pattern
+
+A minimal IDocument implementation with decomposed methods for header, content, and footer:
+
+```csharp
+public class ReportDocument : IDocument
+{
+    public ReportModel Model { get; }
+
+    public ReportDocument(ReportModel model) => Model = model;
+
+    public DocumentMetadata GetMetadata() => new DocumentMetadata
+    {
+        Title = "My Report",
+        Author = "System",
+        CreationDate = DateTimeOffset.Now
+    };
+
+    public DocumentSettings GetSettings() => DocumentSettings.Default;
+
+    public void Compose(IDocumentContainer container)
+    {
+        container.Page(page =>
+        {
+            page.Size(PageSizes.A4);
+            page.Margin(50);
+            page.DefaultTextStyle(x => x.FontSize(11));
+
+            page.Header().Element(ComposeHeader);
+            page.Content().Element(ComposeContent);
+            page.Footer().Element(ComposeFooter);
+        });
+    }
+
+    void ComposeHeader(IContainer container) { /* ... */ }
+    void ComposeContent(IContainer container) { /* ... */ }
+    void ComposeFooter(IContainer container) { /* ... */ }
+}
+
+// Generate
+var document = new ReportDocument(model);
+document.GeneratePdf("report.pdf");
+document.GeneratePdfAndShow();         // Opens in default viewer
+byte[] bytes = document.GeneratePdf(); // Returns byte array
+```
+
 ## Complete IDocument Implementation
 
 ```csharp

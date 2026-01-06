@@ -29,7 +29,8 @@
       "Write(C:\\Users\\KeithVoels\\.claude\\agents\\**)",
       "Write(C:\\Users\\KeithVoels\\.claude\\settings.json)",
       "Write(C:\\src\\**)",
-      "Write(C:\\Users\\KeithVoels\\source\\repos\\**)"
+      "Write(C:\\Users\\KeithVoels\\source\\repos\\**)",
+      "WebSearch"
     ]
   },
   "additionalDirectories": ["C:\\Users\\KeithVoels\\source\\repos", "C:\\src", "C:\\Users\\KeithVoels\\.claude\\skills", "C:\\Users\\KeithVoels\\.claude\\agents"],

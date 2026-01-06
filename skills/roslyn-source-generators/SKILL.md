@@ -56,98 +56,11 @@ Source generators enable **compile-time metaprogramming** in C# - code that gene
 </Project>
 ```
 
-### 2. Implement IIncrementalGenerator
+### 2. Implement the Generator
 
-```csharp
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Immutable;
-using System.Text;
+See [Incremental Generator Guide](incremental-generator-guide.md#complete-iincrementalgenerator-example) for the full implementation pattern with `ForAttributeWithMetadataName`.
 
-namespace MyGenerators;
-
-[Generator]
-public class MyGenerator : IIncrementalGenerator
-{
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        // Step 1: Register the marker attribute (runs once at start)
-        context.RegisterPostInitializationOutput(static ctx =>
-        {
-            ctx.AddSource("MyAttribute.g.cs", """
-                namespace MyGenerators
-                {
-                    [System.AttributeUsage(System.AttributeTargets.Class)]
-                    internal sealed class GenerateAttribute : System.Attribute { }
-                }
-                """);
-        });
-
-        // Step 2: Build the pipeline using ForAttributeWithMetadataName
-        var pipeline = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: "MyGenerators.GenerateAttribute",
-            predicate: static (node, _) => node is ClassDeclarationSyntax,
-            transform: static (ctx, _) => GetModel(ctx)
-        ).Where(static m => m is not null);
-
-        // Step 3: Register output generation
-        context.RegisterSourceOutput(pipeline, static (spc, model) =>
-        {
-            if (model is null) return;
-
-            var code = GenerateCode(model.Value);
-            spc.AddSource($"{model.Value.ClassName}.g.cs", code);
-        });
-    }
-
-    private static MyModel? GetModel(GeneratorAttributeSyntaxContext ctx)
-    {
-        if (ctx.TargetSymbol is not INamedTypeSymbol typeSymbol)
-            return null;
-
-        return new MyModel(
-            Namespace: typeSymbol.ContainingNamespace.IsGlobalNamespace
-                ? null
-                : typeSymbol.ContainingNamespace.ToDisplayString(),
-            ClassName: typeSymbol.Name
-        );
-    }
-
-    private static string GenerateCode(MyModel model)
-    {
-        var sb = new StringBuilder();
-
-        if (model.Namespace is not null)
-        {
-            sb.AppendLine($"namespace {model.Namespace}");
-            sb.AppendLine("{");
-        }
-
-        sb.AppendLine($"    partial class {model.ClassName}");
-        sb.AppendLine("    {");
-        sb.AppendLine("        public static string GeneratedMethod() => \"Hello from generator!\";");
-        sb.AppendLine("    }");
-
-        if (model.Namespace is not null)
-            sb.AppendLine("}");
-
-        return sb.ToString();
-    }
-}
-
-// CRITICAL: Use records for automatic value equality (enables caching)
-internal readonly record struct MyModel(string? Namespace, string ClassName);
-```
-
-### 3. Consume in Another Project
-
-```xml
-<ItemGroup>
-  <ProjectReference Include="..\MyGenerators\MyGenerators.csproj"
-                    OutputItemType="Analyzer"
-                    ReferenceOutputAssembly="false" />
-</ItemGroup>
-```
+### 3. Usage
 
 ```csharp
 using MyGenerators;
@@ -155,34 +68,13 @@ using MyGenerators;
 [Generate]
 public partial class MyClass
 {
-    public void UseGenerated()
-    {
-        var result = GeneratedMethod(); // Generated at compile time
-    }
+    // GeneratedMethod() available at compile time
 }
 ```
 
-## Core Concepts
+See [Project Setup](project-setup.md#consuming-project-configuration) for project reference configuration.
 
-### ForAttributeWithMetadataName (99x More Efficient)
-
-**Always prefer this over `CreateSyntaxProvider`** for attribute-based generators:
-
-```csharp
-context.SyntaxProvider.ForAttributeWithMetadataName(
-    fullyQualifiedMetadataName: "MyNamespace.MyAttribute",
-    predicate: static (node, ct) => node is ClassDeclarationSyntax,
-    transform: static (ctx, ct) => ExtractModel(ctx)
-);
-```
-
-This method:
-- Uses compiler's internal attribute tracking (extremely fast)
-- Skips most syntax tree processing
-- Handles attribute aliases automatically
-- Is the **recommended default** for any generator triggered by attributes
-
-### Pipeline Operators
+## Pipeline Operators
 
 | Operator | Purpose | Example |
 |----------|---------|---------|
@@ -191,36 +83,17 @@ This method:
 | `Collect` | Batch into collection | `.Collect()` for `ImmutableArray<T>` |
 | `Combine` | Merge two pipelines | `pipeline1.Combine(pipeline2)` |
 
-### Model Design for Caching
+## Model Design for Caching
 
-**Critical rules for models:**
+**Critical rules:** Use records for value equality, never store `ISymbol` or `SyntaxNode`, extract primitives early, wrap arrays in `EquatableArray<T>`.
 
-1. **Use records** - Automatic value equality
-2. **Never include ISymbol** - Prevents memory reuse
-3. **Extract primitives early** - Replace syntax nodes with strings/ints
-4. **Wrap arrays** - Create `EquatableArray<T>` for collections
-
-```csharp
-// GOOD: Proper equatable model
-internal readonly record struct ClassModel(
-    string Namespace,
-    string ClassName,
-    EquatableArray<string> Properties
-);
-
-// BAD: Holds references that break caching
-internal class BadModel
-{
-    public INamedTypeSymbol Symbol { get; set; } // Never do this
-    public ClassDeclarationSyntax Syntax { get; set; } // Or this
-}
-```
+See [Incremental Generator Guide](incremental-generator-guide.md#caching-and-incrementality) for complete caching patterns and `EquatableArray<T>` implementation.
 
 ## Additional Resources
 
 For detailed guidance, see:
-- [Project Setup](project-setup.md) - Full .csproj configuration
-- [Incremental Generator Guide](incremental-generator-guide.md) - Deep dive into API
+- [Project Setup](project-setup.md) - Full .csproj configuration, consuming projects, NuGet packaging
+- [Incremental Generator Guide](incremental-generator-guide.md) - Deep dive into API, ForAttributeWithMetadataName, caching
 - [Patterns and Examples](patterns-and-examples.md) - Common implementation patterns
 - [Testing](testing.md) - Unit and snapshot testing strategies
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions

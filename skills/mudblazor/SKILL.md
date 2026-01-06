@@ -71,55 +71,6 @@ builder.Services.AddMudServices();
 <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 ```
 
-## Core Concepts
-
-### Component Variants
-
-Most MudBlazor form components support three visual variants:
-
-| Variant | Appearance | Best For |
-|---------|------------|----------|
-| `Variant.Text` | Standard underline | Default, minimal visual weight |
-| `Variant.Filled` | Filled background | Dialogs, short forms, emphasis |
-| `Variant.Outlined` | Border outline | Long forms, reduced visual clutter |
-
-### Spacing Utilities
-
-MudBlazor provides utility classes for consistent spacing:
-
-- **Padding**: `pa-0` to `pa-16` (all), `px-*` (horizontal), `py-*` (vertical), `pt-*`, `pb-*`, `ps-*`, `pe-*`
-- **Margin**: `ma-0` to `ma-16`, `mx-*`, `my-*`, `mt-*`, `mb-*`, `ms-*`, `me-*`
-
-Example: `Class="pa-4 mb-3"` = padding all sides 4 units, margin bottom 3 units
-
-### Color System
-
-MudBlazor uses a `Color` enum for consistent theming:
-
-| Color | Use Case |
-|-------|----------|
-| `Color.Primary` | Primary actions, brand color |
-| `Color.Secondary` | Secondary actions |
-| `Color.Tertiary` | Tertiary actions |
-| `Color.Success` | Positive outcomes |
-| `Color.Warning` | Cautionary states |
-| `Color.Error` | Error states, destructive actions |
-| `Color.Info` | Informational content |
-| `Color.Default` | Neutral states |
-
-## Additional Resources
-
-For detailed guidance, see:
-- [Installation & Setup](installation.md) - Full setup guide, providers, assets
-- [Form Components](form-components.md) - TextField, Select, DatePicker, validation
-- [Data Display](data-display.md) - DataGrid, Table, Cards
-- [Feedback Components](feedback-components.md) - Dialog, Snackbar, Alert
-- [Layout System](layout-system.md) - Grid, Container, responsive patterns
-- [Navigation](navigation.md) - NavMenu, Tabs, Breadcrumbs
-- [Theming](theming.md) - Custom themes, dark mode, CSS variables
-- [Neatoo Integration](neatoo-integration.md) - MudNeatoo components for domain objects
-- [Best Practices](best-practices.md) - Patterns, anti-patterns, performance
-
 ## Critical Rules
 
 ### MudForm vs EditForm
@@ -129,43 +80,42 @@ For detailed guidance, see:
 | MudBlazor's validation system | `MudForm` with `OnClick` handlers |
 | ASP.NET Core validation | `EditForm` with `ButtonType.Submit` |
 
-**NEVER use `ButtonType="ButtonType.Submit"` with MudForm.**
+**WARNING: NEVER use `ButtonType="ButtonType.Submit"` with MudForm.**
 
 ### Four Required Providers
 
 All four providers must be in MainLayout for MudBlazor to function:
-```razor
-<MudThemeProvider />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-```
+
+| Provider | Purpose |
+|----------|---------|
+| `MudThemeProvider` | Theme and styling |
+| `MudPopoverProvider` | Popover positioning |
+| `MudDialogProvider` | Dialog service |
+| `MudSnackbarProvider` | Snackbar notifications |
 
 ### Complex Object Selection
 
-When using `MudSelect` or `MudDataGrid` with complex objects, implement `IEquatable<T>` or provide a `Comparer`:
-
-```csharp
-<MudSelect T="Customer" Comparer="@(new CustomerComparer())">
-
-public class CustomerComparer : IEqualityComparer<Customer>
-{
-    public bool Equals(Customer x, Customer y) => x?.Id == y?.Id;
-    public int GetHashCode(Customer obj) => obj?.Id.GetHashCode() ?? 0;
-}
-```
+**WARNING:** When using `MudSelect` or `MudDataGrid` with complex objects, you MUST implement `IEquatable<T>` or provide a `Comparer`. Selection will not work correctly otherwise.
 
 ### Dialog Result Handling
 
-Always check if dialog was canceled before accessing result data:
+**WARNING:** Always check if dialog was canceled before accessing result data. Accessing `result.Data` on a canceled dialog will throw.
 
-```csharp
-var result = await dialog.Result;
-if (!result.Canceled)
-{
-    var data = result.Data;
-}
-```
+See [Best Practices](best-practices.md) for code examples.
+
+## Additional Resources
+
+For detailed guidance, see:
+- [Core Concepts](core-concepts.md) - Variants, spacing utilities, color system
+- [Installation & Setup](installation.md) - Full setup guide, providers, assets
+- [Form Components](form-components.md) - TextField, Select, DatePicker, validation
+- [Data Display](data-display.md) - DataGrid, Table, Cards
+- [Feedback Components](feedback-components.md) - Dialog, Snackbar, Alert
+- [Layout System](layout-system.md) - Grid, Container, responsive patterns
+- [Navigation](navigation.md) - NavMenu, Tabs, Breadcrumbs
+- [Theming](theming.md) - Custom themes, dark mode, CSS variables
+- [Neatoo Integration](neatoo-integration.md) - MudNeatoo components for domain objects
+- [Best Practices](best-practices.md) - Patterns, anti-patterns, performance
 
 ## Official Documentation
 

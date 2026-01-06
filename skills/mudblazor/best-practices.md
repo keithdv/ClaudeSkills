@@ -94,11 +94,19 @@ For complex objects in selection components:
 }
 ```
 
-Or provide a comparer:
+Or provide a comparer via `IEqualityComparer<T>`:
 
-```razor
-<MudDataGrid T="Product" Comparer="@(new ProductComparer())">
+```csharp
+<MudSelect T="Customer" Comparer="@(new CustomerComparer())">
+
+public class CustomerComparer : IEqualityComparer<Customer>
+{
+    public bool Equals(Customer x, Customer y) => x?.Id == y?.Id;
+    public int GetHashCode(Customer obj) => obj?.Id.GetHashCode() ?? 0;
+}
 ```
+
+This works with `MudSelect`, `MudDataGrid`, and other selection components.
 
 ---
 

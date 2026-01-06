@@ -52,21 +52,26 @@ For interface methods: `void M()`, `T M()`, `void M(args)`, `T M(args)`
 
 ### Examples
 
+<!-- snippet: skill:handler-api:method-handler-example -->
 ```csharp
+[KnockOff]
+public partial class HaServiceKnockOff : IHaService { }
+
 // Void method, no params
-Assert.True(knockOff.IService.Initialize.WasCalled);
-knockOff.IService.Initialize.OnCall = (ko) => { };
+// Assert.True(knockOff.IHaService.Initialize.WasCalled);
+// knockOff.IHaService.Initialize.OnCall = (ko) => { };
 
 // Return method, single param
-Assert.Equal(42, knockOff.IService.GetById.LastCallArg);
-knockOff.IService.GetById.OnCall = (ko, id) => new User { Id = id };
+// Assert.Equal(42, knockOff.IHaService.GetById.LastCallArg);
+// knockOff.IHaService.GetById.OnCall = (ko, id) => new HaUser { Id = id };
 
 // Multiple params
-var args = knockOff.IService.Create.LastCallArgs;
-Assert.Equal("Test", args?.name);
-knockOff.IService.Create.OnCall = (ko, name, value) =>
-    new Entity { Name = name };
+// var args = knockOff.IHaService.Create.LastCallArgs;
+// Assert.Equal("Test", args?.name);
+// knockOff.IHaService.Create.OnCall = (ko, name, value) =>
+//     new HaEntity { Name = name };
 ```
+<!-- /snippet -->
 
 ## Property Handler
 
@@ -101,19 +106,24 @@ Each property has a backing field with interface prefix:
 
 ### Examples
 
+<!-- snippet: skill:handler-api:property-handler-example -->
 ```csharp
+[KnockOff]
+public partial class HaPropertyServiceKnockOff : IHaPropertyService { }
+
 // Tracking
-Assert.Equal(3, knockOff.IService.Name.GetCount);
-Assert.Equal(2, knockOff.IService.Name.SetCount);
-Assert.Equal("Last", knockOff.IService.Name.LastSetValue);
+// Assert.Equal(3, knockOff.IHaPropertyService.Name.GetCount);
+// Assert.Equal(2, knockOff.IHaPropertyService.Name.SetCount);
+// Assert.Equal("Last", knockOff.IHaPropertyService.Name.LastSetValue);
 
 // Callbacks
-knockOff.IService.Name.OnGet = (ko) => "Always This";
-knockOff.IService.Name.OnSet = (ko, value) => capturedValue = value;
+// knockOff.IHaPropertyService.Name.OnGet = (ko) => "Always This";
+// knockOff.IHaPropertyService.Name.OnSet = (ko, value) => capturedValue = value;
 
 // Backing field (direct access)
-knockOff.IService_NameBacking = "Pre-populated";
+// knockOff.IHaPropertyService_NameBacking = "Pre-populated";
 ```
+<!-- /snippet -->
 
 ## Indexer Handler
 
@@ -157,35 +167,40 @@ When **`OnGet` is set**:
 
 ### Examples
 
+<!-- snippet: skill:handler-api:indexer-handler-example -->
 ```csharp
+[KnockOff]
+public partial class HaPropertyStoreKnockOff : IHaPropertyStore { }
+
 // Pre-populate backing
-knockOff.IPropertyStore_StringIndexerBacking["Key1"] = value1;
-knockOff.IPropertyStore_StringIndexerBacking["Key2"] = value2;
+// knockOff.IHaPropertyStore_StringIndexerBacking["Key1"] = value1;
+// knockOff.IHaPropertyStore_StringIndexerBacking["Key2"] = value2;
 
 // Track access
-_ = store["Key1"];
-_ = store["Key2"];
-Assert.Equal(2, knockOff.IPropertyStore.StringIndexer.GetCount);
-Assert.Equal("Key2", knockOff.IPropertyStore.StringIndexer.LastGetKey);
+// _ = store["Key1"];
+// _ = store["Key2"];
+// Assert.Equal(2, knockOff.IHaPropertyStore.StringIndexer.GetCount);
+// Assert.Equal("Key2", knockOff.IHaPropertyStore.StringIndexer.LastGetKey);
 
 // Dynamic getter
-knockOff.IPropertyStore.StringIndexer.OnGet = (ko, key) =>
-{
-    if (key == "special") return specialValue;
-    return ko.IPropertyStore_StringIndexerBacking.GetValueOrDefault(key);
-};
+// knockOff.IHaPropertyStore.StringIndexer.OnGet = (ko, key) =>
+// {
+//     if (key == "special") return specialValue;
+//     return ko.IHaPropertyStore_StringIndexerBacking.GetValueOrDefault(key);
+// };
 
 // Track setter
-store["NewKey"] = newValue;
-Assert.Equal("NewKey", knockOff.IPropertyStore.StringIndexer.LastSetEntry?.key);
+// store["NewKey"] = newValue;
+// Assert.Equal("NewKey", knockOff.IHaPropertyStore.StringIndexer.LastSetEntry?.key);
 
 // Intercept setter
-knockOff.IPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
-{
-    // Custom logic
-    // Value does NOT go to backing dictionary
-};
+// knockOff.IHaPropertyStore.StringIndexer.OnSet = (ko, key, value) =>
+// {
+//     // Custom logic
+//     // Value does NOT go to backing dictionary
+// };
 ```
+<!-- /snippet -->
 
 ## Event Handler
 
@@ -241,32 +256,37 @@ For interface events: `event EventHandler E`, `event EventHandler<T> E`, `event 
 
 ### Examples
 
+<!-- snippet: skill:handler-api:event-handler-example -->
 ```csharp
+[KnockOff]
+public partial class HaEventSourceKnockOff : IHaEventSource { }
+
 // Subscribe tracking
-source.DataReceived += handler;
-Assert.Equal(1, knockOff.IEventSource.DataReceived.SubscribeCount);
-Assert.True(knockOff.IEventSource.DataReceived.HasSubscribers);
+// source.DataReceived += handler;
+// Assert.Equal(1, knockOff.IHaEventSource.DataReceived.SubscribeCount);
+// Assert.True(knockOff.IHaEventSource.DataReceived.HasSubscribers);
 
 // Raise event
-knockOff.IEventSource.DataReceived.Raise("test data");
-Assert.True(knockOff.IEventSource.DataReceived.WasRaised);
-Assert.Equal("test data", knockOff.IEventSource.DataReceived.LastRaiseArgs?.e);
+// knockOff.IHaEventSource.DataReceived.Raise("test data");
+// Assert.True(knockOff.IHaEventSource.DataReceived.WasRaised);
+// Assert.Equal("test data", knockOff.IHaEventSource.DataReceived.LastRaiseArgs?.e);
 
 // EventHandler (non-generic)
-knockOff.IEventSource.Completed.Raise(); // null sender, EventArgs.Empty
+// knockOff.IHaEventSource.Completed.Raise(); // null sender, EventArgs.Empty
 
 // Action with params
-knockOff.IEventSource.ProgressChanged.Raise(75);
-knockOff.IEventSource.DataUpdated.Raise("key", 42);
+// knockOff.IHaEventSource.ProgressChanged.Raise(75);
+// knockOff.IHaEventSource.DataUpdated.Raise("key", 42);
 
 // All raises
-var allRaises = knockOff.IEventSource.DataReceived.AllRaises;
-Assert.Equal(3, allRaises.Count);
+// var allRaises = knockOff.IHaEventSource.DataReceived.AllRaises;
+// Assert.Equal(3, allRaises.Count);
 
 // Reset vs Clear
-knockOff.IEventSource.DataReceived.Reset();  // Clears tracking, keeps handlers
-knockOff.IEventSource.DataReceived.Clear();  // Clears tracking AND handlers
+// knockOff.IHaEventSource.DataReceived.Reset();  // Clears tracking, keeps handlers
+// knockOff.IHaEventSource.DataReceived.Clear();  // Clears tracking AND handlers
 ```
+<!-- /snippet -->
 
 ## Overloaded Method Handlers
 
@@ -291,35 +311,32 @@ Each overload handler has its own tracking:
 
 ### Examples
 
+<!-- snippet: skill:handler-api:overload-handler-example -->
 ```csharp
-public interface IService
-{
-    void Process(string data);
-    void Process(string data, int priority);
-    int Calculate(int value);
-    int Calculate(int a, int b);
-}
+[KnockOff]
+public partial class HaOverloadServiceKnockOff : IHaOverloadService { }
 
-var knockOff = new ServiceKnockOff();
-IService service = knockOff;
+// var knockOff = new HaOverloadServiceKnockOff();
+// IHaOverloadService service = knockOff;
 
 // Each overload tracked separately
-service.Process("a");
-service.Process("b", 1);
-Assert.Equal(1, knockOff.IService.Process1.CallCount);  // Process(string)
-Assert.Equal(1, knockOff.IService.Process2.CallCount);  // Process(string, int)
+// service.Process("a");
+// service.Process("b", 1);
+// Assert.Equal(1, knockOff.IHaOverloadService.Process1.CallCount);  // Process(string)
+// Assert.Equal(1, knockOff.IHaOverloadService.Process2.CallCount);  // Process(string, int)
 
 // Each overload has its own callback
-knockOff.IService.Process1.OnCall = (ko, data) => { };
-knockOff.IService.Process2.OnCall = (ko, data, priority) => { };
+// knockOff.IHaOverloadService.Process1.OnCall = (ko, data) => { };
+// knockOff.IHaOverloadService.Process2.OnCall = (ko, data, priority) => { };
 
 // Return methods
-knockOff.IService.Calculate1.OnCall = (ko, value) => value * 2;
-knockOff.IService.Calculate2.OnCall = (ko, a, b) => a + b;
+// knockOff.IHaOverloadService.Calculate1.OnCall = (ko, value) => value * 2;
+// knockOff.IHaOverloadService.Calculate2.OnCall = (ko, a, b) => a + b;
 
-Assert.Equal(10, service.Calculate(5));    // Calculate1
-Assert.Equal(8, service.Calculate(3, 5));  // Calculate2
+// Assert.Equal(10, service.Calculate(5));    // Calculate1
+// Assert.Equal(8, service.Calculate(3, 5));  // Calculate2
 ```
+<!-- /snippet -->
 
 ## Out Parameter Methods
 
@@ -333,23 +350,28 @@ Methods with `out` parameters require explicit delegate type for callbacks.
 
 ### Callback Syntax
 
+<!-- snippet: skill:handler-api:out-param-callback -->
 ```csharp
+[KnockOff]
+public partial class HaParserKnockOff : IHaParser { }
+
 // Explicit delegate type required
-knockOff.IParser.TryParse.OnCall =
-    (IParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-    {
-        result = int.Parse(input);
-        return true;
-    });
+// knockOff.IHaParser.TryParse.OnCall =
+//     (IHaParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
+//     {
+//         result = int.Parse(input);
+//         return true;
+//     });
 
 // Void with multiple out params
-knockOff.IService.GetData.OnCall =
-    (IService_GetDataHandler.GetDataDelegate)((ko, out string name, out int count) =>
-    {
-        name = "Test";
-        count = 42;
-    });
+// knockOff.IHaParser.GetData.OnCall =
+//     (IHaParser_GetDataHandler.GetDataDelegate)((ko, out string name, out int count) =>
+//     {
+//         name = "Test";
+//         count = 42;
+//     });
 ```
+<!-- /snippet -->
 
 ### No Callback Behavior
 
@@ -370,32 +392,39 @@ Methods with `ref` parameters track the **input value** before any modification.
 
 ### Callback Syntax
 
+<!-- snippet: skill:handler-api:ref-param-callback -->
 ```csharp
+[KnockOff]
+public partial class HaProcessorKnockOff : IHaProcessor { }
+
 // Explicit delegate type required
-knockOff.IProcessor.Increment.OnCall =
-    (IProcessor_IncrementHandler.IncrementDelegate)((ko, ref int value) =>
-    {
-        value = value * 2;  // Modify the ref param
-    });
+// knockOff.IHaProcessor.Increment.OnCall =
+//     (IHaProcessor_IncrementHandler.IncrementDelegate)((ko, ref int value) =>
+//     {
+//         value = value * 2;  // Modify the ref param
+//     });
 
 // Mixed regular + ref params
-knockOff.IProcessor.TryUpdate.OnCall =
-    (IProcessor_TryUpdateHandler.TryUpdateDelegate)((ko, string key, ref string value) =>
-    {
-        value = value.ToUpper();
-        return true;
-    });
+// knockOff.IHaProcessor.TryUpdate.OnCall =
+//     (IHaProcessor_TryUpdateHandler.TryUpdateDelegate)((ko, string key, ref string value) =>
+//     {
+//         value = value.ToUpper();
+//         return true;
+//     });
 ```
+<!-- /snippet -->
 
 ### Tracking Example
 
+<!-- snippet: skill:handler-api:ref-param-tracking -->
 ```csharp
-int x = 5;
-processor.Increment(ref x);
+// int x = 5;
+// processor.Increment(ref x);
 
-Assert.Equal(10, x);  // Modified
-Assert.Equal(5, knockOff.IProcessor.Increment.LastCallArg);  // Original input value
+// Assert.Equal(10, x);  // Modified
+// Assert.Equal(5, knockOff.IHaProcessor.Increment.LastCallArg);  // Original input value
 ```
+<!-- /snippet -->
 
 ## Reset Behavior Summary
 
@@ -419,13 +448,18 @@ Async methods use the same handler structure as sync methods. The `OnCall` callb
 | `ValueTask` | `ValueTask` |
 | `ValueTask<T>` | `ValueTask<T>` |
 
+<!-- snippet: skill:handler-api:async-handler-example -->
 ```csharp
-knockOff.IRepository.GetByIdAsync.OnCall = (ko, id) =>
-    Task.FromResult<User?>(new User { Id = id });
+[KnockOff]
+public partial class HaAsyncRepositoryKnockOff : IHaAsyncRepository { }
 
-knockOff.IRepository.SaveAsync.OnCall = (ko, entity) =>
-    Task.FromException<int>(new DbException("Failed"));
+// knockOff.IHaAsyncRepository.GetByIdAsync.OnCall = (ko, id) =>
+//     Task.FromResult<HaUser?>(new HaUser { Id = id });
+
+// knockOff.IHaAsyncRepository.SaveAsync.OnCall = (ko, entity) =>
+//     Task.FromException<int>(new DbException("Failed"));
 ```
+<!-- /snippet -->
 
 ## Generic Method Handlers
 
@@ -476,26 +510,31 @@ For multiple type parameters: `Of<T1, T2>()` or `Of<T1, T2, T3>()`.
 
 ### Examples
 
+<!-- snippet: skill:handler-api:generic-handler-example -->
 ```csharp
+[KnockOff]
+public partial class HaSerializerKnockOff : IHaSerializer { }
+
 // Configure per type
-knockOff.ISerializer.Deserialize.Of<User>().OnCall = (ko, json) =>
-    JsonSerializer.Deserialize<User>(json)!;
+// knockOff.IHaSerializer.Deserialize.Of<HaUser>().OnCall = (ko, json) =>
+//     JsonSerializer.Deserialize<HaUser>(json)!;
 
 // Per-type tracking
-Assert.Equal(2, knockOff.ISerializer.Deserialize.Of<User>().CallCount);
-Assert.Equal("{...}", knockOff.ISerializer.Deserialize.Of<User>().LastCallArg);
+// Assert.Equal(2, knockOff.IHaSerializer.Deserialize.Of<HaUser>().CallCount);
+// Assert.Equal("{...}", knockOff.IHaSerializer.Deserialize.Of<HaUser>().LastCallArg);
 
 // Aggregate tracking
-Assert.Equal(5, knockOff.ISerializer.Deserialize.TotalCallCount);
-var types = knockOff.ISerializer.Deserialize.CalledTypeArguments;
+// Assert.Equal(5, knockOff.IHaSerializer.Deserialize.TotalCallCount);
+// var types = knockOff.IHaSerializer.Deserialize.CalledTypeArguments;
 
 // Multiple type parameters
-knockOff.IConverter.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
+// knockOff.IHaSerializer.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
 
 // Reset single type vs all types
-knockOff.ISerializer.Deserialize.Of<User>().Reset();  // Single type
-knockOff.ISerializer.Deserialize.Reset();              // All types
+// knockOff.IHaSerializer.Deserialize.Of<HaUser>().Reset();  // Single type
+// knockOff.IHaSerializer.Deserialize.Reset();              // All types
 ```
+<!-- /snippet -->
 
 ### Smart Defaults for Generic Methods
 
@@ -533,14 +572,19 @@ Without callback or user method, KnockOff returns sensible defaults:
 | `IDictionary<K,V>`, `IReadOnlyDictionary<K,V>` | `Dictionary<K,V>` |
 | `ISet<T>` | `HashSet<T>` |
 
+<!-- snippet: skill:handler-api:smart-defaults-example -->
 ```csharp
+[KnockOff]
+public partial class HaDefaultsServiceKnockOff : IHaDefaultsService { }
+
 // Examples of smart defaults
-service.GetCount();       // 0 (int)
-service.GetItems();       // new List<string>()
-service.GetIList();       // new List<string>() (from IList<string>)
-service.GetOptional();    // null (nullable ref)
-service.GetDisposable();  // throws (can't instantiate interface)
+// service.GetCount();       // 0 (int)
+// service.GetItems();       // new List<string>()
+// service.GetIList();       // new List<string>() (from IList<string>)
+// service.GetOptional();    // null (nullable ref)
+// service.GetDisposable();  // throws (can't instantiate interface)
 
 // Task<T> applies smart default to inner type
-await service.GetListAsync();  // Task.FromResult(new List<string>())
+// await service.GetListAsync();  // Task.FromResult(new List<string>())
 ```
+<!-- /snippet -->
