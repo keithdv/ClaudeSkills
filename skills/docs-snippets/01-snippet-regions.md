@@ -4,16 +4,58 @@ How to mark code in source files for extraction into documentation.
 
 ---
 
+## Inline Code vs Snippets
+
+Documentation contains two types of code:
+
+| Term | Format | Sourced from samples? |
+|------|--------|----------------------|
+| **Inline code** | Mid-sentence backticks like `EntityBase<T>` | No - out of scope |
+| **Snippet** | Fenced code block showing working code | Yes - always |
+| **Illustration** | Fenced code block showing non-executable content | No - intentionally unsourced |
+
+**Inline code** names things within sentences - class names, method names, property names. These are not tracked.
+
+**Snippets** are fenced code blocks that demonstrate working behavior. Whether 1 line or 100 lines, if it's meant to work, it must be sourced from compiled sample code.
+
+**Illustrations** are fenced code blocks that intentionally show non-executable content:
+- **Anti-patterns** - WRONG/CORRECT comparisons showing what NOT to do
+- **Pseudocode** - Conceptual logic, not real syntax
+- **Hypothetical examples** - Code that doesn't exist in the project
+- **Partial fragments** - Incomplete code used to highlight a concept
+
+Illustrations should be clearly marked with comments like `// WRONG` or `// Pseudocode` so readers understand they're not working examples.
+
+```markdown
+Use `EntityBase<T>` as your base class.     <!-- inline code - OK -->
+
+<!-- snippet: docs:entities:base-class -->  <!-- snippet - sourced from samples -->
+```csharp
+public class Person : EntityBase<Person> { }
+```
+<!-- /snippet -->
+
+```csharp
+// WRONG - don't do this                    <!-- illustration - intentionally unsourced -->
+await personFactory.Save(person);
+
+// CORRECT
+person = await personFactory.Save(person);
+```
+```
+
+---
+
 ## The Problem
 
-Documentation code examples:
+Fenced code blocks written directly in documentation:
 - Have **syntax errors** (never compiled)
 - Use **outdated API** (code drifted from implementation)
 - Make **false assertions** (claims behavior that doesn't exist)
 
 ## The Solution
 
-All code examples live in **compiled, tested projects**. Documentation **pulls from** these sources via `#region` markers.
+All fenced code blocks live in **compiled, tested projects**. Documentation **pulls from** these sources via `#region` markers.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
