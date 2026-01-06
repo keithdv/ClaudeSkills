@@ -16,61 +16,32 @@ ValidateListBase<I>        - Observable collection, parent-child, validation agg
 
 Use `EntityBase<T>` for domain entities that persist to a database.
 
-### Interface Pattern
+### Complete Entity Pattern
 
+<!-- snippet: docs:aggregates-and-entities:entitybase-basic -->
 ```csharp
-public interface IPerson : IEntityBase
+/// <summary>
+/// Basic EntityBase example showing automatic state tracking.
+/// </summary>
+public partial interface IOrder : IEntityBase
 {
-    Guid? Id { get; set; }
-    string? FirstName { get; set; }
-    string? LastName { get; set; }
-    string? Email { get; set; }
-    string? FullName { get; }
-    IPersonPhoneList? PersonPhoneList { get; }
+    Guid Id { get; set; }
+    string? Status { get; set; }
+    decimal Total { get; set; }
 }
-```
-
-### Class Implementation
-
-```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
 
 [Factory]
-internal partial class Person : EntityBase<Person>, IPerson
+internal partial class Order : EntityBase<Order>, IOrder
 {
-    private readonly IPersonPhoneListFactory _phoneListFactory;
-
-    public Person(
-        IEntityBaseServices<Person> services,
-        IPersonPhoneListFactory phoneListFactory) : base(services)
+    public Order(IEntityBaseServices<Order> services) : base(services)
     {
-        _phoneListFactory = phoneListFactory;
-
-        // Add computed property rule
-        RuleManager.AddAction(
-            (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
-            p => p.FirstName, p => p.LastName);
-    }
-
-    public partial Guid? Id { get; set; }
-
-    [Required]
-    [StringLength(50)]
-    public partial string? FirstName { get; set; }
-
-    [Required]
-    [StringLength(50)]
-    public partial string? LastName { get; set; }
-
-    [EmailAddress]
-    public partial string? Email { get; set; }
-
-    public partial string? FullName { get; set; }
-
-    public partial IPersonPhoneList? PersonPhoneList { get; set; }
-}
+        #region docs:aggregates-and-entities:inline-validation-rule
+        // Inline validation rule - Total must be positive
+        RuleManager.AddValidation(
+            t => t.Total <= 0 ? "Total must be greater than zero" : "",
+            t => t.Total);
 ```
+<!-- /snippet -->
 
 ### Key Requirements
 
@@ -79,6 +50,48 @@ internal partial class Person : EntityBase<Person>, IPerson
 3. **Implements interface** - Public interface for external code
 4. **Constructor accepts services** - Pass `IEntityBaseServices<T>` to base
 5. **Properties are `partial`** - Source generator provides implementation
+
+### Interface Pattern
+
+<!-- snippet: docs:aggregates-and-entities:interface-requirement -->
+```csharp
+/// <summary>
+/// Every aggregate requires a public interface for factory generation.
+/// </summary>
+public partial interface ICustomer : IEntityBase
+{
+    // Properties are auto-generated from the partial class
+}
+```
+<!-- /snippet -->
+
+### Class Declaration
+
+<!-- snippet: docs:aggregates-and-entities:class-declaration -->
+```csharp
+[Factory]
+internal partial class Customer : EntityBase<Customer>, ICustomer
+```
+<!-- /snippet -->
+
+### Constructor Pattern
+
+<!-- snippet: docs:aggregates-and-entities:entity-constructor -->
+```csharp
+public Customer(IEntityBaseServices<Customer> services) : base(services) { }
+```
+<!-- /snippet -->
+
+### Inline Validation Rule
+
+<!-- snippet: docs:aggregates-and-entities:inline-validation-rule -->
+```csharp
+// Inline validation rule - Total must be positive
+        RuleManager.AddValidation(
+            t => t.Total <= 0 ? "Total must be greater than zero" : "",
+            t => t.Total);
+```
+<!-- /snippet -->
 
 ### EntityBase Meta-Properties
 
@@ -109,56 +122,141 @@ The framework uses entity state to route Save() calls:
 | false | false | `[Update]` |
 | any | true | `[Delete]` |
 
-### Save with Cancellation
+## Partial Properties
 
-Save operations support `CancellationToken` for graceful shutdown or navigation:
+Properties must be declared as `partial` for the source generator.
 
+### Partial vs Non-Partial
+
+<!-- snippet: docs:aggregates-and-entities:partial-properties -->
 ```csharp
-try
+/// <summary>
+/// Demonstrates partial vs non-partial properties.
+/// </summary>
+public partial interface IEmployee : IEntityBase
 {
-    person = await person.Save(cancellationToken);
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string FullName { get; }
+    bool IsExpanded { get; set; }
 }
-catch (OperationCanceledException)
-{
-    // Save was cancelled before persistence began
-    // Entity remains in its original state
-}
-```
 
-Note: Cancellation only occurs before the `[Insert]`/`[Update]`/`[Delete]` method executes. Once persistence begins, cancellation is not supported to avoid partial writes.
+[Factory]
+internal partial class Employee : EntityBase<Employee>, IEmployee
+{
+    public Employee(IEntityBaseServices<Employee> services) : base(services) { }
+
+    #region docs:aggregates-and-entities:partial-property-declaration
+    // Correct - generates backing field with change tracking
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+```
+<!-- /snippet -->
+
+### Partial Property Declaration
+
+<!-- snippet: docs:aggregates-and-entities:partial-property-declaration -->
+```csharp
+// Correct - generates backing field with change tracking
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+```
+<!-- /snippet -->
+
+### Non-Partial Properties (Calculated/UI-Only)
+
+<!-- snippet: docs:aggregates-and-entities:non-partial-properties -->
+```csharp
+// Calculated property - not tracked, not serialized
+    public string FullName => $"{FirstName} {LastName}";
+
+    // UI-only property - not transferred to server
+    public bool IsExpanded { get; set; }
+```
+<!-- /snippet -->
+
+### Property Features Provided by Generator
+
+- Value storage in PropertyManager
+- Change detection (old vs new value)
+- PropertyChanged events
+- Modification tracking
+- Rule triggering on change
+- Busy state management for async operations
+
+## Data Annotations
+
+Use data annotations for display and validation.
+
+### Complete Data Annotations Example
+
+<!-- snippet: docs:aggregates-and-entities:data-annotations -->
+```csharp
+/// <summary>
+/// Using data annotations for display and validation.
+/// </summary>
+public partial interface IContact : IEntityBase
+{
+    string? FirstName { get; set; }
+    string? Email { get; set; }
+}
+
+[Factory]
+internal partial class Contact : EntityBase<Contact>, IContact
+{
+    public Contact(IEntityBaseServices<Contact> services) : base(services) { }
+
+    #region docs:aggregates-and-entities:displayname-required
+    [DisplayName("First Name*")]
+    [Required(ErrorMessage = "First Name is required")]
+    public partial string? FirstName { get; set; }
+```
+<!-- /snippet -->
+
+### DisplayName and Required
+
+<!-- snippet: docs:aggregates-and-entities:displayname-required -->
+```csharp
+[DisplayName("First Name*")]
+    [Required(ErrorMessage = "First Name is required")]
+    public partial string? FirstName { get; set; }
+```
+<!-- /snippet -->
+
+### EmailAddress Validation
+
+<!-- snippet: docs:aggregates-and-entities:emailaddress-validation -->
+```csharp
+[DisplayName("Email Address")]
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    public partial string? Email { get; set; }
+```
+<!-- /snippet -->
 
 ## ValidateBase<T> - Validation Without Persistence
 
 Use `ValidateBase<T>` for objects that need validation but are not persisted independently.
 
+### Search Criteria Example
+
+<!-- snippet: docs:aggregates-and-entities:validatebase-criteria -->
 ```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
-
-[Factory]
-internal partial class SearchCriteria : ValidateBase<SearchCriteria>, ISearchCriteria
+/// <summary>
+/// Criteria object - has validation but no persistence.
+/// Use ValidateBase for objects that need validation but are NOT persisted.
+/// </summary>
+public partial interface IPersonSearchCriteria : IValidateBase
 {
-    public SearchCriteria(IValidateBaseServices<SearchCriteria> services)
-        : base(services)
-    {
-    }
-
-    [Required]
-    public partial string? SearchTerm { get; set; }
-
-    [Range(1, 100)]
-    public partial int MaxResults { get; set; }
-
-    public partial DateTime? StartDate { get; set; }
-    public partial DateTime? EndDate { get; set; }
-
-    [Create]
-    public void Create()
-    {
-        MaxResults = 25;
-    }
+    string? SearchTerm { get; set; }
+    DateTime? FromDate { get; set; }
+    DateTime? ToDate { get; set; }
 }
+
+#region docs:aggregates-and-entities:validatebase-declaration
+[Factory]
+internal partial class PersonSearchCriteria : ValidateBase<PersonSearchCriteria>, IPersonSearchCriteria
 ```
+<!-- /snippet -->
 
 ### ValidateBase Features
 
@@ -169,39 +267,28 @@ internal partial class SearchCriteria : ValidateBase<SearchCriteria>, ISearchCri
 
 ## Value Objects
 
-Value Objects represent concepts defined by attributes, not identity. Use plain classes with `[Factory]`:
+Value Objects represent concepts defined by attributes, not identity.
 
+### Value Object Pattern
+
+<!-- snippet: docs:aggregates-and-entities:value-object -->
 ```csharp
-using Neatoo.RemoteFactory;
-
-[Factory]
-public class Money
+/// <summary>
+/// Value Object - simple POCO class with [Factory] attribute.
+/// No Neatoo base class inheritance. RemoteFactory generates fetch operations.
+/// Typical Use: Lookup data, dropdown options, reference data.
+/// </summary>
+public interface IStateProvince
 {
-    public decimal Amount { get; private set; }
-    public string Currency { get; private set; } = "USD";
-
-    public Money Add(Money other, IMoneyFactory factory)
-    {
-        if (Currency != other.Currency)
-            throw new InvalidOperationException("Cannot add different currencies");
-        return factory.Create(Amount + other.Amount, Currency);
-    }
-
-    public Money Multiply(decimal factor, IMoneyFactory factory)
-    {
-        return factory.Create(Amount * factor, Currency);
-    }
-
-    [Create]
-    public void Create(decimal amount, string currency = "USD")
-    {
-        if (amount < 0)
-            throw new ArgumentException("Amount cannot be negative");
-        Amount = amount;
-        Currency = currency.ToUpperInvariant();
-    }
+    string Code { get; }
+    string Name { get; }
 }
+
+#region docs:aggregates-and-entities:value-object-declaration
+[Factory]
+internal partial class StateProvince : IStateProvince
 ```
+<!-- /snippet -->
 
 ### Value Object Characteristics
 
@@ -210,158 +297,163 @@ public class Money
 3. **Self-validating** - Throw from Create for invalid inputs
 4. **No base class** - Plain class with [Factory] attribute
 
-### Using Value Objects in Entities
+## Child Entities
 
+Child entities are part of a parent aggregate.
+
+### Child Entity Pattern
+
+<!-- snippet: docs:aggregates-and-entities:child-entity-pattern -->
 ```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
+/// <summary>
+/// Child entity - no [Remote], called internally by parent.
+/// </summary>
+public partial interface IOrderLineItem : IEntityBase
+{
+    Guid? Id { get; set; }
+    string? ProductName { get; set; }
+    int Quantity { get; set; }
+    decimal UnitPrice { get; set; }
+    decimal LineTotal { get; }
+}
 
 [Factory]
-internal partial class Order : EntityBase<Order>, IOrder
+internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 {
-    public partial Money? TotalAmount { get; set; }
-    public partial Address? ShippingAddress { get; set; }
+    public OrderLineItem(IEntityBaseServices<OrderLineItem> services) : base(services) { }
 
-    [Remote]
-    [Fetch]
-    public async Task<bool> Fetch(
-        [Service] IDbContext db,
-        [Service] IMoneyFactory moneyFactory,
-        [Service] IAddressFactory addressFactory)
+    public partial Guid? Id { get; set; }
+    public partial string? ProductName { get; set; }
+    public partial int Quantity { get; set; }
+    public partial decimal UnitPrice { get; set; }
+
+    public decimal LineTotal => Quantity * UnitPrice;
+
+    [Create]
+    public void Create()
     {
-        var entity = await db.Orders.FindAsync(Id);
-        if (entity == null) return false;
-
-        LoadProperty(nameof(Id), entity.Id);
-
-        // Reconstruct Value Objects from flat columns
-        TotalAmount = moneyFactory.Create(
-            entity.TotalAmount,
-            entity.TotalCurrency);
-
-        ShippingAddress = addressFactory.Create(
-            entity.ShipStreet,
-            entity.ShipCity,
-            entity.ShipState,
-            entity.ShipZip);
-
-        return true;
+        Id = Guid.NewGuid();
     }
-}
+
+    #region docs:aggregates-and-entities:child-fetch-no-remote
+    // No [Remote] - called internally by parent
+    [Fetch]
+    public void Fetch(OrderLineItemDto dto)
 ```
+<!-- /snippet -->
+
+### Parent Access Property
+
+<!-- snippet: docs:aggregates-and-entities:parent-access-property -->
+```csharp
+// Access parent through the Parent property
+    public IContact? ParentContact => Parent as IContact;
+```
+<!-- /snippet -->
 
 ## EntityListBase<I> - Child Collections
 
-Collections of child entities use `EntityListBase<I>`. The list is a simple container - it doesn't create children.
+Collections of child entities use `EntityListBase<I>`.
 
-### List with Helper Methods (Preferred)
+### List Implementation
 
-The list constructor-injects the child factory and provides helper methods:
-
+<!-- snippet: docs:collections:list-implementation -->
 ```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
-
-public interface IOrderLineList : IEntityListBase<IOrderLine>
-{
-    IOrderLine AddLine();
-    void RemoveLine(IOrderLine line);
-}
-
+/// <summary>
+/// EntityListBase implementation with factory injection.
+/// </summary>
 [Factory]
-internal partial class OrderLineList
-    : EntityListBase<IOrderLine>, IOrderLineList
+internal class PhoneList : EntityListBase<IPhone>, IPhoneList
 {
-    private readonly IOrderLineFactory _lineFactory;
+    private readonly IPhoneFactory _phoneFactory;
 
-    public OrderLineList(IOrderLineFactory lineFactory) : base()
+    public PhoneList([Service] IPhoneFactory phoneFactory)
     {
-        _lineFactory = lineFactory;
+        _phoneFactory = phoneFactory;
     }
 
-    public IOrderLine AddLine()
+    public IPhone AddPhoneNumber()
     {
-        var line = _lineFactory.Create();
-        Add(line);
-        return line;
+        var phone = _phoneFactory.Create();
+        Add(phone);  // Marks as child, sets parent
+        return phone;
     }
 
-    public void RemoveLine(IOrderLine line)
+    public void RemovePhoneNumber(IPhone phone)
     {
-        Remove(line);
+        Remove(phone);  // Marks for deletion if not new
     }
 
-    [Create]
-    public void Create()
-    {
-        // Empty collection ready for items
-    }
-
+    #region docs:collections:fetch-operation
     [Fetch]
-    public async Task Fetch(
-        IEnumerable<OrderLineEntity> entities,
-        [Service] IOrderLineFactory lineFactory)
+    public void Fetch(IEnumerable<PhoneEntity> entities,
+                      [Service] IPhoneFactory phoneFactory)
     {
         foreach (var entity in entities)
         {
-            var line = await lineFactory.Fetch(entity);
-            if (line != null) Add(line);
+            var phone = phoneFactory.Fetch(entity);
+            Add(phone);
         }
     }
-}
 ```
+<!-- /snippet -->
 
-### Simple List (Alternative)
+### Fetch Operation
 
-When the UI manages child creation directly:
-
+<!-- snippet: docs:collections:fetch-operation -->
 ```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
-
-public interface IOrderLineList : IEntityListBase<IOrderLine>
-{
-}
-
-[Factory]
-internal partial class OrderLineList
-    : EntityListBase<IOrderLine>, IOrderLineList
-{
-    public OrderLineList() : base()
+[Fetch]
+    public void Fetch(IEnumerable<PhoneEntity> entities,
+                      [Service] IPhoneFactory phoneFactory)
     {
+        foreach (var entity in entities)
+        {
+            var phone = phoneFactory.Fetch(entity);
+            Add(phone);
+        }
     }
-
-    [Create]
-    public void Create()
-    {
-    }
-}
-
-// In Blazor page - UI injects factory
-@inject IOrderLineFactory LineFactory
-
-private void AddLineItem()
-{
-    var line = LineFactory.Create();
-    _order!.Lines!.Add(line);
-}
 ```
+<!-- /snippet -->
 
-### Anti-Pattern - Factory as Method Parameter
+### Update Operation
 
-**Never** require callers to provide factories as method parameters:
-
+<!-- snippet: docs:collections:update-operation -->
 ```csharp
-// WRONG - forces caller to inject and pass factory
-public IOrderLine AddLine(IOrderLineFactory lineFactory)
-{
-    var line = lineFactory.Create();
-    Add(line);
-    return line;
-}
-```
+[Update]
+    public void Update(ICollection<PhoneEntity> entities,
+                       [Service] IPhoneFactory phoneFactory)
+    {
+        // Process all items including deleted ones
+        foreach (var phone in this.Union(DeletedList))
+        {
+            PhoneEntity entity;
 
-Services should be constructor-injected, not passed by callers
+            if (phone.IsNew)
+            {
+                // Create new EF entity
+                entity = new PhoneEntity();
+                entities.Add(entity);
+            }
+            else
+            {
+                // Find existing EF entity
+                entity = entities.Single(e => e.Id == phone.Id);
+            }
+
+            if (phone.IsDeleted)
+            {
+                // Remove from EF collection
+                entities.Remove(entity);
+            }
+            else
+            {
+                // Save the item (insert or update)
+                phoneFactory.Save(phone, entity);
+            }
+        }
+    }
+```
+<!-- /snippet -->
 
 ### Collection Behavior
 
@@ -378,227 +470,69 @@ Calling `entity.Delete()` on an entity in a list is equivalent to calling `list.
 2. Mark it as deleted (`IsDeleted = true`)
 3. Add it to the `DeletedList` (if not new)
 
+## Aggregate Root Pattern
+
+### Complete Aggregate Root
+
+<!-- snippet: docs:aggregates-and-entities:aggregate-root-pattern -->
 ```csharp
-// These are equivalent:
-order.Lines.Remove(line);
-line.Delete();
+/// <summary>
+/// Aggregate root with [Remote] operations - called from UI.
+/// </summary>
+public partial interface ISalesOrder : IEntityBase
+{
+    Guid? Id { get; set; }
+    string? CustomerName { get; set; }
+    DateTime OrderDate { get; set; }
+    IOrderLineItemList? LineItems { get; set; }
+}
+
+[Factory]
+internal partial class SalesOrder : EntityBase<SalesOrder>, ISalesOrder
+{
+    public SalesOrder(IEntityBaseServices<SalesOrder> services) : base(services) { }
+
+    public partial Guid? Id { get; set; }
+    public partial string? CustomerName { get; set; }
+    public partial DateTime OrderDate { get; set; }
+    public partial IOrderLineItemList? LineItems { get; set; }
+
+    [Create]
+    public void Create([Service] IOrderLineItemList lineItems)
+    {
+        Id = Guid.NewGuid();
+        OrderDate = DateTime.Today;
+        LineItems = lineItems;
+    }
+
+    #region docs:aggregates-and-entities:remote-fetch
+    // [Remote] - Called from UI
+    [Remote]
+    [Fetch]
+    public void Fetch(Guid id)
 ```
+<!-- /snippet -->
 
-For standalone entities (not in a list), `Delete()` simply sets `IsDeleted = true`.
+### Remote Fetch
 
-### Intra-Aggregate Moves
-
-Entities can be moved between lists within the same aggregate:
-
+<!-- snippet: docs:aggregates-and-entities:remote-fetch -->
 ```csharp
-// Company aggregate with two departments
-var project = dept1.Projects[0];
-
-// Remove from Dept1's projects
-dept1.Projects.Remove(project);
-// project.IsDeleted = true
-// project in dept1.Projects.DeletedList
-
-// Add to Dept2's projects (same aggregate)
-dept2.Projects.Add(project);
-// project removed from dept1.Projects.DeletedList
-// project.IsDeleted = false (undeleted)
-// project now in dept2.Projects
+// [Remote] - Called from UI
+    [Remote]
+    [Fetch]
+    public void Fetch(Guid id)
 ```
+<!-- /snippet -->
 
-Cross-aggregate moves throw `InvalidOperationException`.
+### Remote Insert
 
-### DeletedList Processing
-
+<!-- snippet: docs:aggregates-and-entities:remote-insert -->
 ```csharp
 [Remote]
-[Update]
-public async Task Update(Guid parentId, [Service] IDbContext db)
-{
-    // Process deletions first
-    foreach (var deleted in DeletedList.Cast<IOrderLine>())
-    {
-        var entity = await db.OrderLines.FindAsync(deleted.Id);
-        if (entity != null)
-            db.OrderLines.Remove(entity);
-    }
-
-    // Process remaining items
-    foreach (var line in this)
-    {
-        if (line.IsNew)
-        {
-            var entity = new OrderLineEntity { OrderId = parentId };
-            // Map properties...
-            db.OrderLines.Add(entity);
-        }
-        else if (line.IsModified)
-        {
-            var entity = await db.OrderLines.FindAsync(line.Id);
-            // Map modified properties...
-        }
-    }
-
-    await db.SaveChangesAsync();
-}
+    [Insert]
+    public async Task Insert()
 ```
-
-## Dependency Injection Patterns
-
-### Constructor Injection - For Ongoing Use
-
-Constructor-inject dependencies you need throughout the entity's lifetime:
-
-```csharp
-public Person(
-    IEntityBaseServices<Person> services,
-    IEmailValidator emailValidator) : base(services)
-{
-    _emailValidator = emailValidator;
-
-    // Validator used in rules - needed throughout lifetime
-    RuleManager.AddRule(new EmailValidationRule(_emailValidator));
-}
-```
-
-```csharp
-// List needs factory for ongoing AddLine() calls
-public OrderLineList(IOrderLineFactory lineFactory) : base()
-{
-    _lineFactory = lineFactory;
-}
-
-public IOrderLine AddLine()
-{
-    var line = _lineFactory.Create();  // Called multiple times
-    Add(line);
-    return line;
-}
-```
-
-### [Service] Injection - For Factory Methods Only
-
-Use `[Service]` for dependencies only needed in `[Create]`, `[Fetch]`, etc.:
-
-```csharp
-public Person(IEntityBaseServices<Person> services) : base(services)
-{
-    // No child factory needed here - only used once in Create
-}
-
-[Create]
-public void Create([Service] IPersonPhoneListFactory phoneListFactory)
-{
-    Id = null;
-    PersonPhoneList = phoneListFactory.Create();  // One-time initialization
-}
-```
-
-```csharp
-[Create]
-public void Create([Service] IOrderLineListFactory lineListFactory)
-{
-    OrderDate = DateTime.Today;
-    Lines = lineListFactory.Create();  // One-time initialization
-}
-```
-
-### ValidateBase Constructor
-
-```csharp
-public SearchCriteria(IValidateBaseServices<SearchCriteria> services)
-    : base(services)
-{
-    RuleManager.AddRule(new DateRangeRule());
-}
-```
-
-### EntityListBase Constructor
-
-```csharp
-public OrderLineList(IOrderLineFactory lineFactory) : base()
-{
-    _lineFactory = lineFactory;
-}
-```
-
-Note: EntityListBase uses a parameterless base constructor. Dependencies are constructor-injected into your class.
-
-## Partial Property Requirements
-
-Properties must be declared as `partial` for the source generator:
-
-```csharp
-// Correct - source generator provides implementation
-public partial string? FirstName { get; set; }
-
-// Incorrect - source generator cannot process
-public string? FirstName { get; set; }
-```
-
-### Property Features Provided by Generator
-
-- Value storage in PropertyManager
-- Change detection (old vs new value)
-- PropertyChanged events
-- Modification tracking
-- Rule triggering on change
-- Busy state management for async operations
-
-## Best Practices
-
-### Use Interfaces for Public API
-
-```csharp
-// Interface is public - used by consumers
-public interface IPerson : IEntityBase { }
-
-// Class is internal - implementation detail
-[Factory]
-internal partial class Person : EntityBase<Person>, IPerson { }
-```
-
-### Inject Dependencies via Constructor
-
-```csharp
-public Person(
-    IEntityBaseServices<Person> services,
-    IPersonPhoneListFactory phoneListFactory,
-    IEmailValidator emailValidator) : base(services)
-{
-    _phoneListFactory = phoneListFactory;
-    _emailValidator = emailValidator;
-}
-```
-
-### Initialize Collections in Create
-
-```csharp
-[Create]
-public void Create()
-{
-    Id = null;  // Will be assigned on Insert
-    PersonPhoneList = _phoneListFactory.Create();
-}
-```
-
-### Access Parent from Child
-
-```csharp
-internal partial class OrderLine : EntityBase<OrderLine>, IOrderLine
-{
-    public IOrder? ParentOrder => Parent as IOrder;
-
-    // Access parent's properties in rules
-    public void CalculateDiscount()
-    {
-        if (ParentOrder?.CustomerType == CustomerType.VIP)
-        {
-            DiscountPercent = 10;
-        }
-    }
-}
-```
+<!-- /snippet -->
 
 ## Common Pitfalls
 

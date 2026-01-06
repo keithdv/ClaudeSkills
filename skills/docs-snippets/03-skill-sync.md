@@ -101,20 +101,22 @@ Not all changes need skill updates. Focus on:
 
 **Critical:** Skill code examples should come from the same compiled sources as documentation.
 
-Option A: Copy from documentation (already synced from samples)
+**Preferred: Use snippet markers (automated)**
 ```markdown
-<!-- In skill file -->
+<!-- snippet: docs:validation-and-rules:age-validation-rule -->
 ```csharp
-// This should match docs/validation-and-rules.md exactly
-public class AgeValidationRule : RuleBase<IPerson>
-{
-    // ...
-}
+// Replaced automatically by extract-snippets.ps1
+```
+<!-- /snippet -->
 ```
 
-Option B: Reference documentation
+Then run:
+```powershell
+.\scripts\extract-snippets.ps1 -Update -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
+```
+
+**Alternative: Reference documentation**
 ```markdown
-<!-- In skill file -->
 For full example, see docs/validation-and-rules.md#age-validation
 ```
 
@@ -267,10 +269,49 @@ person = await personFactory.Save(person);  // ALWAYS reassign!
 
 ---
 
-## Automation Opportunities
+## Automated Skill Sync
 
-Currently skill sync is manual. Future improvements:
+The `extract-snippets.ps1` script now supports skill files via the `-SkillPath` parameter.
 
-1. **Snippet extraction to skills** - Extend `extract-snippets.ps1` to also update skill files
-2. **Diff detection** - Script to compare skill code blocks against documentation
-3. **Staleness alerts** - Warn when skill hasn't been synced after N commits
+### How It Works
+
+1. Skills use the **same** `<!-- snippet: docs:{docfile}:{snippetid} -->` markers as documentation
+2. The script scans skill files for these markers
+3. Code is injected from the same compiled samples that feed documentation
+
+### Usage
+
+```powershell
+# Update both docs and skills
+.\scripts\extract-snippets.ps1 -Update -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
+
+# Verify both are in sync
+.\scripts\extract-snippets.ps1 -Verify -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
+```
+
+### Adding a Snippet Marker to a Skill File
+
+```markdown
+## Value Objects
+
+<!-- snippet: docs:aggregates-and-entities:value-object -->
+```csharp
+// This will be replaced by extract-snippets.ps1
+```
+<!-- /snippet -->
+```
+
+The snippet ID (`docs:aggregates-and-entities:value-object`) must match a `#region docs:*` marker in the samples.
+
+### Key Points
+
+- Skills can use **any** snippet from samples, not just ones matching the skill filename
+- The same snippet can appear in both documentation and skills
+- Run `-Verify -SkillPath` before committing to ensure skills are in sync
+
+---
+
+## Future Improvements
+
+1. **Diff detection** - Script to compare skill code blocks against documentation
+2. **Staleness alerts** - Warn when skill hasn't been synced after N commits

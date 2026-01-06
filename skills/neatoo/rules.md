@@ -14,232 +14,258 @@ Neatoo's rules engine handles both **validation** (is the data correct?) and **t
 
 ## Data Annotation Validation
 
-The simplest validation uses standard .NET data annotations:
+The simplest validation uses standard .NET data annotations.
 
+### Complete Data Annotations Entity
+
+<!-- snippet: docs:validation-and-rules:data-annotations-entity -->
 ```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
-
+/// <summary>
+/// Sample entity demonstrating all supported data annotation attributes.
+/// </summary>
 [Factory]
-internal partial class Person : EntityBase<Person>, IPerson
+internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>, IDataAnnotationsEntity
 {
-    [Required(ErrorMessage = "First name is required")]
-    [StringLength(50, ErrorMessage = "First name cannot exceed 50 characters")]
-    [DisplayName("First Name")]
+    public DataAnnotationsEntity(IEntityBaseServices<DataAnnotationsEntity> services) : base(services) { }
+
+    public partial Guid? Id { get; set; }
+
+    #region docs:validation-and-rules:required-attribute
+    [Required]
     public partial string? FirstName { get; set; }
 
-    [Required]
-    [StringLength(50)]
-    public partial string? LastName { get; set; }
+    [Required(ErrorMessage = "Customer name is required")]
+    public partial string? CustomerName { get; set; }
+```
+<!-- /snippet -->
 
-    [EmailAddress(ErrorMessage = "Invalid email format")]
-    public partial string? Email { get; set; }
+### Required Attribute
 
-    [Phone]
-    public partial string? Phone { get; set; }
+<!-- snippet: docs:validation-and-rules:required-attribute -->
+```csharp
+[Required]
+    public partial string? FirstName { get; set; }
 
+    [Required(ErrorMessage = "Customer name is required")]
+    public partial string? CustomerName { get; set; }
+```
+<!-- /snippet -->
+
+### StringLength Attribute
+
+<!-- snippet: docs:validation-and-rules:stringlength-attribute -->
+```csharp
+// Maximum length only
+    [StringLength(100)]
+    public partial string? Description { get; set; }
+
+    // Minimum and maximum
+    [StringLength(100, MinimumLength = 2)]
+    public partial string? Username { get; set; }
+
+    // Custom message
+    [StringLength(50, MinimumLength = 5, ErrorMessage = "Name must be 5-50 characters")]
+    public partial string? NameWithLength { get; set; }
+```
+<!-- /snippet -->
+
+### MinLength/MaxLength Attributes
+
+<!-- snippet: docs:validation-and-rules:minmaxlength-attribute -->
+```csharp
+// String minimum length
+    [MinLength(3)]
+    public partial string? Code { get; set; }
+
+    // String maximum length
+    [MaxLength(500)]
+    public partial string? Notes { get; set; }
+
+    // Collection minimum count
+    [MinLength(1, ErrorMessage = "At least one item required")]
+    public partial List<string>? Tags { get; set; }
+
+    // Array maximum count
+    [MaxLength(10)]
+    public partial string[]? Categories { get; set; }
+```
+<!-- /snippet -->
+
+### Range Attribute
+
+<!-- snippet: docs:validation-and-rules:range-attribute -->
+```csharp
+// Integer range
+    [Range(1, 100)]
+    public partial int Quantity { get; set; }
+
+    // Double range
+    [Range(0.0, 100.0)]
+    public partial double Percentage { get; set; }
+
+    // Decimal range (use type-based constructor)
+    [Range(typeof(decimal), "0.01", "999.99")]
+    public partial decimal Price { get; set; }
+
+    // Date range
+    [Range(typeof(DateTime), "2020-01-01", "2030-12-31")]
+    public partial DateTime AppointmentDate { get; set; }
+
+    // Custom message
     [Range(0, 150, ErrorMessage = "Age must be between 0 and 150")]
     public partial int Age { get; set; }
-
-    [RegularExpression(@"^\d{5}(-\d{4})?$", ErrorMessage = "Invalid ZIP code")]
-    public partial string? ZipCode { get; set; }
-
-    [Compare(nameof(Email), ErrorMessage = "Email addresses must match")]
-    public partial string? ConfirmEmail { get; set; }
-}
 ```
+<!-- /snippet -->
 
-### Supported Data Annotations
+### RegularExpression Attribute
 
-| Attribute | Purpose |
-|-----------|---------|
-| `[Required]` | Field must have a value |
-| `[StringLength(max)]` | Maximum string length |
-| `[MinLength(min)]` | Minimum string/collection length |
-| `[MaxLength(max)]` | Maximum string/collection length |
-| `[Range(min, max)]` | Numeric range |
-| `[EmailAddress]` | Valid email format |
-| `[Phone]` | Valid phone format |
-| `[Url]` | Valid URL format |
-| `[CreditCard]` | Valid credit card format |
-| `[RegularExpression(pattern)]` | Regex pattern match |
-| `[Compare(otherProperty)]` | Must match another property |
-| `[DisplayName(name)]` | Friendly name for messages |
-
-## RuleManager.AddAction - Transformation Rules
-
-For calculated properties, use `AddAction` in the constructor:
-
+<!-- snippet: docs:validation-and-rules:regularexpression-attribute -->
 ```csharp
-public Person(IEntityBaseServices<Person> services) : base(services)
+// Code format: 2 letters + 4 digits
+    [RegularExpression(@"^[A-Z]{2}\d{4}$")]
+    public partial string? ProductCode { get; set; }
+
+    // Phone format
+    [RegularExpression(@"^\d{3}-\d{3}-\d{4}$", ErrorMessage = "Format: 555-123-4567")]
+    public partial string? Phone { get; set; }
+
+    // Alphanumeric only
+    [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Letters and numbers only")]
+    public partial string? UsernameAlphanumeric { get; set; }
+```
+<!-- /snippet -->
+
+### EmailAddress Attribute
+
+<!-- snippet: docs:validation-and-rules:emailaddress-attribute -->
+```csharp
+[EmailAddress]
+    public partial string? Email { get; set; }
+
+    [EmailAddress(ErrorMessage = "Please enter a valid email")]
+    public partial string? ContactEmail { get; set; }
+```
+<!-- /snippet -->
+
+### Combining Attributes
+
+<!-- snippet: docs:validation-and-rules:combining-attributes -->
+```csharp
+[Required(ErrorMessage = "Email is required")]
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    [StringLength(254, ErrorMessage = "Email too long")]
+    public partial string? CombinedEmail { get; set; }
+
+    [Required]
+    [Range(1, 1000)]
+    public partial int CombinedQuantity { get; set; }
+
+    [StringLength(100, MinimumLength = 2)]
+    [RegularExpression(@"^[a-zA-Z\s]+$", ErrorMessage = "Letters only")]
+    public partial string? FullName { get; set; }
+```
+<!-- /snippet -->
+
+## Fluent Rule Registration
+
+For calculated properties and inline validation, use fluent methods in the constructor.
+
+### Fluent Rules Person Example
+
+<!-- snippet: docs:validation-and-rules:fluent-rules-person -->
+```csharp
+/// <summary>
+/// Sample person that demonstrates fluent rule registration.
+/// </summary>
+[Factory]
+internal partial class PersonWithFluentRules : EntityBase<PersonWithFluentRules>, IPersonWithFluentRules
 {
-    // Single trigger property
-    RuleManager.AddAction(
-        (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
-        p => p.FirstName, p => p.LastName);
-
-    // Multiple calculations
-    RuleManager.AddAction(
-        (Person p) => p.Age = CalculateAge(p.BirthDate),
-        p => p.BirthDate);
-
-    RuleManager.AddAction(
-        (Person p) => p.IsAdult = p.Age >= 18,
-        p => p.Age);
-}
-
-private static int CalculateAge(DateTime? birthDate)
-{
-    if (birthDate == null) return 0;
-    var today = DateTime.Today;
-    var age = today.Year - birthDate.Value.Year;
-    if (birthDate.Value.Date > today.AddYears(-age)) age--;
-    return age;
-}
-```
-
-### AddAction Signature
-
-```csharp
-void AddAction(
-    Action<T> action,           // The transformation to perform
-    params Expression<Func<T, object?>>[] triggerProperties  // Properties that trigger this action
-);
-```
-
-### Chained Calculations
-
-Actions can chain - when one calculated property changes, it triggers rules dependent on it:
-
-```csharp
-// BirthDate changes -> Age calculated -> IsAdult calculated
-RuleManager.AddAction(
-    (Person p) => p.Age = CalculateAge(p.BirthDate),
-    p => p.BirthDate);
-
-RuleManager.AddAction(
-    (Person p) => p.IsAdult = p.Age >= 18,
-    p => p.Age);
-```
-
-## RuleManager.AddRule - Custom Validation Rules
-
-For complex validation logic, create custom rule classes:
-
-### Rule Base Class
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class EmailDomainRule : RuleBase<IPerson>
-{
-    private readonly string[] _allowedDomains;
-
-    public EmailDomainRule(string[] allowedDomains)
-        : base(p => p.Email)  // Trigger property
+    public PersonWithFluentRules(IEntityBaseServices<PersonWithFluentRules> services,
+                                  IEmailService emailService) : base(services)
     {
-        _allowedDomains = allowedDomains;
-    }
+        #region docs:validation-and-rules:fluent-validation
+        // Inline validation rule
+        RuleManager.AddValidation(
+            target => string.IsNullOrEmpty(target.Name) ? "Name is required" : "",
+            t => t.Name);
+```
+<!-- /snippet -->
+
+### AddValidation (Sync)
+
+<!-- snippet: docs:validation-and-rules:fluent-validation -->
+```csharp
+// Inline validation rule
+        RuleManager.AddValidation(
+            target => string.IsNullOrEmpty(target.Name) ? "Name is required" : "",
+            t => t.Name);
+```
+<!-- /snippet -->
+
+### AddValidationAsync
+
+<!-- snippet: docs:validation-and-rules:fluent-validation-async -->
+```csharp
+// Async validation rule
+        RuleManager.AddValidationAsync(
+            async target => await emailService.EmailExistsAsync(target.Email!) ? "Email in use" : "",
+            t => t.Email);
+```
+<!-- /snippet -->
+
+### AddAction (Transformation)
+
+<!-- snippet: docs:validation-and-rules:fluent-action -->
+```csharp
+// Action rule for calculated values
+        RuleManager.AddAction(
+            target => target.FullName = $"{target.FirstName} {target.LastName}",
+            t => t.FirstName,
+            t => t.LastName);
+```
+<!-- /snippet -->
+
+## Custom Validation Rules (RuleBase)
+
+For complex validation logic, create custom rule classes.
+
+### Age Validation Rule
+
+<!-- snippet: docs:validation-and-rules:age-validation-rule -->
+```csharp
+public interface IAgeValidationRule : IRule<IPerson> { }
+
+public class AgeValidationRule : RuleBase<IPerson>, IAgeValidationRule
+{
+    public AgeValidationRule() : base(p => p.Age) { }
 
     protected override IRuleMessages Execute(IPerson target)
     {
-        if (string.IsNullOrEmpty(target.Email))
-            return RuleMessages.None;  // Let [Required] handle empty
-
-        var domain = target.Email.Split('@').LastOrDefault();
-
-        if (!_allowedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+        if (target.Age < 0)
         {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(
-                nameof(target.Email),
-                $"Email domain must be one of: {string.Join(", ", _allowedDomains)}"));
-            return messages;
+            return (nameof(target.Age), "Age cannot be negative").AsRuleMessages();
         }
-
-        return RuleMessages.None;
-    }
-}
-```
-
-### Registering Custom Rules
-
-```csharp
-public Person(IEntityBaseServices<Person> services) : base(services)
-{
-    RuleManager.AddRule(new EmailDomainRule(new[] { "company.com", "corp.net" }));
-    RuleManager.AddRule(new AgeRestrictionRule());
-    RuleManager.AddRule(new PhoneFormatRule());
-}
-```
-
-### Multiple Trigger Properties
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class DateRangeRule : RuleBase<IDateRange>
-{
-    public DateRangeRule()
-        : base(r => r.StartDate, r => r.EndDate)  // Multiple triggers
-    {
-    }
-
-    protected override IRuleMessages Execute(IDateRange target)
-    {
-        if (target.StartDate == null || target.EndDate == null)
-            return RuleMessages.None;
-
-        if (target.EndDate < target.StartDate)
+        if (target.Age > 150)
         {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(
-                nameof(target.EndDate),
-                "End date must be after start date"));
-            return messages;
+            return (nameof(target.Age), "Age seems unrealistic").AsRuleMessages();
         }
-
-        return RuleMessages.None;
+        return None;
     }
 }
 ```
+<!-- /snippet -->
 
-### Multiple Error Messages
+### Unique Email Rule (Async)
 
+<!-- snippet: docs:validation-and-rules:unique-email-rule -->
 ```csharp
-protected override IRuleMessages Execute(IOrder target)
-{
-    var messages = new List<(string, string)>();
+public interface IUniqueEmailRule : IRule<IPerson> { }
 
-    if (target.OrderDate > DateTime.Today)
-        messages.Add((nameof(target.OrderDate), "Order date cannot be in the future"));
-
-    if (target.ShipDate < target.OrderDate)
-        messages.Add((nameof(target.ShipDate), "Ship date must be after order date"));
-
-    if (target.Total <= 0)
-        messages.Add((nameof(target.Total), "Order total must be greater than zero"));
-
-    return messages.AsRuleMessages();
-}
-```
-
-## Async Rules - Server-Side Validation
-
-For validation requiring database access, use async rules:
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
+public class UniqueEmailRule : AsyncRuleBase<IPerson>, IUniqueEmailRule
 {
     private readonly IEmailService _emailService;
 
-    public UniqueEmailRule(IEmailService emailService)
-        : base(p => p.Email)
+    public UniqueEmailRule(IEmailService emailService) : base(p => p.Email)
     {
         _emailService = emailService;
     }
@@ -247,564 +273,704 @@ public class UniqueEmailRule : AsyncRuleBase<IPerson>
     protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
     {
         if (string.IsNullOrEmpty(target.Email))
-            return RuleMessages.None;
+            return None;
 
-        var exists = await _emailService.EmailExistsAsync(
-            target.Email,
-            target.Id);  // Exclude current entity
-
-        if (exists)
+        if (await _emailService.EmailExistsAsync(target.Email, target.Id))
         {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.Email), "Email address is already registered"));
-            return messages;
+            return (nameof(target.Email), "Email already in use").AsRuleMessages();
         }
-        return RuleMessages.None;
+        return None;
     }
 }
 ```
+<!-- /snippet -->
 
-### Registering Async Rules
+### Trigger Properties
 
+<!-- snippet: docs:validation-and-rules:trigger-properties -->
 ```csharp
-public Person(
-    IEntityBaseServices<Person> services,
-    IEmailService emailService) : base(services)
+public class TriggerPropertiesConstructorExample : RuleBase<IPerson>
 {
-    RuleManager.AddRule(new UniqueEmailRule(emailService));
+    // Constructor approach - pass trigger properties to base
+    public TriggerPropertiesConstructorExample() : base(p => p.FirstName, p => p.LastName) { }
+
+    protected override IRuleMessages Execute(IPerson target) => None;
+}
+
+public class TriggerPropertiesMethodExample : RuleBase<IPerson>
+{
+    // Or use AddTriggerProperties method
+    public TriggerPropertiesMethodExample()
+    {
+        AddTriggerProperties(p => p.FirstName, p => p.LastName);
+    }
+
+    protected override IRuleMessages Execute(IPerson target) => None;
 }
 ```
+<!-- /snippet -->
 
-### Waiting for Async Rules
+### Date Range Rule
 
+<!-- snippet: docs:validation-and-rules:date-range-rule -->
 ```csharp
-person.Email = "test@example.com";
-// Async rule starts executing
-// person.IsBusy == true
-// person[nameof(person.Email)].IsBusy == true
+public interface IDateRangeRule : IRule<IEvent> { }
 
-await person.WaitForTasks();
-// Async rules complete
-// person.IsBusy == false
-
-if (person.IsValid)
+public class DateRangeRule : RuleBase<IEvent>, IDateRangeRule
 {
-    await personFactory.Save(person);
+    public DateRangeRule() : base(e => e.StartDate, e => e.EndDate) { }
+
+    protected override IRuleMessages Execute(IEvent target)
+    {
+        if (target.StartDate > target.EndDate)
+        {
+            return (new[]
+            {
+                (nameof(target.StartDate), "Start date must be before end date"),
+                (nameof(target.EndDate), "End date must be after start date")
+            }).AsRuleMessages();
+        }
+        return None;
+    }
 }
 ```
+<!-- /snippet -->
 
-## Cancellation Support
+### Complete Rule Example
 
-All async operations support `CancellationToken` for graceful shutdown, navigation, or timeouts.
-
-### Running Rules with Cancellation
-
+<!-- snippet: docs:validation-and-rules:complete-rule-example -->
 ```csharp
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+public interface IUniqueNameRule : IRule<IPerson> { }
 
-try
+public class UniqueNameRule : AsyncRuleBase<IPerson>, IUniqueNameRule
 {
-    await entity.RunRules(RunRulesFlag.All, cts.Token);
-}
-catch (OperationCanceledException)
-{
-    // Validation was cancelled
-    // entity.IsValid == false (marked invalid via MarkInvalid)
+    private readonly Func<Guid?, string, string, Task<bool>> _isUniqueName;
+
+    public UniqueNameRule(Func<Guid?, string, string, Task<bool>> isUniqueName)
+    {
+        _isUniqueName = isUniqueName;
+        AddTriggerProperties(p => p.FirstName, p => p.LastName);
+    }
+
+    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
+    {
+        // Skip if properties haven't been modified
+        if (!target[nameof(target.FirstName)].IsModified &&
+            !target[nameof(target.LastName)].IsModified)
+        {
+            return None;
+        }
+
+        // Skip if values are empty
+        if (string.IsNullOrEmpty(target.FirstName) || string.IsNullOrEmpty(target.LastName))
+        {
+            return None;
+        }
+
+        // Check uniqueness
+        if (!await _isUniqueName(target.Id, target.FirstName, target.LastName))
+        {
+            return (new[]
+            {
+                (nameof(target.FirstName), "First and Last name combination is not unique"),
+                (nameof(target.LastName), "First and Last name combination is not unique")
+            }).AsRuleMessages();
+        }
+
+        return None;
+    }
 }
 ```
+<!-- /snippet -->
 
-### Waiting for Tasks with Cancellation
+## Returning Rule Messages
 
+### Single Message
+
+<!-- snippet: docs:validation-and-rules:returning-messages-single -->
 ```csharp
-try
+public class SingleMessageExample : RuleBase<IPerson>
 {
-    await entity.WaitForTasks(cancellationToken);
-}
-catch (OperationCanceledException)
-{
-    // Wait was cancelled - running tasks still complete
+    public SingleMessageExample() : base(p => p.Email) { }
+
+    protected override IRuleMessages Execute(IPerson target)
+    {
+        // Return a single validation message
+        return (nameof(target.Email), "Invalid email format").AsRuleMessages();
+    }
 }
 ```
+<!-- /snippet -->
 
-### Save with Cancellation
+### Multiple Messages
 
+<!-- snippet: docs:validation-and-rules:returning-messages-multiple -->
 ```csharp
-try
+public class MultipleMessagesExample : RuleBase<IPerson>
 {
-    person = await person.Save(cancellationToken);
-}
-catch (OperationCanceledException)
-{
-    // Cancelled before persistence began
+    public MultipleMessagesExample() : base(p => p.FirstName, p => p.LastName) { }
+
+    protected override IRuleMessages Execute(IPerson target)
+    {
+        // Return multiple validation messages
+        return (new[]
+        {
+            (nameof(target.FirstName), "First and Last name combination is not unique"),
+            (nameof(target.LastName), "First and Last name combination is not unique")
+        }).AsRuleMessages();
+    }
 }
 ```
+<!-- /snippet -->
 
-### Async Rules with CancellationToken
+### Conditional Messages
 
-Async rules receive the cancellation token:
-
+<!-- snippet: docs:validation-and-rules:returning-messages-conditional -->
 ```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
+public class ConditionalMessageExample : RuleBase<IPerson>
 {
+    public ConditionalMessageExample() : base(p => p.Age) { }
+
+    protected override IRuleMessages Execute(IPerson target)
+    {
+        // Conditional message using RuleMessages.If
+        return RuleMessages.If(
+            target.Age < 0,
+            nameof(target.Age),
+            "Age cannot be negative");
+    }
+}
+```
+<!-- /snippet -->
+
+### Chained Messages
+
+<!-- snippet: docs:validation-and-rules:returning-messages-chained -->
+```csharp
+public class ChainedConditionsExample : RuleBase<IPerson>
+{
+    public ChainedConditionsExample() : base(p => p.FirstName) { }
+
+    protected override IRuleMessages Execute(IPerson target)
+    {
+        // Chained conditions with ElseIf
+        return RuleMessages.If(string.IsNullOrEmpty(target.FirstName), nameof(target.FirstName), "Name is required")
+            .ElseIf(() => target.FirstName!.Length < 2, nameof(target.FirstName), "Name must be at least 2 characters");
+    }
+}
+```
+<!-- /snippet -->
+
+## Rule Registration
+
+### Rule Interface Definition
+
+<!-- snippet: docs:validation-and-rules:rule-interface-definition -->
+```csharp
+// Rule interfaces
+public interface IAgeValidationRule : IRule<IRuleRegistrationPerson> { }
+public interface IUniqueNameValidationRule : IRule<IRuleRegistrationPerson> { }
+```
+<!-- /snippet -->
+
+### Entity Rule Injection
+
+<!-- snippet: docs:validation-and-rules:entity-rule-injection -->
+```csharp
+public RuleRegistrationPerson(
+        IValidateBaseServices<RuleRegistrationPerson> services,
+        IUniqueNameValidationRule uniqueNameRule,
+        IAgeValidationRule ageRule) : base(services)
+    {
+        #region docs:validation-and-rules:rule-manager-addrule
+        RuleManager.AddRule(uniqueNameRule);
+        RuleManager.AddRule(ageRule);
+```
+<!-- /snippet -->
+
+### RuleManager.AddRule
+
+<!-- snippet: docs:validation-and-rules:rule-manager-addrule -->
+```csharp
+RuleManager.AddRule(uniqueNameRule);
+        RuleManager.AddRule(ageRule);
+```
+<!-- /snippet -->
+
+## Async Rules - Server-Side Validation
+
+For validation requiring database access, use async rules.
+
+### Database-Dependent Async Rule
+
+<!-- snippet: docs:database-dependent-validation:async-rule -->
+```csharp
+/// <summary>
+/// Async rule that validates email uniqueness using the command.
+/// </summary>
+public interface IAsyncUniqueEmailRule : IRule<IUserWithEmail> { }
+
+public class AsyncUniqueEmailRule : AsyncRuleBase<IUserWithEmail>, IAsyncUniqueEmailRule
+{
+    private readonly CheckEmailUnique.IsUnique _isUnique;
+
+    public AsyncUniqueEmailRule(CheckEmailUnique.IsUnique isUnique)
+    {
+        _isUnique = isUnique;
+        AddTriggerProperties(u => u.Email);
+    }
+
     protected override async Task<IRuleMessages> Execute(
-        IPerson target,
-        CancellationToken? token = null)
+        IUserWithEmail target, CancellationToken? token = null)
     {
-        // Pass token to async operations
-        var exists = await _service.CheckAsync(target.Email, token ?? CancellationToken.None);
+        if (string.IsNullOrEmpty(target.Email))
+            return None;
 
-        // Or check manually
-        token?.ThrowIfCancellationRequested();
+        // Skip if property not modified (optimization)
+        if (!target.IsNew && !target[nameof(target.Email)].IsModified)
+            return None;
 
-        if (exists)
+        var excludeId = target.IsNew ? null : (Guid?)target.Id;
+
+        if (!await _isUnique(target.Email, excludeId))
         {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.Email), "In use"));
-            return messages;
+            return (nameof(target.Email), "Email already in use").AsRuleMessages();
         }
-        return RuleMessages.None;
+
+        return None;
     }
 }
 ```
+<!-- /snippet -->
 
-### Fluent Rules with CancellationToken
+### Async Action Rule
 
+<!-- snippet: docs:validation-and-rules:async-action-rule -->
 ```csharp
-// Token is passed to your delegate
-RuleManager.AddActionAsync(
-    async (target, token) => target.Rate = await service.GetRateAsync(target.ZipCode, token),
-    t => t.ZipCode);
-
-RuleManager.AddValidationAsync(
-    async (target, token) => await service.ExistsAsync(target.Email, token) ? "In use" : "",
-    t => t.Email);
-```
-
-### Cancellation Design Philosophy
-
-| Principle | Behavior |
-|-----------|----------|
-| **For stopping, not recovering** | Cancellation marks the object invalid |
-| **Running tasks complete** | Only waiting is cancelled, not executing tasks |
-| **No mid-persistence cancellation** | Save only cancels before Insert/Update/Delete |
-| **Recovery requires re-validation** | Call `RunRules(RunRulesFlag.All)` to clear cancelled state |
-
-### When to Use Cancellation
-
-| Scenario | Pattern |
-|----------|---------|
-| Component disposal | `cts.Cancel()` in `Dispose()` |
-| Navigation away | Cancel before changing routes |
-| Request timeout | `new CancellationTokenSource(TimeSpan.FromSeconds(n))` |
-| User-initiated | Button triggers `cts.Cancel()` |
-
-## Cross-Entity Validation
-
-### Accessing Parent
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class QuantityLimitRule : RuleBase<IOrderLine>
+/// <summary>
+/// Demonstrates AddActionAsync for async side effects.
+/// </summary>
+public partial interface IAsyncActionPerson : IValidateBase
 {
-    public QuantityLimitRule()
-        : base(l => l.Quantity)
-    {
-    }
-
-    protected override IRuleMessages Execute(IOrderLine target)
-    {
-        var order = target.Parent as IOrder;
-        if (order == null) return RuleMessages.None;
-
-        // Business rule: VIP customers can order more
-        var maxQuantity = order.CustomerType == CustomerType.VIP ? 1000 : 100;
-
-        if (target.Quantity > maxQuantity)
-        {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.Quantity), $"Maximum quantity is {maxQuantity}"));
-            return messages;
-        }
-        return RuleMessages.None;
-    }
+    string? ZipCode { get; set; }
+    decimal TaxRate { get; set; }
 }
-```
-
-### Accessing Siblings
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class UniqueProductRule : RuleBase<IOrderLine>
-{
-    public UniqueProductRule()
-        : base(l => l.ProductName)
-    {
-    }
-
-    protected override IRuleMessages Execute(IOrderLine target)
-    {
-        var order = target.Parent as IOrder;
-        if (order?.Lines == null) return RuleMessages.None;
-
-        var isDuplicate = order.Lines
-            .Where(l => l != target)
-            .Any(l => l.ProductName == target.ProductName);
-
-        if (isDuplicate)
-        {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.ProductName), "Product already in order"));
-            return messages;
-        }
-        return RuleMessages.None;
-    }
-}
-```
-
-### Triggering Sibling Validation
-
-When one item changes, siblings may need revalidation:
-
-```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
 
 [Factory]
-internal partial class OrderLineList
-    : EntityListBase<IOrderLine>, IOrderLineList
+internal partial class AsyncActionPerson : ValidateBase<AsyncActionPerson>, IAsyncActionPerson
 {
-    protected override async Task HandleNeatooPropertyChanged(
-        NeatooPropertyChangedEventArgs eventArgs)
+    public AsyncActionPerson(IValidateBaseServices<AsyncActionPerson> services) : base(services)
     {
-        await base.HandleNeatooPropertyChanged(eventArgs);
+        // Async action rule - updates TaxRate when ZipCode changes
+        RuleManager.AddActionAsync(
+            async target => target.TaxRate = await GetTaxRateAsync(target.ZipCode),
+            t => t.ZipCode);
+    }
 
-        if (eventArgs.PropertyName == nameof(IOrderLine.ProductName))
+    public partial string? ZipCode { get; set; }
+    public partial decimal TaxRate { get; set; }
+
+    private static Task<decimal> GetTaxRateAsync(string? zipCode)
+    {
+        // Simulated tax rate lookup
+        return Task.FromResult(zipCode?.StartsWith('9') == true ? 0.0825m : 0.06m);
+    }
+
+    [Create]
+    public void Create() { }
+}
+```
+<!-- /snippet -->
+
+### Pause All Actions
+
+<!-- snippet: docs:validation-and-rules:pause-all-actions -->
+```csharp
+/// <summary>
+/// Demonstrates PauseAllActions for bulk updates without triggering rules.
+/// </summary>
+public partial interface IPauseActionsPerson : IValidateBase
+{
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string? Email { get; set; }
+}
+
+[Factory]
+internal partial class PauseActionsPerson : ValidateBase<PauseActionsPerson>, IPauseActionsPerson
+{
+    public PauseActionsPerson(IValidateBaseServices<PauseActionsPerson> services) : base(services)
+    {
+        RuleManager.AddValidation(
+            t => string.IsNullOrEmpty(t.FirstName) ? "First name required" : "",
+            t => t.FirstName);
+    }
+
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+    public partial string? Email { get; set; }
+
+    [Create]
+    public void Create() { }
+
+    /// <summary>
+    /// Example showing PauseAllActions usage.
+    /// </summary>
+    public void BulkUpdate(string firstName, string lastName, string email)
+    {
+        using (PauseAllActions())
         {
-            // Re-run uniqueness rule on siblings
-            foreach (var sibling in this.Where(l => l != eventArgs.Source))
+            FirstName = firstName;    // No rules yet
+            LastName = lastName;      // No rules yet
+            Email = email;            // No rules yet
+        }
+        // All rules run now when disposed
+    }
+}
+```
+<!-- /snippet -->
+
+## Validation Messages
+
+### Working with Messages
+
+<!-- snippet: docs:validation-and-rules:validation-messages -->
+```csharp
+/// <summary>
+/// Demonstrates accessing validation messages.
+/// </summary>
+public partial interface IValidationMessagesPerson : IValidateBase
+{
+    string? Email { get; set; }
+    string? Name { get; set; }
+}
+
+[Factory]
+internal partial class ValidationMessagesPerson : ValidateBase<ValidationMessagesPerson>, IValidationMessagesPerson
+{
+    public ValidationMessagesPerson(IValidateBaseServices<ValidationMessagesPerson> services) : base(services)
+    {
+        RuleManager.AddValidation(
+            t => string.IsNullOrEmpty(t.Email) ? "Email is required" : "",
+            t => t.Email);
+        RuleManager.AddValidation(
+            t => string.IsNullOrEmpty(t.Name) ? "Name is required" : "",
+            t => t.Name);
+    }
+
+    public partial string? Email { get; set; }
+    public partial string? Name { get; set; }
+
+    [Create]
+    public void Create() { }
+
+    /// <summary>
+    /// Example showing how to access validation messages.
+    /// </summary>
+    public void ShowMessagesExample()
+    {
+        // Property-level messages
+        var emailMessages = this[nameof(Email)].PropertyMessages;
+
+        // All messages for entity
+        var allMessages = PropertyMessages;
+
+        // Check validity
+        if (!IsValid)
+        {
+            foreach (var msg in PropertyMessages)
             {
-                await sibling.RunRules(nameof(IOrderLine.ProductName));
+                Console.WriteLine($"{msg.Property.Name}: {msg.Message}");
             }
         }
     }
 }
 ```
+<!-- /snippet -->
 
-## Rule Execution Control
+## Advanced Rule Patterns
 
-### RunRules Method
+### LoadProperty Usage
 
-Manually trigger rule execution:
-
+<!-- snippet: docs:validation-and-rules:load-property -->
 ```csharp
-// Run rules for specific property
-await entity.RunRules(nameof(entity.Email));
-
-// Run all rules
-await entity.RunRules(RunRulesFlag.All);
-```
-
-### RunRulesFlag Options
-
-| Flag | Behavior |
-|------|----------|
-| `RunRulesFlag.All` | Run all rules regardless of state |
-| Default | Run rules for modified properties |
-
-### Factory Methods - Rules Are Paused
-
-In factory methods (`[Create]`, `[Fetch]`, etc.), **rules are paused**. Use property setters directly:
-
-```csharp
-[Fetch]
-public async Task<bool> Fetch([Service] IDbContext db)
+/// <summary>
+/// Demonstrates LoadProperty for setting values without triggering rules.
+/// </summary>
+public partial interface ILoadPropertyPerson : IValidateBase
 {
-    var entity = await db.Persons.FindAsync(Id);
-    if (entity == null) return false;
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string? FullName { get; set; }
+}
 
-    // Rules are paused in factory methods - property setters work directly
-    Id = entity.Id;
-    FirstName = entity.FirstName;
-    LastName = entity.LastName;
+public interface IFullNameRule : IRule<ILoadPropertyPerson> { }
 
-    return true;
+public class FullNameRule : RuleBase<ILoadPropertyPerson>, IFullNameRule
+{
+    public FullNameRule() : base(p => p.FirstName, p => p.LastName) { }
+
+    protected override IRuleMessages Execute(ILoadPropertyPerson target)
+    {
+        // Set FullName without triggering any FullName rules
+        LoadProperty(target, t => t.FullName, $"{target.FirstName} {target.LastName}");
+        return None;
+    }
+}
+
+[Factory]
+internal partial class LoadPropertyPerson : ValidateBase<LoadPropertyPerson>, ILoadPropertyPerson
+{
+    public LoadPropertyPerson(
+        IValidateBaseServices<LoadPropertyPerson> services,
+        IFullNameRule fullNameRule) : base(services)
+    {
+        RuleManager.AddRule(fullNameRule);
+    }
+
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+    public partial string? FullName { get; set; }
+
+    [Create]
+    public void Create() { }
 }
 ```
+<!-- /snippet -->
 
-### Cascading Rules - A Key Feature
+### IsModified Check
 
-When a rule sets a property, **dependent rules run automatically**. This cascading behavior is intentional and essential for maintaining domain consistency.
-
+<!-- snippet: docs:validation-and-rules:ismodified-check -->
 ```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class OrderTotalRule : RuleBase<IOrder>
+/// <summary>
+/// Demonstrates checking IsModified before expensive async operations.
+/// </summary>
+public partial interface IIsModifiedCheckUser : IEntityBase
 {
-    protected override IRuleMessages Execute(IOrder target)
+    Guid? Id { get; set; }
+    string? Email { get; set; }
+}
+
+public interface IEmailCheckRule : IRule<IIsModifiedCheckUser> { }
+
+public class EmailCheckRule : AsyncRuleBase<IIsModifiedCheckUser>, IEmailCheckRule
+{
+    public EmailCheckRule()
     {
-        var total = target.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0;
+        AddTriggerProperties(u => u.Email);
+    }
 
-        // Property setter triggers any rules that depend on Total - this is correct!
-        target.Total = total;
+    protected override async Task<IRuleMessages> Execute(IIsModifiedCheckUser target, CancellationToken? token = null)
+    {
+        // Skip expensive check if email hasn't changed
+        if (!target[nameof(target.Email)].IsModified)
+            return None;
 
-        return RuleMessages.None;
+        // ... expensive database check (simulated)
+        await Task.Delay(10, token ?? CancellationToken.None);
+
+        return None;
+    }
+}
+
+[Factory]
+internal partial class IsModifiedCheckUser : EntityBase<IsModifiedCheckUser>, IIsModifiedCheckUser
+{
+    public IsModifiedCheckUser(
+        IEntityBaseServices<IsModifiedCheckUser> services,
+        IEmailCheckRule emailCheckRule) : base(services)
+    {
+        RuleManager.AddRule(emailCheckRule);
+    }
+
+    public partial Guid? Id { get; set; }
+    public partial string? Email { get; set; }
+
+    [Create]
+    public void Create() { }
+}
+```
+<!-- /snippet -->
+
+### Manual Rule Execution
+
+<!-- snippet: docs:validation-and-rules:manual-execution -->
+```csharp
+/// <summary>
+/// Demonstrates manual rule execution in factory methods.
+/// </summary>
+public partial interface IManualExecutionEntity : IEntityBase
+{
+    Guid? Id { get; set; }
+    string? Name { get; set; }
+}
+
+[Factory]
+internal partial class ManualExecutionEntity : EntityBase<ManualExecutionEntity>, IManualExecutionEntity
+{
+    public ManualExecutionEntity(IEntityBaseServices<ManualExecutionEntity> services) : base(services)
+    {
+        RuleManager.AddValidation(
+            t => string.IsNullOrEmpty(t.Name) ? "Name is required" : "",
+            t => t.Name);
+    }
+
+    public partial Guid? Id { get; set; }
+    public partial string? Name { get; set; }
+
+    [Create]
+    public void Create() { }
+
+    [Insert]
+    public async Task Insert()
+    {
+        await RunRules();  // Run all rules
+
+        if (!IsSavable)
+            return;  // Don't save if invalid
+
+        // ... persist (simulated)
+        Id = Guid.NewGuid();
     }
 }
 ```
+<!-- /snippet -->
 
-### LoadProperty - Rare Use Cases Only
+## Parent-Child Validation
 
-Use `LoadProperty()` **only** to prevent circular references:
+### Parent-Child Validation Pattern
 
+<!-- snippet: docs:validation-and-rules:parent-child-validation -->
 ```csharp
-// Rule A triggers Rule B which triggers Rule A - break the cycle
-LoadProperty(nameof(target.InternalValue), calculated);
-```
-
-## Rule Messages
-
-### Creating Messages
-
-```csharp
-using Neatoo.Rules;
-
-// Single error
-var messages = new RuleMessages();
-messages.Add(new RuleMessage(nameof(target.Email), "Invalid email"));
-return messages;
-
-// No errors
-return RuleMessages.None;
-
-// Multiple errors
-var messages = new RuleMessages();
-messages.Add(new RuleMessage(nameof(target.StartDate), "Start date is required"));
-messages.Add(new RuleMessage(nameof(target.EndDate), "End date is required"));
-return messages;
-```
-
-### Message Severity
-
-RuleMessage constructor accepts an optional severity parameter:
-
-```csharp
-using Neatoo.Rules;
-
-// Error (default) - prevents save
-messages.Add(new RuleMessage(propertyName, message));  // Severity.Error is default
-
-// For different severities, check the RuleMessage constructor overloads
-```
-
-### Accessing Messages
-
-```csharp
-// All entity messages
-foreach (var msg in person.PropertyMessages)
+/// <summary>
+/// Demonstrates accessing parent entity from child validation rules.
+/// </summary>
+public partial interface IParentContact : IEntityBase
 {
-    Console.WriteLine($"{msg.PropertyName}: {msg.Message} ({msg.Severity})");
+    IContactPhoneList PhoneList { get; }
 }
 
-// Messages for specific property
-var emailMessages = person[nameof(person.Email)].PropertyMessages;
-foreach (var msg in emailMessages)
+public partial interface IContactPhone : IEntityBase
 {
-    Console.WriteLine(msg.Message);
+    PhoneType? PhoneType { get; set; }
+    string? Number { get; set; }
+    IParentContact? ParentContact { get; }
 }
-```
 
-## Database-Dependent Validation
+public partial interface IContactPhoneList : IEntityListBase<IContactPhone> { }
 
-For validation requiring database access:
+public enum PhoneType { Home, Work, Mobile }
 
-### Pattern 1: Async Rule with Injected Service
+public interface IUniquePhoneTypeRule : IRule<IContactPhone> { }
 
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
+#region docs:validation-and-rules:parent-child-rule-class
+public class UniquePhoneTypeRule : RuleBase<IContactPhone>, IUniquePhoneTypeRule
 {
-    private readonly IPersonRepository _repository;
+    public UniquePhoneTypeRule() : base(p => p.PhoneType) { }
 
-    public UniqueEmailRule(IPersonRepository repository)
-        : base(p => p.Email)
+    protected override IRuleMessages Execute(IContactPhone target)
     {
-        _repository = repository;
+        if (target.ParentContact == null)
+            return None;
+
+        #region docs:validation-and-rules:parent-access-in-rule
+        var hasDuplicate = target.ParentContact.PhoneList
+            .Where(p => p != target)
+            .Any(p => p.PhoneType == target.PhoneType);
+```
+<!-- /snippet -->
+
+### Parent-Child Rule Class
+
+<!-- snippet: docs:validation-and-rules:parent-child-rule-class -->
+```csharp
+public class UniquePhoneTypeRule : RuleBase<IContactPhone>, IUniquePhoneTypeRule
+{
+    public UniquePhoneTypeRule() : base(p => p.PhoneType) { }
+
+    protected override IRuleMessages Execute(IContactPhone target)
+    {
+        if (target.ParentContact == null)
+            return None;
+
+        #region docs:validation-and-rules:parent-access-in-rule
+        var hasDuplicate = target.ParentContact.PhoneList
+            .Where(p => p != target)
+            .Any(p => p.PhoneType == target.PhoneType);
+```
+<!-- /snippet -->
+
+### Parent Access in Rule
+
+<!-- snippet: docs:validation-and-rules:parent-access-in-rule -->
+```csharp
+var hasDuplicate = target.ParentContact.PhoneList
+            .Where(p => p != target)
+            .Any(p => p.PhoneType == target.PhoneType);
+```
+<!-- /snippet -->
+
+## Cross-Item Validation (Collections)
+
+### Cross-Item Validation
+
+<!-- snippet: docs:collections:cross-item-validation -->
+```csharp
+/// <summary>
+/// List that re-validates siblings when properties change.
+/// </summary>
+public interface IContactPhoneList : IEntityListBase<IContactPhone>
+{
+    IContactPhone AddPhone();
+}
+
+[Factory]
+internal class ContactPhoneList : EntityListBase<IContactPhone>, IContactPhoneList
+{
+    private readonly IContactPhoneFactory _phoneFactory;
+
+    public ContactPhoneList([Service] IContactPhoneFactory phoneFactory)
+    {
+        _phoneFactory = phoneFactory;
     }
 
-    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
+    public IContactPhone AddPhone()
     {
-        if (string.IsNullOrEmpty(target.Email))
-            return RuleMessages.None;
+        var phone = _phoneFactory.Create();
+        Add(phone);
+        return phone;
+    }
 
-        var exists = await _repository.EmailExistsAsync(
-            target.Email,
-            target.Id);
+    /// <summary>
+    /// Re-validate siblings when PhoneType changes to enforce uniqueness.
+    /// </summary>
+    protected override async Task HandleNeatooPropertyChanged(NeatooPropertyChangedEventArgs eventArgs)
+    {
+        await base.HandleNeatooPropertyChanged(eventArgs);
 
-        if (exists)
+        // When PhoneType changes, re-validate all other items for uniqueness
+        if (eventArgs.PropertyName == nameof(IContactPhone.PhoneType))
         {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.Email), "Email already registered"));
-            return messages;
+            if (eventArgs.Source is IContactPhone changedPhone)
+            {
+                // Re-run rules on all OTHER items
+                await Task.WhenAll(
+                    this.Except([changedPhone])
+                        .Select(phone => phone.RunRules()));
+            }
         }
-        return RuleMessages.None;
-    }
-}
-```
-
-### Pattern 2: Registration in Constructor
-
-```csharp
-public Person(
-    IEntityBaseServices<Person> services,
-    IPersonRepository repository) : base(services)
-{
-    RuleManager.AddRule(new UniqueEmailRule(repository));
-}
-```
-
-### Pattern 3: Client-Side Optimization
-
-Check only on server to avoid unnecessary API calls:
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
-{
-    private readonly IPersonRepository? _repository;
-
-    public UniqueEmailRule(IPersonRepository? repository = null)
-        : base(p => p.Email)
-    {
-        _repository = repository;
     }
 
-    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
-    {
-        // Skip on client (repository not available)
-        if (_repository == null)
-            return RuleMessages.None;
-
-        // Full check on server
-        var exists = await _repository.EmailExistsAsync(
-            target.Email,
-            target.Id);
-
-        if (exists)
-        {
-            var messages = new RuleMessages();
-            messages.Add(new RuleMessage(nameof(target.Email), "Email already registered"));
-            return messages;
-        }
-        return RuleMessages.None;
-    }
+    [Create]
+    public void Create() { }
 }
 ```
-
-## Rule Order and Dependencies
-
-### Execution Order
-
-1. Data annotation validation runs first
-2. Custom rules run in registration order
-3. Transformation actions run after rules
-
-### Cascading Rules
-
-```csharp
-// When FirstName changes:
-// 1. [Required] annotation validates FirstName
-// 2. FullName transformation runs
-// 3. Any rules dependent on FullName run
-
-RuleManager.AddAction(
-    (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
-    p => p.FirstName, p => p.LastName);
-
-RuleManager.AddRule(new FullNameLengthRule());  // Triggers on FullName
-```
-
-## Best Practices
-
-### Keep Rules Focused
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-// GOOD - single responsibility
-public class EmailFormatRule : RuleBase<IPerson>
-{
-    protected override IRuleMessages Execute(IPerson target)
-    {
-        // Only validates format
-    }
-}
-
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
-{
-    protected override async Task<IRuleMessages> Execute(IPerson target, CancellationToken? token = null)
-    {
-        // Only checks uniqueness
-    }
-}
-```
-
-### Use Data Annotations for Simple Validation
-
-```csharp
-// Prefer this for simple cases
-[Required]
-[StringLength(50)]
-public partial string? FirstName { get; set; }
-
-// Over creating custom rules for basic checks
-```
-
-### Inject Dependencies for Database Access
-
-```csharp
-public Person(
-    IEntityBaseServices<Person> services,
-    IEmailService emailService,
-    IPersonRepository repository) : base(services)
-{
-    RuleManager.AddRule(new UniqueEmailRule(emailService));
-    RuleManager.AddRule(new ManagerExistsRule(repository));
-}
-```
-
-### Handle Null Values Gracefully
-
-```csharp
-protected override IRuleMessages Execute(IPerson target)
-{
-    // Let [Required] handle null/empty
-    if (string.IsNullOrEmpty(target.Email))
-        return RuleMessages.None;
-
-    // Now validate format
-    // ...
-}
-```
+<!-- /snippet -->
 
 ## Common Pitfalls
 
-1. **Forgetting await on WaitForTasks** - Checking validity before async rules complete
-2. **Not handling null in rules** - Let [Required] handle empty, check for null
-3. **Circular rule dependencies** - A triggers B triggers A (use LoadProperty to break)
-4. **Database access in sync rules** - Use async rules for database operations
-5. **Overusing LoadProperty** - Cascading is a feature; only use LoadProperty for circular references
-6. **Not handling OperationCanceledException** - When using cancellation tokens, handle the exception
-7. **Expecting recovery after cancellation** - Cancellation marks object invalid; must call `RunRules(RunRulesFlag.All)` to recover
+1. **Forgetting trigger properties** - Rules only run when specified properties change
+2. **Missing await** - Always await async rules before checking IsValid
+3. **Not using LoadProperty in Fetch** - Direct setters trigger rules
+4. **Circular dependencies** - Calculated properties triggering each other infinitely
+5. **Not checking for null** - Parent may be null during entity construction

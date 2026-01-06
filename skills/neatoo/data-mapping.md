@@ -4,587 +4,494 @@
 
 Data mapping in Neatoo transfers property values between domain entities and persistence entities. This is done through explicit property assignments in factory methods, giving you full control over data flow between rich domain objects and flat EF Core database entities.
 
-## Prerequisites
+## Mapper Methods Overview
 
-Before implementing CRUD operations, you need:
-
-### 1. Persistence Entity (EF Core entity)
-
+<!-- snippet: docs:mapper-methods:overview -->
 ```csharp
-namespace MyApp.Domain;
-
-public class PersonEntity
+/// <summary>
+/// Person entity demonstrating MapFrom, MapTo, MapModifiedTo.
+/// </summary>
+public partial interface IPersonWithMapper : IEntityBase
 {
-    public Guid Id { get; set; }
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
+    int Id { get; }
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string? Email { get; set; }
+
+    void MapFrom(PersonEntity entity);
+    void MapTo(PersonEntity entity);
 }
-```
-
-### 2. Database Context Interface
-
-```csharp
-using Microsoft.EntityFrameworkCore;
-
-namespace MyApp.Domain;
-
-public interface IDbContext
-{
-    DbSet<PersonEntity> Persons { get; }
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-}
-```
-
-### 3. DbContext Implementation (Server-side)
-
-```csharp
-using Microsoft.EntityFrameworkCore;
-
-namespace MyApp.Infrastructure;
-
-public class AppDbContext : DbContext, IDbContext
-{
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    public DbSet<PersonEntity> Persons => Set<PersonEntity>();
-}
-```
-
-### 4. DI Registration (Server Program.cs)
-
-```csharp
-// Add EF Core with your database provider
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
-
-// Register as IDbContext for injection into domain entities
-builder.Services.AddScoped<IDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-```
-
-## Key Methods
-
-| Method | Purpose | When to Use |
-|--------|---------|-------------|
-| Property setter | Set data directly | Factory methods, rules (cascading is a feature) |
-| `LoadProperty()` | Set without triggering rules | Rare: circular reference prevention only |
-| `this[propName].IsModified` | Check if property changed | In `[Update]` methods |
-| `ModifiedProperties` | List of all changed properties | Audit, debugging |
-
-## Factory Methods - Rules Are Paused
-
-In factory methods (`[Create]`, `[Fetch]`, `[Insert]`, `[Update]`, `[Delete]`), **rules are paused**. Use property setters directly - no special handling needed.
-
-### Example
-
-```csharp
-[Remote]
-[Fetch]
-public async Task<bool> Fetch([Service] IDbContext db)
-{
-    var entity = await db.Persons.FindAsync(Id);
-    if (entity == null) return false;
-
-    // Rules are paused in factory methods - property setters work directly
-    Id = entity.Id;
-    FirstName = entity.FirstName;
-    LastName = entity.LastName;
-    Email = entity.Email;
-
-    return true;
-}
-```
-
-## Property Setters in Rules - Cascading is a Feature
-
-**Cascading rule execution is a key Neatoo feature.** When a rule sets a property, dependent rules run automatically - this is the expected behavior.
-
-### Example - Cascading Rules
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-public class OrderTotalRule : RuleBase<IOrder>
-{
-    protected override IRuleMessages Execute(IOrder target)
-    {
-        var total = target.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0;
-
-        // Property setter triggers any rules that depend on Total - this is correct!
-        target.Total = total;
-
-        return RuleMessages.None;
-    }
-}
-```
-
-If `Total` has dependent rules (e.g., discount calculation), they run automatically.
-
-## LoadProperty() - Rare Use Cases
-
-Use `LoadProperty()` only in **rare situations** where you need to prevent cascading:
-
-1. **Circular reference prevention** - Rule A triggers Rule B which triggers Rule A
-2. **Private interface getters** - When the getter is private, prefer `SetValue` instead
-
-### Signature
-
-```csharp
-protected void LoadProperty(string propertyName, object? value)
-```
-
-### Circular Reference Example
-
-```csharp
-using Neatoo;
-using Neatoo.Rules;
-
-// Only use LoadProperty when you need to break a circular reference
-public class RuleA : RuleBase<IOrder>
-{
-    protected override IRuleMessages Execute(IOrder target)
-    {
-        // This would normally trigger RuleB, which triggers RuleA...
-        // Use LoadProperty ONLY to break the cycle
-        LoadProperty(nameof(target.InternalValue), calculated);
-
-        return RuleMessages.None;
-    }
-}
-```
-
-## Insert Operations
-
-In `[Insert]` methods, copy ALL properties to the new persistence entity.
-
-```csharp
-[Remote]
-[Insert]
-public async Task Insert([Service] IDbContext db)
-{
-    Id = Guid.NewGuid();  // Generate ID
-    CreatedDate = DateTime.UtcNow;
-
-    var entity = new PersonEntity
-    {
-        Id = Id.Value,
-        FirstName = FirstName,
-        LastName = LastName,
-        Email = Email,
-        CreatedDate = CreatedDate
-    };
-
-    db.Persons.Add(entity);
-    await db.SaveChangesAsync();
-}
-```
-
-### With Child Collections
-
-```csharp
-[Remote]
-[Insert]
-public async Task Insert(
-    [Service] IDbContext db,
-    [Service] IPersonPhoneListFactory phoneListFactory)
-{
-    Id = Guid.NewGuid();
-
-    var entity = new PersonEntity
-    {
-        Id = Id.Value,
-        FirstName = FirstName,
-        LastName = LastName
-    };
-
-    db.Persons.Add(entity);
-
-    // Save children after parent has ID
-    await phoneListFactory.Save(PersonPhoneList, Id.Value);
-
-    await db.SaveChangesAsync();
-}
-```
-
-## Update Operations
-
-In `[Update]` methods, copy only MODIFIED properties for efficiency.
-
-### Checking Modification State
-
-```csharp
-// Check individual property
-if (this[nameof(Email)].IsModified)
-{
-    entity.Email = Email;
-}
-
-// List all modified properties
-foreach (var propName in ModifiedProperties)
-{
-    Console.WriteLine($"Changed: {propName}");
-}
-```
-
-### Update Pattern
-
-```csharp
-[Remote]
-[Update]
-public async Task Update([Service] IDbContext db)
-{
-    var entity = await db.Persons.FindAsync(Id);
-
-    if (entity == null)
-        throw new InvalidOperationException($"Person {Id} not found");
-
-    // Copy only MODIFIED properties
-    if (this[nameof(FirstName)].IsModified)
-        entity.FirstName = FirstName;
-    if (this[nameof(LastName)].IsModified)
-        entity.LastName = LastName;
-    if (this[nameof(Email)].IsModified)
-        entity.Email = Email;
-
-    entity.ModifiedDate = DateTime.UtcNow;
-
-    await db.SaveChangesAsync();
-}
-```
-
-### Why Only Modified Properties?
-
-1. **Efficient Updates**: Smaller UPDATE SQL statements
-2. **Fewer Conflicts**: Less chance of overwriting concurrent changes
-3. **Audit Clarity**: Easy to see exactly what changed
-4. **Performance**: Less data transferred
-
-## Type Conversions
-
-Handle type differences between domain and persistence explicitly:
-
-```csharp
-// Domain entity has enum
-public partial PersonStatus Status { get; set; }
-
-// Persistence entity has string
-// In Fetch (rules paused - use property setter):
-Status = Enum.Parse<PersonStatus>(entity.Status);
-
-// In Insert/Update:
-entity.Status = Status.ToString();
-```
-
-## Nullable Properties
-
-```csharp
-// Fetch - null values work fine (rules paused)
-MiddleName = entity.MiddleName;  // Can be null
-
-// Update - check modification
-if (this[nameof(MiddleName)].IsModified)
-    entity.MiddleName = MiddleName;  // Can set to null
-```
-
-## Computed Properties
-
-Computed properties are calculated by rules, not persisted:
-
-```csharp
-// Computed property - set by a rule
-public partial string? FullName { get; set; }
-
-// Constructor sets up the rule
-public Person(IEntityBaseServices<Person> services) : base(services)
-{
-    RuleManager.AddAction(
-        (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
-        p => p.FirstName, p => p.LastName);
-}
-
-// In Fetch - DON'T load FullName, let the rule calculate it
-// After loading FirstName and LastName, the rule runs automatically
-```
-
-## Child Collections
-
-Child entities are handled through their factories:
-
-### Loading Children
-
-```csharp
-[Remote]
-[Fetch]
-public async Task<bool> Fetch(
-    [Service] IDbContext db,
-    [Service] IPersonPhoneListFactory phoneListFactory)
-{
-    var entity = await db.Persons
-        .Include(p => p.Phones)
-        .FirstOrDefaultAsync(p => p.Id == Id);
-
-    if (entity == null) return false;
-
-    // Rules are paused in factory methods - property setters work directly
-    Id = entity.Id;
-    FirstName = entity.FirstName;
-    // ... other properties
-
-    // Child collection loaded by its factory
-    PersonPhoneList = phoneListFactory.Fetch(entity.Phones);
-
-    return true;
-}
-```
-
-### Child Collection Fetch
-
-```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
 
 [Factory]
-internal partial class PersonPhoneList
-    : EntityListBase<IPersonPhone>, IPersonPhoneList
+internal partial class PersonWithMapper : EntityBase<PersonWithMapper>, IPersonWithMapper
 {
-    private readonly IPersonPhoneFactory _phoneFactory;
+    public PersonWithMapper(IEntityBaseServices<PersonWithMapper> services) : base(services) { }
 
-    public PersonPhoneList(IPersonPhoneFactory phoneFactory)
+    public partial int Id { get; set; }
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+    public partial string? Email { get; set; }
+
+    // Manually implemented mappers
+    public void MapFrom(PersonEntity entity)
     {
-        _phoneFactory = phoneFactory;
+        this.Id = entity.Id;
+        this.FirstName = entity.FirstName;
+        this.LastName = entity.LastName;
+        this.Email = entity.Email;
+    }
+
+    public void MapTo(PersonEntity entity)
+    {
+        entity.Id = this.Id;
+        entity.FirstName = this.FirstName;
+        entity.LastName = this.LastName;
+        entity.Email = this.Email;
+    }
+
+    // Generated by Neatoo BaseGenerator - checks IsModified for each property
+    public partial void MapModifiedTo(PersonEntity entity);
+
+    [Create]
+    public void Create()
+    {
+        // New person with no ID yet
     }
 
     [Fetch]
-    public void Fetch(IEnumerable<PersonPhoneEntity> entities)
+    public void Fetch(PersonEntity entity)
     {
-        foreach (var entity in entities)
-        {
-            var phone = _phoneFactory.Fetch(entity);
-            Add(phone);
-        }
+        MapFrom(entity);
+    }
+}
+```
+<!-- /snippet -->
+
+## MapFrom - Loading from Database
+
+Use in `[Fetch]` operations to load data from persistence entities.
+
+<!-- snippet: docs:mapper-methods:map-from -->
+```csharp
+/// <summary>
+/// Demonstrates MapFrom usage in Fetch operations.
+/// </summary>
+public partial interface IFetchableProduct : IEntityBase
+{
+    int Id { get; }
+    string? Name { get; set; }
+    decimal Price { get; set; }
+    int StockQuantity { get; set; }
+
+    void MapFrom(ProductEntity entity);
+}
+
+public class ProductEntity
+{
+    public int Id { get; set; }
+    public string? Name { get; set; }
+    public decimal Price { get; set; }
+    public int StockQuantity { get; set; }
+}
+
+[Factory]
+internal partial class FetchableProduct : EntityBase<FetchableProduct>, IFetchableProduct
+{
+    public FetchableProduct(IEntityBaseServices<FetchableProduct> services) : base(services) { }
+
+    public partial int Id { get; set; }
+    public partial string? Name { get; set; }
+    public partial decimal Price { get; set; }
+    public partial int StockQuantity { get; set; }
+
+    public void MapFrom(ProductEntity entity)
+    {
+        this.Id = entity.Id;
+        this.Name = entity.Name;
+        this.Price = entity.Price;
+        this.StockQuantity = entity.StockQuantity;
     }
 
     [Create]
     public void Create() { }
+
+    /// <summary>
+    /// Fetch operation uses MapFrom to load entity data.
+    /// During Fetch, rules are paused via FactoryStart().
+    /// </summary>
+    [Fetch]
+    public void Fetch(ProductEntity entity)
+    {
+        MapFrom(entity);  // Copy all properties
+    }
 }
 ```
+<!-- /snippet -->
 
-### Saving Children
+## MapTo - Saving to Database
 
+Use in `[Insert]` operations to create new persistence entities.
+
+<!-- snippet: docs:mapper-methods:map-to -->
 ```csharp
-[Remote]
-[Update]
-public async Task Update(
-    Guid parentId,
-    [Service] IDbContext db)
+/// <summary>
+/// Demonstrates MapTo usage in Insert operations.
+/// </summary>
+public partial interface IInsertableItem : IEntityBase
 {
-    // Process deletions first
-    foreach (var deleted in DeletedList.Cast<IPersonPhone>())
-    {
-        var entity = await db.PersonPhones.FindAsync(deleted.Id);
-        if (entity != null)
-            db.PersonPhones.Remove(entity);
-    }
+    int Id { get; }
+    string? Description { get; set; }
+    decimal Amount { get; set; }
 
-    // Process remaining items
-    foreach (var phone in this)
-    {
-        if (phone.IsNew)
-        {
-            // Insert
-            phone.Id = Guid.NewGuid();
-            var entity = new PersonPhoneEntity { PersonId = parentId };
-            entity.PhoneNumber = phone.PhoneNumber;
-            entity.PhoneType = phone.PhoneType;
-            db.PersonPhones.Add(entity);
-        }
-        else if (phone.IsModified)
-        {
-            // Update
-            var entity = await db.PersonPhones.FindAsync(phone.Id);
-            if (phone[nameof(phone.PhoneNumber)].IsModified)
-                entity.PhoneNumber = phone.PhoneNumber;
-            if (phone[nameof(phone.PhoneType)].IsModified)
-                entity.PhoneType = phone.PhoneType;
-        }
-    }
-
-    await db.SaveChangesAsync();
+    void MapTo(ItemEntity entity);
 }
-```
 
-## Concurrency Handling
-
-For optimistic concurrency with row versions:
-
-```csharp
-// Domain entity
-public partial byte[]? RowVersion { get; set; }
-
-// In Fetch (rules paused - use property setter)
-RowVersion = entity.RowVersion;
-
-// In Update
-[Remote]
-[Update]
-public async Task Update([Service] IDbContext db)
+public class ItemEntity
 {
-    var entity = await db.Persons.FindAsync(Id);
-
-    // Set original row version for concurrency check
-    db.Entry(entity).Property(e => e.RowVersion).OriginalValue = RowVersion;
-
-    // Update properties...
-
-    try
-    {
-        await db.SaveChangesAsync();
-        // Capture new row version (rules still paused)
-        RowVersion = entity.RowVersion;
-    }
-    catch (DbUpdateConcurrencyException)
-    {
-        throw new ConcurrencyException("Record was modified by another user");
-    }
+    public int Id { get; set; }
+    public string? Description { get; set; }
+    public decimal Amount { get; set; }
 }
-```
-
-## Complete Entity Example
-
-```csharp
-using Neatoo;
-using Neatoo.RemoteFactory;
 
 [Factory]
-internal partial class Person : EntityBase<Person>, IPerson
+internal partial class InsertableItem : EntityBase<InsertableItem>, IInsertableItem
 {
-    public Person(IEntityBaseServices<Person> services) : base(services)
-    {
-        RuleManager.AddAction(
-            (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
-            p => p.FirstName, p => p.LastName);
-    }
+    public InsertableItem(IEntityBaseServices<InsertableItem> services) : base(services) { }
 
-    public partial Guid? Id { get; set; }
-    public partial string? FirstName { get; set; }
-    public partial string? LastName { get; set; }
-    public partial string? Email { get; set; }
-    public partial string? FullName { get; set; }  // Computed
-    public partial DateTime CreatedDate { get; set; }
-    public partial DateTime? ModifiedDate { get; set; }
-    public partial byte[]? RowVersion { get; set; }
-    public partial IPersonPhoneList? Phones { get; set; }
+    public partial int Id { get; set; }
+    public partial string? Description { get; set; }
+    public partial decimal Amount { get; set; }
+
+    public void MapTo(ItemEntity entity)
+    {
+        entity.Description = this.Description;
+        entity.Amount = this.Amount;
+        // Note: ID is typically database-generated
+    }
 
     [Create]
-    public void Create([Service] IPersonPhoneListFactory phoneFactory)
+    public void Create() { }
+
+    /// <summary>
+    /// Insert uses MapTo to copy all properties to new entity.
+    /// </summary>
+    [Insert]
+    public Task Insert()
     {
-        Phones = phoneFactory.Create();
-        CreatedDate = DateTime.UtcNow;
+        // Simulate insert
+        var entity = new ItemEntity();
+        MapTo(entity);
+
+        // Simulate database-generated ID
+        entity.Id = 1;
+        this.Id = entity.Id;
+
+        return Task.CompletedTask;
+    }
+}
+```
+<!-- /snippet -->
+
+## MapModifiedTo - Updating Database
+
+Use in `[Update]` operations to only update changed properties.
+
+<!-- snippet: docs:mapper-methods:map-modified-to -->
+```csharp
+/// <summary>
+/// Demonstrates MapModifiedTo for efficient updates.
+/// </summary>
+public partial interface IUpdatableRecord : IEntityBase
+{
+    int Id { get; }
+    string? Title { get; set; }
+    string? Content { get; set; }
+    DateTime? LastModified { get; set; }
+
+    void MapFrom(RecordEntity entity);
+}
+
+public class RecordEntity
+{
+    public int Id { get; set; }
+    public string? Title { get; set; }
+    public string? Content { get; set; }
+    public DateTime? LastModified { get; set; }
+}
+
+[Factory]
+internal partial class UpdatableRecord : EntityBase<UpdatableRecord>, IUpdatableRecord
+{
+    public UpdatableRecord(IEntityBaseServices<UpdatableRecord> services) : base(services) { }
+
+    public partial int Id { get; set; }
+    public partial string? Title { get; set; }
+    public partial string? Content { get; set; }
+    public partial DateTime? LastModified { get; set; }
+
+    public void MapFrom(RecordEntity entity)
+    {
+        this.Id = entity.Id;
+        this.Title = entity.Title;
+        this.Content = entity.Content;
+        this.LastModified = entity.LastModified;
     }
 
-    [Remote]
+    // MapModifiedTo is source-generated - only updates IsModified properties
+    public partial void MapModifiedTo(RecordEntity entity);
+
+    [Create]
+    public void Create() { }
+
     [Fetch]
-    public async Task<bool> Fetch(
-        [Service] IDbContext db,
-        [Service] IPersonPhoneListFactory phoneFactory)
+    public void Fetch(RecordEntity entity)
     {
-        var entity = await db.Persons
-            .Include(p => p.Phones)
-            .FirstOrDefaultAsync(p => p.Id == Id);
+        MapFrom(entity);
+    }
 
-        if (entity == null) return false;
+    /// <summary>
+    /// Update uses MapModifiedTo for efficiency.
+    /// Only modified properties are copied to the entity.
+    /// </summary>
+    [Update]
+    public Task Update(RecordEntity entity)
+    {
+        MapModifiedTo(entity);  // Only changed properties
+        return Task.CompletedTask;
+    }
+}
+```
+<!-- /snippet -->
 
-        // Rules are paused in factory methods - property setters work directly
+## Custom Mapping Logic
+
+For complex scenarios with transformations or value objects.
+
+<!-- snippet: docs:mapper-methods:custom-mapping -->
+```csharp
+/// <summary>
+/// Demonstrates custom mapping logic for computed fields.
+/// </summary>
+public partial interface IEmployeeWithComputed : IEntityBase
+{
+    int Id { get; }
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string? FullName { get; }
+    string? PhoneType { get; set; }
+}
+
+public class EmployeeEntity
+{
+    public int Id { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? PhoneTypeString { get; set; }
+}
+
+[Factory]
+internal partial class EmployeeWithComputed : EntityBase<EmployeeWithComputed>, IEmployeeWithComputed
+{
+    public EmployeeWithComputed(IEntityBaseServices<EmployeeWithComputed> services) : base(services) { }
+
+    public partial int Id { get; set; }
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+
+    // Computed property - not partial, excluded from mappers
+    public string? FullName => $"{FirstName} {LastName}";
+
+    public partial string? PhoneType { get; set; }
+
+    [Create]
+    public void Create() { }
+
+    /// <summary>
+    /// Custom mapping with computed fields and type conversions.
+    /// </summary>
+    [Fetch]
+    public void Fetch(EmployeeEntity entity)
+    {
+        this.Id = entity.Id;
+        this.FirstName = entity.FirstName;
+        this.LastName = entity.LastName;
+
+        // Custom mapping for type conversion
+        this.PhoneType = entity.PhoneTypeString;
+    }
+}
+```
+<!-- /snippet -->
+
+## Different Shapes
+
+Mapping between domain and persistence entities with different structures.
+
+<!-- snippet: docs:mapper-methods:different-shapes -->
+```csharp
+/// <summary>
+/// Demonstrates mapping between different entity structures.
+/// Domain model has flat address fields, EF has nested Address object.
+/// </summary>
+public partial interface ICustomerWithAddress : IEntityBase
+{
+    int Id { get; }
+    string? FirstName { get; set; }
+    string? LastName { get; set; }
+    string? StreetAddress { get; set; }
+    string? City { get; set; }
+    string? State { get; set; }
+    string? ZipCode { get; set; }
+
+    void MapFromEntity(CustomerEntity entity);
+    void MapToEntity(CustomerEntity entity);
+}
+
+[Factory]
+internal partial class CustomerWithAddress : EntityBase<CustomerWithAddress>, ICustomerWithAddress
+{
+    public CustomerWithAddress(IEntityBaseServices<CustomerWithAddress> services) : base(services) { }
+
+    public partial int Id { get; set; }
+    public partial string? FirstName { get; set; }
+    public partial string? LastName { get; set; }
+    public partial string? StreetAddress { get; set; }
+    public partial string? City { get; set; }
+    public partial string? State { get; set; }
+    public partial string? ZipCode { get; set; }
+
+    /// <summary>
+    /// Custom mapping from nested EF structure to flat domain model.
+    /// </summary>
+    public void MapFromEntity(CustomerEntity entity)
+    {
         Id = entity.Id;
         FirstName = entity.FirstName;
         LastName = entity.LastName;
-        Email = entity.Email;
-        CreatedDate = entity.CreatedDate;
-        ModifiedDate = entity.ModifiedDate;
-        RowVersion = entity.RowVersion;
-
-        Phones = phoneFactory.Fetch(entity.Phones);
-        return true;
+        // EF has nested Address object
+        StreetAddress = entity.Address?.Street;
+        City = entity.Address?.City;
+        State = entity.Address?.State;
+        ZipCode = entity.Address?.ZipCode;
     }
 
-    [Remote]
+    /// <summary>
+    /// Custom mapping from flat domain model to nested EF structure.
+    /// </summary>
+    public void MapToEntity(CustomerEntity entity)
+    {
+        entity.Id = Id;
+        entity.FirstName = FirstName;
+        entity.LastName = LastName;
+        entity.Address ??= new AddressEntity();
+        entity.Address.Street = StreetAddress;
+        entity.Address.City = City;
+        entity.Address.State = State;
+        entity.Address.ZipCode = ZipCode;
+    }
+
+    [Create]
+    public void Create() { }
+
+    [Fetch]
+    public void Fetch(CustomerEntity entity)
+    {
+        MapFromEntity(entity);
+    }
+
     [Insert]
-    public async Task Insert(
-        [Service] IDbContext db,
-        [Service] IPersonPhoneListFactory phoneFactory)
+    public Task Insert()
     {
-        Id = Guid.NewGuid();
-        CreatedDate = DateTime.UtcNow;
-
-        var entity = new PersonEntity
-        {
-            Id = Id.Value,
-            FirstName = FirstName,
-            LastName = LastName,
-            Email = Email,
-            CreatedDate = CreatedDate
-        };
-
-        db.Persons.Add(entity);
-        await ((PersonPhoneList)Phones).SaveInternal(Id.Value, db);
-        await db.SaveChangesAsync();
-
-        RowVersion = entity.RowVersion;
-    }
-
-    [Remote]
-    [Update]
-    public async Task Update(
-        [Service] IDbContext db,
-        [Service] IPersonPhoneListFactory phoneFactory)
-    {
-        ModifiedDate = DateTime.UtcNow;
-
-        var entity = await db.Persons.FindAsync(Id);
-        db.Entry(entity).Property(e => e.RowVersion).OriginalValue = RowVersion;
-
-        if (this[nameof(FirstName)].IsModified)
-            entity.FirstName = FirstName;
-        if (this[nameof(LastName)].IsModified)
-            entity.LastName = LastName;
-        if (this[nameof(Email)].IsModified)
-            entity.Email = Email;
-
-        entity.ModifiedDate = ModifiedDate;
-
-        await ((PersonPhoneList)Phones).SaveInternal(Id.Value, db);
-        await db.SaveChangesAsync();
-
-        RowVersion = entity.RowVersion;
-    }
-
-    [Remote]
-    [Delete]
-    public async Task Delete([Service] IDbContext db)
-    {
-        var entity = await db.Persons.FindAsync(Id);
-        if (entity != null)
-        {
-            db.Persons.Remove(entity);
-            await db.SaveChangesAsync();
-        }
+        var entity = new CustomerEntity();
+        MapToEntity(entity);
+        // Simulate insert...
+        return Task.CompletedTask;
     }
 }
 ```
+<!-- /snippet -->
+
+## EF Core Integration
+
+### DbContext Interface
+
+<!-- snippet: docs:ef-integration:dbcontext-interface -->
+```csharp
+public interface ISampleDbContext
+{
+    DbSet<PersonEntity> Persons { get; }
+    Task<PersonEntity?> FindPerson(Guid id);
+    void AddPerson(PersonEntity person);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+```
+<!-- /snippet -->
+
+### DbContext Class
+
+<!-- snippet: docs:ef-integration:dbcontext-class -->
+```csharp
+public class SampleDbContext : DbContext, ISampleDbContext
+{
+    public virtual DbSet<PersonEntity> Persons { get; set; } = null!;
+
+    public string DbPath { get; }
+
+    public SampleDbContext()
+    {
+        var folder = Environment.SpecialFolder.LocalApplicationData;
+        var path = Environment.GetFolderPath(folder);
+        DbPath = Path.Join(path, "NeatooSamples.db");
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseSqlite($"Data Source={DbPath}")
+                         .UseLazyLoadingProxies();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<PersonEntity>().Property(e => e.Id).ValueGeneratedNever();
+    }
+
+    public void AddPerson(PersonEntity person) => Persons.Add(person);
+
+    public Task<PersonEntity?> FindPerson(Guid id)
+        => Persons.FirstOrDefaultAsync(p => p.Id == id);
+}
+```
+<!-- /snippet -->
+
+### Entity Class
+
+<!-- snippet: docs:ef-integration:entity-class -->
+```csharp
+public class PersonEntity
+{
+    [Key]
+    public Guid Id { get; set; }
+
+    [Required]
+    public string FirstName { get; set; } = null!;
+
+    [Required]
+    public string LastName { get; set; } = null!;
+
+    public string? Email { get; set; }
+}
+```
+<!-- /snippet -->
+
+## Key Concepts
+
+1. **LoadProperty vs Setter** - Use `LoadProperty` in Fetch to avoid triggering rules
+2. **IsModified check** - Only update properties that changed
+3. **Value Objects** - Flatten to columns or use JSON serialization
+4. **Explicit mapping** - No magic, full control over data flow
 
 ## Best Practices
 
-1. **Use property setters in factory methods** - Rules are paused, no special handling needed
-2. **Check IsModified in Update** - Only write changed properties for efficiency
-3. **Use nameof()** - Avoid string literals for property names
-4. **Handle nulls explicitly** - Database nulls need appropriate handling
-5. **Load children through factories** - Don't manually manage child collections
-6. **Use AsNoTracking()** - When you don't need EF change tracking in Fetch
-
-## Common Pitfalls
-
-1. **Not checking IsModified** - Unnecessary database updates
-2. **Wrong property names** - Silent failures (use nameof)
-3. **Forgetting child collections** - Data lost on save
-4. **Not handling concurrency** - Lost updates in multi-user scenarios
-5. **Overusing LoadProperty** - Use property setters in rules; cascading is a feature
+1. **Keep persistence entities simple** - Flat structures map to database tables
+2. **Use LoadProperty for loading** - Prevents rule execution during fetch
+3. **Check IsModified before update** - Reduces unnecessary database writes
+4. **Map value objects explicitly** - Break down into primitive columns
