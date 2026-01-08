@@ -112,6 +112,18 @@ public Customer(IEntityBaseServices<Customer> services) : base(services) { }
 | `ModifiedProperties` | IEnumerable<string> | Names of changed properties |
 | `PropertyMessages` | IReadOnlyCollection | Validation messages |
 
+### EntityBase Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `Save()` | `Task<IEntityBase>` | Persist entity (routes to Insert/Update/Delete) |
+| `Save(CancellationToken)` | `Task<IEntityBase>` | Save with cancellation support |
+| `Delete()` | void | Mark entity for deletion |
+| `UnDelete()` | void | Undo deletion mark |
+| `MarkModified()` | void | Force entity to be considered modified |
+
+The `Save()` method enables the **Business Operations Pattern** - domain methods that modify state and persist atomically. See [Factory Operations - Business Operations](factories.md#business-operations-pattern).
+
 ### Save Routing
 
 The framework uses entity state to route Save() calls:
@@ -416,6 +428,9 @@ internal class PhoneList : EntityListBase<IPhone>, IPhoneList
 <!-- /snippet -->
 
 ### Update Operation
+
+> **Critical**: Always iterate `this.Union(DeletedList)` in Update methods. If you only
+> iterate `this`, removed items will silently remain in the database.
 
 <!-- snippet: docs:collections:update-operation -->
 ```csharp

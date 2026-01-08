@@ -439,6 +439,84 @@ The save process:
 5. Client deserializes into NEW object
 6. `Save()` returns this new instance
 
+## Entity-Based Save
+
+Entities can save themselves via `entity.Save()` instead of `factory.Save(entity)`:
+
+<!-- snippet: docs:factory-operations:entity-save-method -->
+```csharp
+/// <summary>
+/// Examples demonstrating entity.Save() vs factory.Save() patterns.
+/// </summary>
+public static class EntitySaveExamples
+{
+    /// <summary>
+    /// Factory-based save - the documented pattern.
+    /// </summary>
+    public static async Task<IVisit> FactorySavePattern(
+        IVisit visit,
+        IVisitFactory visitFactory)
+    {
+        visit.PatientName = "Updated Name";
+
+        // Factory-based save
+        return await visitFactory.Save(visit);
+    }
+
+    /// <summary>
+    /// Entity-based save - equivalent, but called on the entity.
+    /// The entity internally calls its factory.Save(this).
+    /// </summary>
+    public static async Task<IVisit> EntitySavePattern(IVisit visit)
+    {
+        visit.PatientName = "Updated Name";
+
+        // Entity-based save - same result
+        return (IVisit)await visit.Save();
+    }
+
+    /// <summary>
+    /// Business operation pattern - combines state modification with save.
+    /// This is the preferred pattern for domain operations.
+    /// </summary>
+    public static async Task<IVisit> BusinessOperationPattern(IVisit visit)
+    {
+        // Single call: validates, modifies state, persists
+        return await visit.Archive();
+    }
+}
+```
+<!-- /snippet -->
+
+### EntityBase.Save() Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `Save()` | `Task<IEntityBase>` | Persist entity |
+| `Save(CancellationToken)` | `Task<IEntityBase>` | Save with cancellation |
+
+### Save Failure Exceptions
+
+Throws `SaveOperationException` when:
+
+| Reason | Condition |
+|--------|-----------|
+| `IsChildObject` | `IsChild = true` |
+| `IsInvalid` | `IsValid = false` |
+| `NotModified` | `IsModified = false` |
+| `IsBusy` | `IsBusy = true` |
+| `NoFactoryMethod` | No factory reference |
+
+## Business Operations Pattern
+
+Domain operations like `Archive()`, `Complete()`, `Approve()` can use `entity.Save()` to modify state and persist atomically. See the full example in [Factory Operations - Business Operations](../../docs/factory-operations.md#business-operations).
+
+**Benefits:**
+- Clean API on the entity interface
+- No `[Service]` parameters needed
+- Atomic operation—can't forget to save
+- Discoverable—operation is where expected
+
 ## Child Entity Factory
 
 Child entities with parent references use a specific factory pattern.
@@ -510,6 +588,13 @@ internal partial class InvoiceLine : EntityBase<InvoiceLine>, IInvoiceLine
 <!-- /snippet -->
 
 ### List Factory Pattern
+
+> **Critical: Always include DeletedList in Update methods**
+>
+> When iterating items in a list's `[Update]` method, you must use `this.Union(DeletedList)`
+> to include items that were removed from the list. Removed items are moved to `DeletedList`
+> and marked `IsDeleted = true`. If you only iterate `this`, removed items will silently
+> remain in the database.
 
 <!-- snippet: docs:factory-operations:list-factory -->
 ```csharp

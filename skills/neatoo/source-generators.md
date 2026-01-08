@@ -182,6 +182,32 @@ internal partial class MinimalEntity : EntityBase<MinimalEntity>, IMinimalEntity
 | NF0002 | Non-partial property | Add `partial` keyword |
 | NF0206 | Record struct not supported | Use `record class` instead |
 
+## FactoryHintNameLength Attribute
+
+RemoteFactory (the source generator powering Neatoo factories) enforces a **50-character limit** on fully qualified type names by default. When your namespace + class name exceeds this limit, you'll see build errors.
+
+### Symptoms
+
+- Build errors mentioning hint name length
+- Errors for types with long namespaces like `MyCompany.MyProduct.Domain.Entities.SomeEntity`
+
+### Solution
+
+Add the assembly attribute to increase the limit:
+
+```csharp
+// In AssemblyAttributes.cs or any .cs file in your project
+[assembly: FactoryHintNameLength(100)]
+```
+
+Choose a value that accommodates your longest fully qualified type name. Common values:
+- `100` - suitable for most projects
+- `150` - for deeply nested namespaces
+
+### Note
+
+This is a **RemoteFactory** feature (v9.20.1+), not a Neatoo feature. The limit exists to keep generated source file names reasonable across different operating systems.
+
 ## Viewing Generated Code
 
 In Visual Studio:

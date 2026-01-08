@@ -57,7 +57,7 @@ public partial class MmUserServiceKnockOff : IMmUserService { }
 //     .Returns(new MmUser { Id = 1 });
 
 // After
-// knockOff.IMmUserService.GetUser.OnCall = (ko, id) =>
+// knockOff.GetUser.OnCall = (ko, id) =>
 //     new MmUser { Id = id };
 ```
 <!-- /snippet -->
@@ -71,7 +71,7 @@ public partial class MmUserServiceKnockOff : IMmUserService { }
 //     .ReturnsAsync(new MmUser { Id = 1 });
 
 // After
-// knockOff.IMmUserService.GetUserAsync.OnCall = (ko, id) =>
+// knockOff.GetUserAsync.OnCall = (ko, id) =>
 //     Task.FromResult<MmUser?>(new MmUser { Id = id });
 ```
 <!-- /snippet -->
@@ -87,10 +87,10 @@ public partial class MmUserServiceKnockOff : IMmUserService { }
 // mock.Verify(x => x.Update(It.IsAny<MmUser>()), Times.Exactly(3));
 
 // After
-// Assert.Equal(1, knockOff.IMmUserService.Save.CallCount);
-// Assert.Equal(0, knockOff.IMmUserService.Delete.CallCount);
-// Assert.True(knockOff.IMmUserService.GetAll.WasCalled);
-// Assert.Equal(3, knockOff.IMmUserService.Update.CallCount);
+// Assert.Equal(1, knockOff.Save.CallCount);
+// Assert.Equal(0, knockOff.Delete.CallCount);
+// Assert.True(knockOff.GetAll.WasCalled);
+// Assert.Equal(3, knockOff.Update.CallCount);
 ```
 <!-- /snippet -->
 
@@ -105,10 +105,10 @@ public partial class MmUserServiceKnockOff : IMmUserService { }
 
 // After (automatic tracking)
 // service.Save(user);
-// var captured = knockOff.IMmUserService.Save.LastCallArg;
+// var captured = knockOff.Save.LastCallArg;
 
 // Or with callback
-// knockOff.IMmUserService.Save.OnCall = (ko, user) =>
+// knockOff.Save.OnCall = (ko, user) =>
 // {
 //     customList.Add(user);
 // };
@@ -132,7 +132,7 @@ public partial class MmConfigServiceKnockOff : IMmConfigService
 }
 
 // KnockOff Option 2: Callback
-// knockOff.IMmConfigService.GetConfig.OnCall = (ko) => new MmConfig { Timeout = 30 };
+// knockOff.GetConfig2.OnCall = (ko) => new MmConfig { Timeout = 30 };
 ```
 <!-- /snippet -->
 
@@ -146,7 +146,7 @@ public partial class MmConfigServiceKnockOff : IMmConfigService
 // mock.Setup(x => x.GetUser(It.IsAny<int>())).Returns((MmUser?)null);
 
 // KnockOff
-// knockOff.IMmUserService.GetUser.OnCall = (ko, id) => id switch
+// knockOff.GetUser.OnCall = (ko, id) => id switch
 // {
 //     1 => new MmUser { Name = "Admin" },
 //     2 => new MmUser { Name = "Guest" },
@@ -166,7 +166,7 @@ public partial class MmConnectionKnockOff : IMmConnectionService { }
 // mock.Setup(x => x.Connect()).Throws(new TimeoutException());
 
 // KnockOff
-// knockOff.IMmConnectionService.Connect.OnCall = (ko) =>
+// knockOff.Connect.OnCall = (ko) =>
 //     throw new TimeoutException();
 ```
 <!-- /snippet -->
@@ -186,7 +186,7 @@ public partial class MmSequenceKnockOff : IMmSequenceService { }
 
 // KnockOff
 // var results = new Queue<int>([1, 2, 3]);
-// knockOff.IMmSequenceService.GetNext.OnCall = (ko) => results.Dequeue();
+// knockOff.GetNext.OnCall = (ko) => results.Dequeue();
 ```
 <!-- /snippet -->
 
@@ -202,10 +202,10 @@ public partial class MmPropServiceKnockOff : IMmPropService { }
 // mock.SetupSet(x => x.Name = It.IsAny<string>()).Verifiable();
 
 // KnockOff
-// knockOff.IMmPropService.Name.OnGet = (ko) => "Test";
+// knockOff.Name.OnGet = (ko) => "Test";
 // Setter tracking is automatic
 // service.Name = "Value";
-// Assert.Equal("Value", knockOff.IMmPropService.Name.LastSetValue);
+// Assert.Equal("Value", knockOff.Name.LastSetValue);
 ```
 <!-- /snippet -->
 
@@ -219,14 +219,15 @@ public partial class MmPropServiceKnockOff : IMmPropService { }
 //     .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
 //     .ReturnsAsync(1);
 
-// KnockOff
+// KnockOff - create separate stubs
 [KnockOff]
-public partial class MmDataContextKnockOff : IMmRepository, IMmUnitOfWork { }
+public partial class MmRepositoryKnockOff : IMmRepository { }
 
-// knockOff.IMmUnitOfWork.SaveChangesAsync.OnCall = (ko, ct) =>
-//     Task.FromResult(1);
-// IMmRepository repo = knockOff.AsMmRepository();
-// IMmUnitOfWork uow = knockOff.AsMmUnitOfWork();
+[KnockOff]
+public partial class MmUnitOfWorkKnockOff : IMmUnitOfWork { }
+
+// repoKnockOff.Save.OnCall = (ko, entity) => { };
+// uowKnockOff.SaveChangesAsync2.OnCall = (ko, ct) => Task.FromResult(1);
 ```
 <!-- /snippet -->
 
@@ -242,7 +243,7 @@ public partial class MmLoggerKnockOff : IMmLogger { }
 //     .Callback<string>(s => errors.Add(s));
 
 // KnockOff
-// knockOff.IMmLogger.Log.OnCall = (ko, message) =>
+// knockOff.Log.OnCall = (ko, message) =>
 // {
 //     if (message.Contains("error"))
 //         errors.Add(message);
@@ -262,12 +263,12 @@ public partial class MmProcessorKnockOff : IMmProcessorService { }
 // mock.Setup(x => x.Process(It.IsAny<string>(), It.IsAny<int>())).Returns(...);
 
 // KnockOff - each overload has its own handler (1-based suffix)
-// knockOff.IMmProcessorService.Process1.OnCall = (ko, data) => { /* 1-param overload */ };
-// knockOff.IMmProcessorService.Process2.OnCall = (ko, data, priority) => { /* 2-param overload */ };
+// knockOff.Process1.OnCall = (ko, data) => { /* 1-param overload */ };
+// knockOff.Process2.OnCall = (ko, data, priority) => { /* 2-param overload */ };
 
 // For return values
-// knockOff.IMmProcessorService.Calculate1.OnCall = (ko, value) => value * 2;
-// knockOff.IMmProcessorService.Calculate2.OnCall = (ko, a, b) => a + b;
+// knockOff.Calculate1.OnCall = (ko, value) => value * 2;
+// knockOff.Calculate2.OnCall = (ko, a, b) => a + b;
 ```
 <!-- /snippet -->
 
@@ -286,14 +287,14 @@ public partial class MmParserKnockOff : IMmParser { }
 //     }));
 
 // KnockOff - explicit delegate type required
-// knockOff.IMmParser.TryParse.OnCall =
-//     (IMmParser_TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
+// knockOff.TryParse.OnCall =
+//     (TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
 //     {
 //         return int.TryParse(input, out result);
 //     });
 
 // Tracking: only input params (out excluded)
-// Assert.Equal("42", knockOff.IMmParser.TryParse.LastCallArg);
+// Assert.Equal("42", knockOff.TryParse.LastCallArg);
 ```
 <!-- /snippet -->
 
@@ -309,8 +310,8 @@ public partial class MmRefProcessorKnockOff : IMmRefProcessor { }
 //     .Callback(new IncrementDelegate((ref int value) => value++));
 
 // KnockOff - explicit delegate type required
-// knockOff.IMmRefProcessor.Increment.OnCall =
-//     (IMmRefProcessor_IncrementHandler.IncrementDelegate)((ko, ref int value) =>
+// knockOff.Increment.OnCall =
+//     (IncrementHandler.IncrementDelegate)((ko, ref int value) =>
 //     {
 //         value++;
 //     });
@@ -319,7 +320,7 @@ public partial class MmRefProcessorKnockOff : IMmRefProcessor { }
 // int x = 5;
 // processor.Increment(ref x);
 // Assert.Equal(6, x);  // Modified
-// Assert.Equal(5, knockOff.IMmRefProcessor.Increment.LastCallArg);  // Original
+// Assert.Equal(5, knockOff.Increment.LastCallArg);  // Original
 ```
 <!-- /snippet -->
 
