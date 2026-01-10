@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
       "Search",
       "Read",
@@ -31,10 +30,16 @@
       "Write(C:\\src\\**)",
       "Write(C:\\Users\\KeithVoels\\source\\repos\\**)",
       "WebSearch"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   },
-  "additionalDirectories": ["C:\\Users\\KeithVoels\\source\\repos", "C:\\src", "C:\\Users\\KeithVoels\\.claude\\skills", "C:\\Users\\KeithVoels\\.claude\\agents"],
-  "alwaysThinkingEnabled": true,
   "model": "opus",
+  "alwaysThinkingEnabled": true,
+  "additionalDirectories": [
+    "C:\\Users\\KeithVoels\\source\\repos",
+    "C:\\src",
+    "C:\\Users\\KeithVoels\\.claude\\skills",
+    "C:\\Users\\KeithVoels\\.claude\\agents"
+  ],
   "permissionMode": "acceptEdits"
 }
