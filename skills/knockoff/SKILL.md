@@ -75,28 +75,26 @@ public partial class SkDataServiceKnockOff : ISkDataService
 
 ### 2. Use in Tests
 
+<!-- snippet: skill:SKILL:quick-start-usage -->
 ```csharp
-[Fact]
-public void Test_DataService()
-{
-    var knockOff = new DataServiceKnockOff(count: 100);
-    IDataService service = knockOff;
+var knockOff = new SkDataServiceKnockOff(count: 100);
+ISkDataService service = knockOff;
 
-    // Property - uses generated backing field
-    service.Name = "Test";
-    Assert.Equal("Test", service.Name);
-    Assert.Equal(1, knockOff.Name.SetCount);
+// Property - uses generated backing field
+service.Name = "Test";
+Assert.Equal("Test", service.Name);
+Assert.Equal(1, knockOff.Name.SetCount);
 
-    // Nullable method - returns null, call is still verified
-    var description = service.GetDescription(5);
-    Assert.Null(description);
-    Assert.True(knockOff.GetDescription.WasCalled);
-    Assert.Equal(5, knockOff.GetDescription.LastCallArg);
+// Nullable method - returns null, call is still tracked
+var description = service.GetDescription(5);
+Assert.Null(description);
+Assert.True(knockOff.GetDescription.WasCalled);
+Assert.Equal(5, knockOff.GetDescription.LastCallArg);
 
-    // Non-nullable method - returns constructor value
-    Assert.Equal(100, service.GetCount());
-}
+// Non-nullable method - returns constructor value
+Assert.Equal(100, service.GetCount());
 ```
+<!-- /snippet -->
 
 ## Stub Patterns
 
@@ -113,60 +111,73 @@ KnockOff supports multiple stub patterns:
 
 Generate stubs inside test classes using `[KnockOff<TInterface>]`:
 
+<!-- snippet: skill:SKILL:inline-stub-pattern -->
 ```csharp
-[KnockOff<IUserService>]
-[KnockOff<ILogger>]
-public partial class UserServiceTests
+[KnockOff<ISkInlineUserService>]
+[KnockOff<ISkInlineLogger>]
+public partial class SkInlineUserServiceTests
 {
-    // Generates: Stubs.IUserService, Stubs.ILogger
+    // Generates: Stubs.ISkInlineUserService, Stubs.ISkInlineLogger
 }
+```
+<!-- /snippet -->
 
-// In test:
-var stub = new UserServiceTests.Stubs.IUserService();
-stub.GetUser.OnCall = (ko, id) => new User { Id = id };
+In test:
 
-IUserService service = stub;  // Implicit conversion
+<!-- snippet: skill:SKILL:inline-stub-usage -->
+```csharp
+var stub = new SkInlineUserServiceTests.Stubs.ISkInlineUserService();
+stub.GetUser.OnCall = (ko, id) => new SkUser { Id = id };
+
+ISkInlineUserService service = stub;  // Implicit conversion
 var user = service.GetUser(42);
 
 Assert.True(stub.GetUser.WasCalled);
 ```
+<!-- /snippet -->
 
 #### Partial Properties (C# 13+)
 
+<!-- snippet: skill:SKILL:partial-properties -->
 ```csharp
-[KnockOff<IUserService>]
-public partial class Tests
+[KnockOff<ISkInlineUserService>]
+public partial class SkPartialPropertyTests
 {
-    public partial Stubs.IUserService UserStub { get; }  // Auto-instantiated
+    public partial Stubs.ISkInlineUserService UserStub { get; }  // Auto-instantiated
 }
 ```
+<!-- /snippet -->
 
 ### Delegate Stubs
 
 Stub named delegate types using `[KnockOff<TDelegate>]`:
 
+<!-- snippet: skill:SKILL:delegate-stubs -->
 ```csharp
-public delegate bool IsUniqueRule(string value);
-public delegate User UserFactory(int id);
-
-[KnockOff<IsUniqueRule>]
-[KnockOff<UserFactory>]
-public partial class ValidationTests
+[KnockOff<SkIsUniqueRule>]
+[KnockOff<SkUserFactory>]
+public partial class SkValidationTests
 {
-    // Generates: Stubs.IsUniqueRule, Stubs.UserFactory
+    // Generates: Stubs.SkIsUniqueRule, Stubs.SkUserFactory
 }
+```
+<!-- /snippet -->
 
-// In test:
-var stub = new ValidationTests.Stubs.IsUniqueRule();
+In test:
+
+<!-- snippet: skill:SKILL:delegate-stubs-usage -->
+```csharp
+var stub = new SkValidationTests.Stubs.SkIsUniqueRule();
 stub.Interceptor.OnCall = (ko, value) => value != "duplicate";
 
-IsUniqueRule rule = stub;  // Implicit conversion
+SkIsUniqueRule rule = stub;  // Implicit conversion
 Assert.True(rule("unique"));
 Assert.False(rule("duplicate"));
 
 Assert.Equal(2, stub.Interceptor.CallCount);
 Assert.Equal("duplicate", stub.Interceptor.LastCallArg);
 ```
+<!-- /snippet -->
 
 **Note:** Delegates with `ref`/`out` parameters cannot be stubbed (Func<>/Action<> limitation).
 
@@ -174,27 +185,35 @@ Assert.Equal("duplicate", stub.Interceptor.LastCallArg);
 
 Stub virtual/abstract class members using `[KnockOff<TClass>]`:
 
+<!-- snippet: skill:SKILL:class-stubs-class -->
 ```csharp
-public class EmailService
+public class SkEmailService
 {
     public virtual void Send(string to, string subject, string body)
         => Console.WriteLine($"Sending to {to}");
 
     public virtual string ServerName { get; set; } = "default";
 }
+```
+<!-- /snippet -->
 
-[KnockOff<EmailService>]
-public partial class EmailServiceTests
+<!-- snippet: skill:SKILL:class-stubs -->
+```csharp
+[KnockOff<SkEmailService>]
+public partial class SkEmailServiceTests
 {
-    // Generates: Stubs.EmailService
+    // Generates: Stubs.SkEmailService
 }
+```
+<!-- /snippet -->
 
-// In test:
-var stub = new EmailServiceTests.Stubs.EmailService();
+In test:
+```csharp
+var stub = new SkEmailServiceTests.Stubs.SkEmailService();
 stub.Send.OnCall = (ko, to, subject, body) => Console.WriteLine($"STUBBED: {to}");
 
 // Use .Object to get the EmailService instance
-EmailService service = stub.Object;
+SkEmailService service = stub.Object;
 service.Send("test@example.com", "Hello", "World");
 
 Assert.True(stub.Send.WasCalled);
@@ -213,8 +232,18 @@ Class stubs use the **same API** as interface stubs for interceptors:
 
 #### Constructor Parameters
 
+<!-- snippet: skill:SKILL:class-constructor -->
 ```csharp
-var stub = new Stubs.Repository("Server=test");
+[KnockOff<SkRepository>]
+public partial class SkConstructorTests
+{
+    // Generates: Stubs.SkRepository
+}
+```
+<!-- /snippet -->
+
+```csharp
+var stub = new SkConstructorTests.Stubs.SkRepository("Server=test");
 Assert.Equal("Server=test", stub.Object.ConnectionString);
 ```
 
@@ -222,8 +251,18 @@ Assert.Equal("Server=test", stub.Object.ConnectionString);
 
 Abstract members return defaults unless configured:
 
+<!-- snippet: skill:SKILL:abstract-classes -->
 ```csharp
-var stub = new Stubs.BaseRepository();
+[KnockOff<SkBaseRepository>]
+public partial class SkAbstractTests
+{
+    // Generates: Stubs.SkBaseRepository
+}
+```
+<!-- /snippet -->
+
+```csharp
+var stub = new SkAbstractTests.Stubs.SkBaseRepository();
 Assert.Null(stub.Object.ConnectionString);  // default(string)
 stub.ConnectionString.OnGet = (ko) => "Server=test";
 Assert.Equal("Server=test", stub.Object.ConnectionString);
@@ -232,6 +271,16 @@ Assert.Equal("Server=test", stub.Object.ConnectionString);
 #### Non-Virtual Members
 
 Non-virtual members are NOT intercepted. Access through `.Object`:
+
+<!-- snippet: skill:SKILL:non-virtual-members -->
+```csharp
+[KnockOff<SkNonVirtualService>]
+public partial class SkNonVirtualTests
+{
+    // Generates: Stubs.SkNonVirtualService
+}
+```
+<!-- /snippet -->
 
 ```csharp
 stub.Object.NonVirtualProperty = "Direct";
@@ -362,16 +411,18 @@ public partial class SkSmartDefaultKnockOff : ISkSmartDefaultService { }
 
 **Only stub what the test needs.** Don't implement every interface member.
 
+<!-- snippet: skill:SKILL:stub-minimalism -->
 ```csharp
 // GOOD - minimal stub, most methods just work with smart defaults
 [KnockOff]
-public partial class UserServiceKnockOff : IUserService
+public partial class SkMinimalServiceKnockOff : ISkMinimalService
 {
     // Only define methods needing custom behavior
-    protected User GetUser(int id) => new User { Id = id };
-    // GetCount returns 0, GetUsers() returns new List<User>(), etc.
+    protected SkUser? GetUser(int id) => new SkUser { Id = id };
+    // GetCount returns 0, GetUsers() returns new List<SkUser>(), etc.
 }
 ```
+<!-- /snippet -->
 
 ## Interceptor Types
 
