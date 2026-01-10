@@ -7,8 +7,8 @@ Step-by-step patterns for migrating from Moq to KnockOff.
 | Moq | KnockOff |
 |-----|----------|
 | `new Mock<IService>()` | `new ServiceKnockOff()` |
-| `mock.Object` | Cast or `knockOff.AsService()` |
-| `.Setup(x => x.M())` | `IService.M.OnCall = (ko, ...) => ...` |
+| `mock.Object` | `IService svc = stub;` (implicit) or `stub.Object` (class stubs) |
+| `.Setup(x => x.M())` | `stub.M.OnCall = (ko, ...) => ...` |
 | `.Returns(v)` | `OnCall = (ko) => v` |
 | `.ReturnsAsync(v)` | `OnCall = (ko) => Task.FromResult(v)` |
 | `.Callback(a)` | Logic inside `OnCall` callback |
@@ -36,15 +36,38 @@ public partial class MmUserServiceKnockOff : IMmUserService { }
 
 ### Step 2: Replace mock.Object
 
+**Interface stubs** use implicit conversion (they implement the interface directly):
+
 <!-- snippet: skill:moq-migration:step2-object -->
 ```csharp
 // Before
 // var service = mock.Object;
 // DoWork(mock.Object);
 
-// After
+// After - interface stubs: implicit conversion
 // IMmUserService service = knockOff;
-// DoWork(knockOff.AsMmUserService());
+// DoWork(knockOff);  // Implicit conversion to IMmUserService
+```
+<!-- /snippet -->
+
+**Class stubs** use `.Object` property (similar to Moq):
+
+<!-- snippet: skill:moq-migration:class-stub-object-usage -->
+```csharp
+var stub = new MmEmailServiceTests.Stubs.MmEmailService();
+MmEmailService service = stub.Object;
+```
+<!-- /snippet -->
+
+**Interface access** works via implicit conversion:
+
+<!-- snippet: skill:moq-migration:interface-access-usage -->
+```csharp
+// Standalone stubs implement interfaces via implicit conversion
+IMmEmployee employee = knockOff;
+
+// For inherited interfaces, cast to the base type
+IMmEntityBase baseEntity = knockOff;
 ```
 <!-- /snippet -->
 
@@ -209,6 +232,32 @@ public partial class MmPropServiceKnockOff : IMmPropService { }
 ```
 <!-- /snippet -->
 
+### SetupProperty (Tracked Properties)
+
+Moq's `SetupProperty` creates a property that tracks get/set values. KnockOff interceptor's `Value` property provides the same behavior:
+
+```csharp
+// Moq - property with get/set tracking
+mock.SetupProperty(x => x.Active, true);  // Initial value
+service.Active = false;                    // Tracks the set
+Assert.False(service.Active);              // Returns last set value
+
+// KnockOff - interceptor.Value works identically
+knockOff.Active.Value = true;             // Initial value
+service.Active = false;                    // Sets interceptor.Value
+Assert.False(service.Active);              // Returns interceptor.Value
+Assert.Equal(1, knockOff.Active.SetCount); // Tracking works
+```
+
+**Naming Convention:** For every property `Foo` on the interface, access its backing storage via `knockOff.Foo.Value`:
+
+```csharp
+knockOff.NewDate.Value = DateTime.Today;    // DateTime
+knockOff.VisitId.Value = 42L;               // long
+knockOff.VisitLabel.Value = "Test";         // string
+knockOff.PreviousVisitDate.Value = null;    // Nullable works identically
+```
+
 ### Multiple Interfaces
 
 <!-- snippet: skill:moq-migration:multiple-interfaces -->
@@ -230,6 +279,39 @@ public partial class MmUnitOfWorkKnockOff : IMmUnitOfWork { }
 // uowKnockOff.SaveChangesAsync2.OnCall = (ko, ct) => Task.FromResult(1);
 ```
 <!-- /snippet -->
+
+### Interface Inheritance
+
+KnockOff automatically implements ALL inherited interface members:
+
+```csharp
+// Moq - inherits base interface automatically
+var mock = new Mock<IEmployeeService>();  // IEmployeeService : IEntityBase
+mock.Setup(x => x.Id).Returns(42);        // Base interface member
+mock.Setup(x => x.Name).Returns("John");  // Derived interface member
+```
+
+KnockOff - same behavior, all members accessible directly:
+
+<!-- snippet: skill:moq-migration:interface-inheritance-callbacks -->
+```csharp
+var knockOff = new MmInheritedEmployeeKnockOff();
+
+// All members tracked on stub (flat API)
+knockOff.Id.OnGet = (ko) => 42;
+knockOff.Name.OnGet = (ko) => "John";
+knockOff.Department.OnGet = (ko) => "Engineering";
+```
+<!-- /snippet -->
+
+The `Value` property works for all inherited members via the interceptor:
+```csharp
+knockOff.Id.Value = 42;                   // Sets base interface property
+knockOff.Name.Value = "John";             // Sets derived interface property
+knockOff.Department.Value = "Engineering";
+```
+
+This works regardless of inheritance depth or whether the base interface comes from external packages (e.g., Neatoo's `IEntityBase`).
 
 ### Argument Matching
 
@@ -336,15 +418,14 @@ public partial class MmRefProcessorKnockOff : IMmRefProcessor { }
 | Out parameters | Supported | Supported |
 | Ref parameters | Supported | Supported |
 | Events | Supported | Supported (with Raise/tracking) |
+| Generic methods | Supported | Supported (via `.Of<T>()` pattern) |
 | Strict mode | Supported | Not supported |
 | VerifyNoOtherCalls | Supported | Not supported |
-| Generic methods | Supported | Not supported |
 
 ## Keep Using Moq For
 
 - Strict mode requirements
 - `VerifyNoOtherCalls` verification
-- Generic methods on interfaces
 
 ## Gradual Migration
 

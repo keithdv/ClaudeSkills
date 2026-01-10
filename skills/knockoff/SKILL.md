@@ -35,6 +35,61 @@ public partial class SkServiceKnockOff : ISkService
 
 **Priority Order**: Callback → User method → Default
 
+## Source Generation Mindset
+
+**KnockOff generates all interface members automatically.** You do NOT need to:
+- Worry about interface complexity
+- Count how many methods an interface has
+- Manually implement anything
+- Assess whether an interface is "too large" or "too complex"
+
+### The Only Question
+
+When considering KnockOff for any interface, ask only:
+
+> "Can I add `[KnockOff<TInterface>]` and configure the 1-3 members my test actually calls?"
+
+The answer is almost always **yes**.
+
+### Complex Interfaces Are Fine
+
+```csharp
+// IEditBase has 50+ members? Doesn't matter.
+[KnockOff<IEditBase>]
+public partial class MyTests
+{
+    // Generator creates everything. You configure only what you need:
+    // stub.IsValid.OnGet = (ko) => true;
+    // stub.IsDirty.OnGet = (ko) => false;
+    // That's it. The other 48 members just work with smart defaults.
+}
+```
+
+### When KnockOff Genuinely Won't Work
+
+Rare cases where KnockOff cannot be used:
+- Sealed classes (can't inherit)
+- Delegates with `ref`/`out` parameters
+- Types requiring complex constructor logic that can't be stubbed
+
+**If uncertain: TRY IT FIRST.** Add the attribute, build, see if it compiles. If it fails, THEN ask for clarification - don't abandon KnockOff preemptively.
+
+### Anti-Pattern: Manual Test Doubles
+
+**NEVER** create hand-written test doubles like this when KnockOff would work:
+
+```csharp
+// ❌ WRONG - Don't do this
+public class FakeEditBase : IEditBase
+{
+    public bool IsValid => true;
+    public bool IsDirty => false;
+    // ... 48 more manual implementations
+}
+```
+
+This defeats the purpose of having a source generator.
+
 ## Installation
 
 ```bash
@@ -80,7 +135,7 @@ public partial class SkDataServiceKnockOff : ISkDataService
 var knockOff = new SkDataServiceKnockOff(count: 100);
 ISkDataService service = knockOff;
 
-// Property - uses generated backing field
+// Property - uses interceptor.Value for storage
 service.Name = "Test";
 Assert.Equal("Test", service.Name);
 Assert.Equal(1, knockOff.Name.SetCount);
@@ -287,9 +342,9 @@ stub.Object.NonVirtualProperty = "Direct";
 stub.Object.NonVirtualMethod();  // Calls base class directly
 ```
 
-## Interface Properties
+## Accessing Interceptors
 
-Each interface gets its own property for tracking and configuration:
+Each interface member gets its own interceptor for tracking and configuration:
 
 <!-- snippet: skill:SKILL:interface-access -->
 ```csharp
@@ -326,6 +381,22 @@ public partial class SkUnitOfWorkKnockOff : ISkUnitOfWork { }
 // uowKnockOff.Commit.WasCalled
 ```
 <!-- /snippet -->
+
+### Accessing as Interface Type
+
+<!-- snippet: skill:SKILL:interface-class-access -->
+```csharp
+// Interface stubs: implicit conversion
+var interfaceKnockOff = new SkAccessDemoServiceKnockOff();
+ISkAccessDemoService service = interfaceKnockOff;
+
+// Class stubs: use .Object
+var classStub = new SkAccessDemoTests.Stubs.SkAccessDemoEmailService();
+SkAccessDemoEmailService emailService = classStub.Object;
+```
+<!-- /snippet -->
+
+See [Moq Migration](moq-migration.md) for detailed interface access patterns.
 
 ## OnCall API
 
@@ -592,18 +663,18 @@ public partial class SkVerificationIndexerKnockOff : ISkVerificationPropertyStor
 
 ### Properties
 
-<!-- snippet: skill:SKILL:backing-properties -->
+Properties use `interceptor.Value` for storage:
+
 ```csharp
 [KnockOff]
 public partial class SkBackingServiceKnockOff : ISkBackingService { }
 
-// Direct access to backing field (interface-prefixed)
-// knockOff.NameBacking = "Pre-populated value";
+// Direct access to backing value via interceptor
+knockOff.Name.Value = "Pre-populated value";
 
-// Without OnGet, getter returns backing field
-// Assert.Equal("Pre-populated value", service.Name);
+// Without OnGet, getter returns interceptor.Value
+Assert.Equal("Pre-populated value", service.Name);
 ```
-<!-- /snippet -->
 
 ### Indexers
 
@@ -907,8 +978,8 @@ public partial class SkRefProcessorKnockOff : ISkRefProcessor { }
 | Moq | KnockOff |
 |-----|----------|
 | `new Mock<IService>()` | `new ServiceKnockOff()` |
-| `mock.Object` | Cast or `knockOff.AsService()` |
-| `.Setup(x => x.Method())` | `IService.Method.OnCall = (ko, ...) => ...` |
+| `mock.Object` | `IService svc = stub;` (implicit) or `stub.Object` (class stubs) |
+| `.Setup(x => x.Method())` | `stub.Method.OnCall = (ko, ...) => ...` |
 | `.Returns(value)` | `OnCall = (ko) => value` |
 | `.ReturnsAsync(value)` | `OnCall = (ko) => Task.FromResult(value)` |
 | `.Callback(action)` | Logic inside `OnCall` callback |
