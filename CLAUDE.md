@@ -1,86 +1,3 @@
-#### ⚠️ CRITICAL Bug Workaround
-
-CRITICAL: Follow these guidelines when using tools operating on file paths EXCEPT `Bash` in any skill or agent. Otherwise, they will not work correctly.
-
-- When referencing file paths in tool calls, ALWAYS use the Windows-style paths with backslashes (`\`), as we're running on Windows.
-- When referencing paths to the home directory, ALWAYS EXPAND the tilde symbol (`~`) representing the home directory to the full path.
-- **On this system, the home directory is: `C:\Users\KeithVoels`**
-- Therefore `~/.claude/skills/` becomes `C:\Users\KeithVoels\.claude\skills\`
-
-#### Applies To
-
-- `Edit`
-- `Glob`
-- `Grep`
-- `Read`
-
-#### Examples (CRITICAL Bug Workaround)
-
-##### ✅ Correct (File Paths)
-
-```json
-{
-    "type": "tool_use",
-    "id": "...",
-    "name": "Read",
-    "input": {
-        "file_path": "C:\\path\\to\\some\\file.txt"
-    }
-}
-```
-
-```json
-{
-    "type": "tool_use",
-    "id": "...",
-    "name": "Edit",
-    "input": {
-        "file_path": "C:\\path\\to\\some\\file.txt",
-        "old_string": "...",
-        "new_string": "..."
-    }
-}
-```
-
-##### ❌ Incorrect (File Paths)
-
-```json
-{
-    "type": "tool_use",
-    "id": "...",
-    "name": "Read",
-    "input": {
-        "file_path": "/c/path/to/some/file.txt"
-    }
-}
-```
-
----
-
-#### Glob Pattern Guidance
-
-The `**/*pattern*` glob matches **file names**, NOT directory names in the path.
-
-| Pattern | What it matches | Use case |
-|---------|-----------------|----------|
-| `**/*foo*` | Files with "foo" in file name | Find files named `*foo*.md` |
-| `**/*foo*/**` | Files under dirs with "foo" in name | Find files inside `foo/` directory |
-| `**/foo/*` | Files directly in `foo/` dir | Explicit directory search |
-| `**/foo/**/*` | All files recursively under `foo/` | Deep directory search |
-
-##### Examples
-
-```
-# Looking for files in the "knockoff" skill directory:
-❌ **/*knock*        → No results (no files NAMED *knock*)
-✅ **/*knock*/**     → Finds files under dirs containing "knock"
-✅ **/knockoff/*     → Finds files in knockoff/ directory
-```
-
-When searching for files by **directory name**, use `**/*dirname*/**` or `**/dirname/*`.
-
----
-
 #### When You Hit an Obstacle - STOP
 
 **Do NOT work around obstacles with solutions that defeat the original purpose.**
@@ -95,6 +12,35 @@ When something doesn't work as expected (code isn't testable, API doesn't exist,
 **Good example:** Asked to test production code → code isn't testable → STOP and say: "This code can't be tested as-is because [specific reason]. Options: (1) refactor production code for testability, (2) integration test instead, (3) skip this test. Which approach?"
 
 **The goal is collaboration, not completion at any cost.**
+
+---
+
+#### Existing Tests Are Sacred - Never Gut Them
+
+**Do NOT modify out-of-scope tests to complete your task.**
+
+When working on a task, existing tests may start failing. Before modifying any test that was passing before your changes:
+
+1. **Determine if the test is in-scope** - Does the test directly cover the feature you're implementing?
+2. **If out-of-scope, STOP** - Don't modify the test to make it pass
+3. **REPORT** - "Test X started failing. It tests [feature], which is outside my current task."
+4. **ASK** - "Should I fix the underlying issue, add this to the bug list, or is this expected breakage?"
+
+**What counts as "gutting" a test (NEVER do these to out-of-scope tests):**
+- Removing or commenting out assertions
+- Removing test cases or edge cases
+- Simplifying setup that was exercising real scenarios
+- Changing expected values to match broken behavior
+- Commenting out the entire test
+- Deleting the test
+
+**The rule:** When modifying existing tests, the **original intent must be preserved**. If you can't preserve the intent while completing your task, STOP and ask.
+
+**Why this matters:** Tests exist to catch bugs. Modifying tests to hide failures means bugs get "fixed" temporarily but resurface later. We end up debugging the same issues repeatedly.
+
+**Bad example:** Implementing flat API → `IEnumerator<T>` tests fail → comment out `IEnumerator<T>` tests → mark task complete. *Bug is hidden, not fixed.*
+
+**Good example:** Implementing flat API → `IEnumerator<T>` tests fail → STOP and say: "IEnumerator<T> tests are failing due to duplicate interceptor generation. This appears to be a separate bug. Should I (1) fix it now, (2) add to bug list and continue, or (3) investigate further?"
 
 ---
 
@@ -211,10 +157,12 @@ For all Neatoo repositories:
 
 ##### Folder Structure
 - `docs/` - Documentation as markdown files
-- `todos/` - Plans and work-in-progress as markdown files
+- `docs/todos/` - Plans and work-in-progress as markdown files
+- `docs/todos/completed` - Completed work-in-progress markdown files
+
 
 ##### Todo Files
-Todo files in `todos/` must:
+Todo files in `docs/todos/` must:
 - Include a **task list** with checkboxes (`- [ ]` / `- [x]`)
 - Be **updated as work progresses** to reflect completed items
 - Contain enough context to **resume work without prior conversation history**
