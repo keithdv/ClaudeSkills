@@ -18,7 +18,7 @@ Use `EntityBase<T>` for domain entities that persist to a database.
 
 ### Complete Entity Pattern
 
-<!-- snippet: docs:aggregates-and-entities:entitybase-basic -->
+<!-- snippet: entitybase-basic -->
 ```csharp
 /// <summary>
 /// Basic EntityBase example showing automatic state tracking.
@@ -53,7 +53,7 @@ internal partial class Order : EntityBase<Order>, IOrder
 
 ### Interface Pattern
 
-<!-- snippet: docs:aggregates-and-entities:interface-requirement -->
+<!-- snippet: interface-requirement -->
 ```csharp
 /// <summary>
 /// Every aggregate requires a public interface for factory generation.
@@ -67,7 +67,7 @@ public partial interface ICustomer : IEntityBase
 
 ### Class Declaration
 
-<!-- snippet: docs:aggregates-and-entities:class-declaration -->
+<!-- snippet: class-declaration -->
 ```csharp
 [Factory]
 internal partial class Customer : EntityBase<Customer>, ICustomer
@@ -76,7 +76,7 @@ internal partial class Customer : EntityBase<Customer>, ICustomer
 
 ### Constructor Pattern
 
-<!-- snippet: docs:aggregates-and-entities:entity-constructor -->
+<!-- snippet: entity-constructor -->
 ```csharp
 public Customer(IEntityBaseServices<Customer> services) : base(services) { }
 ```
@@ -84,7 +84,7 @@ public Customer(IEntityBaseServices<Customer> services) : base(services) { }
 
 ### Inline Validation Rule
 
-<!-- snippet: docs:aggregates-and-entities:inline-validation-rule -->
+<!-- snippet: inline-validation-rule -->
 ```csharp
 // Inline validation rule - Total must be positive
         RuleManager.AddValidation(
@@ -140,7 +140,7 @@ Properties must be declared as `partial` for the source generator.
 
 ### Partial vs Non-Partial
 
-<!-- snippet: docs:aggregates-and-entities:partial-properties -->
+<!-- snippet: partial-properties -->
 ```csharp
 /// <summary>
 /// Demonstrates partial vs non-partial properties.
@@ -167,7 +167,7 @@ internal partial class Employee : EntityBase<Employee>, IEmployee
 
 ### Partial Property Declaration
 
-<!-- snippet: docs:aggregates-and-entities:partial-property-declaration -->
+<!-- snippet: partial-property-declaration -->
 ```csharp
 // Correct - generates backing field with change tracking
     public partial string? FirstName { get; set; }
@@ -177,7 +177,7 @@ internal partial class Employee : EntityBase<Employee>, IEmployee
 
 ### Non-Partial Properties (Calculated/UI-Only)
 
-<!-- snippet: docs:aggregates-and-entities:non-partial-properties -->
+<!-- snippet: non-partial-properties -->
 ```csharp
 // Calculated property - not tracked, not serialized
     public string FullName => $"{FirstName} {LastName}";
@@ -202,7 +202,7 @@ Use data annotations for display and validation.
 
 ### Complete Data Annotations Example
 
-<!-- snippet: docs:aggregates-and-entities:data-annotations -->
+<!-- snippet: data-annotations -->
 ```csharp
 /// <summary>
 /// Using data annotations for display and validation.
@@ -227,7 +227,7 @@ internal partial class Contact : EntityBase<Contact>, IContact
 
 ### DisplayName and Required
 
-<!-- snippet: docs:aggregates-and-entities:displayname-required -->
+<!-- snippet: displayname-required -->
 ```csharp
 [DisplayName("First Name*")]
     [Required(ErrorMessage = "First Name is required")]
@@ -237,7 +237,7 @@ internal partial class Contact : EntityBase<Contact>, IContact
 
 ### EmailAddress Validation
 
-<!-- snippet: docs:aggregates-and-entities:emailaddress-validation -->
+<!-- snippet: emailaddress-validation -->
 ```csharp
 [DisplayName("Email Address")]
     [EmailAddress(ErrorMessage = "Invalid email format")]
@@ -251,7 +251,7 @@ Use `ValidateBase<T>` for objects that need validation but are not persisted ind
 
 ### Search Criteria Example
 
-<!-- snippet: docs:aggregates-and-entities:validatebase-criteria -->
+<!-- snippet: validatebase-criteria -->
 ```csharp
 /// <summary>
 /// Criteria object - has validation but no persistence.
@@ -283,7 +283,7 @@ Value Objects represent concepts defined by attributes, not identity.
 
 ### Value Object Pattern
 
-<!-- snippet: docs:aggregates-and-entities:value-object -->
+<!-- snippet: value-object -->
 ```csharp
 /// <summary>
 /// Value Object - simple POCO class with [Factory] attribute.
@@ -315,7 +315,7 @@ Child entities are part of a parent aggregate.
 
 ### Child Entity Pattern
 
-<!-- snippet: docs:aggregates-and-entities:child-entity-pattern -->
+<!-- snippet: child-entity-pattern -->
 ```csharp
 /// <summary>
 /// Child entity - no [Remote], called internally by parent.
@@ -356,7 +356,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ### Parent Access Property
 
-<!-- snippet: docs:aggregates-and-entities:parent-access-property -->
+<!-- snippet: parent-access-property -->
 ```csharp
 // Access parent through the Parent property
     public IContact? ParentContact => Parent as IContact;
@@ -369,7 +369,7 @@ Collections of child entities use `EntityListBase<I>`.
 
 ### List Implementation
 
-<!-- snippet: docs:collections:list-implementation -->
+<!-- snippet: list-implementation -->
 ```csharp
 /// <summary>
 /// EntityListBase implementation with factory injection.
@@ -412,7 +412,7 @@ internal class PhoneList : EntityListBase<IPhone>, IPhoneList
 
 ### Fetch Operation
 
-<!-- snippet: docs:collections:fetch-operation -->
+<!-- snippet: fetch-operation -->
 ```csharp
 [Fetch]
     public void Fetch(IEnumerable<PhoneEntity> entities,
@@ -432,7 +432,7 @@ internal class PhoneList : EntityListBase<IPhone>, IPhoneList
 > **Critical**: Always iterate `this.Union(DeletedList)` in Update methods. If you only
 > iterate `this`, removed items will silently remain in the database.
 
-<!-- snippet: docs:collections:update-operation -->
+<!-- snippet: update-operation -->
 ```csharp
 [Update]
     public void Update(ICollection<PhoneEntity> entities,
@@ -489,7 +489,7 @@ Calling `entity.Delete()` on an entity in a list is equivalent to calling `list.
 
 ### Complete Aggregate Root
 
-<!-- snippet: docs:aggregates-and-entities:aggregate-root-pattern -->
+<!-- snippet: aggregate-root-pattern -->
 ```csharp
 /// <summary>
 /// Aggregate root with [Remote] operations - called from UI.
@@ -530,7 +530,7 @@ internal partial class SalesOrder : EntityBase<SalesOrder>, ISalesOrder
 
 ### Remote Fetch
 
-<!-- snippet: docs:aggregates-and-entities:remote-fetch -->
+<!-- snippet: remote-fetch -->
 ```csharp
 // [Remote] - Called from UI
     [Remote]
@@ -541,7 +541,7 @@ internal partial class SalesOrder : EntityBase<SalesOrder>, ISalesOrder
 
 ### Remote Insert
 
-<!-- snippet: docs:aggregates-and-entities:remote-insert -->
+<!-- snippet: remote-insert -->
 ```csharp
 [Remote]
     [Insert]
@@ -556,3 +556,5 @@ internal partial class SalesOrder : EntityBase<SalesOrder>, ISalesOrder
 3. **Missing base constructor call** - Must call `base(services)`
 4. **Wrong services type** - Use `IEntityBaseServices<T>` for EntityBase, etc.
 5. **Direct instantiation** - Always use factories, never `new Entity()`
+6. **Not using interface-first design** - See best-practices.md for the recommended pattern
+7. **Storing concrete types** - Use interface types for fields and variables

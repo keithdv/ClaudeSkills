@@ -26,26 +26,50 @@ EXPLICIT_REQUEST_PATTERNS = [
 ]
 
 
-def check_user_requested_commit(transcript_path):
+def debug_log(msg):
+    """Print debug info to stderr."""
+    print(f"[DEBUG block-git-commit] {msg}", file=sys.stderr)
+
+
+def check_user_requested_commit(transcript_path, debug=False):
     """Check if the user explicitly requested a commit/push in the conversation."""
     if not transcript_path:
+        if debug:
+            debug_log("transcript_path is empty or None")
         return False
+
+    if debug:
+        debug_log(f"transcript_path: {transcript_path}")
 
     try:
         with open(transcript_path, 'r') as f:
-            for line in f:
+            lines = f.readlines()
+            if debug:
+                debug_log(f"Read {len(lines)} lines from transcript")
+
+            message_types_seen = set()
+            user_messages_found = 0
+
+            for line in lines:
                 try:
                     message = json.loads(line)
                 except json.JSONDecodeError:
                     continue
 
+                # Track all message types for debugging
+                msg_type = message.get('type', '<no type>')
+                message_types_seen.add(msg_type)
+
                 # Only check human/user messages
-                msg_type = message.get('type', '')
                 if msg_type not in ('human', 'user', 'user_message'):
                     continue
 
-                # Get message content - handle both string and list formats
-                content = message.get('content', '')
+                user_messages_found += 1
+
+                # Get message content - handle nested message structure and both string and list formats
+                # Transcript format: {"type":"user","message":{"role":"user","content":"..."}}
+                inner_message = message.get('message', {})
+                content = inner_message.get('content', '') if isinstance(inner_message, dict) else ''
                 if isinstance(content, list):
                     # Extract text from content blocks
                     content = ' '.join(
@@ -62,9 +86,18 @@ def check_user_requested_commit(transcript_path):
                 # Check for explicit request patterns
                 for pattern in EXPLICIT_REQUEST_PATTERNS:
                     if re.search(pattern, content_lower):
+                        if debug:
+                            debug_log(f"MATCH found: pattern '{pattern}' in message")
                         return True
 
-    except (FileNotFoundError, PermissionError, IOError):
+            if debug:
+                debug_log(f"Message types seen: {message_types_seen}")
+                debug_log(f"User messages found: {user_messages_found}")
+                debug_log("No matching patterns found in user messages")
+
+    except (FileNotFoundError, PermissionError, IOError) as e:
+        if debug:
+            debug_log(f"Error reading transcript: {type(e).__name__}: {e}")
         return False
 
     return False
@@ -97,7 +130,14 @@ def main():
 
     # Check if user explicitly requested commit/push
     transcript_path = input_data.get('transcript_path', '')
-    if check_user_requested_commit(transcript_path):
+
+    # Enable debug mode to diagnose blocking issues
+    debug_mode = True
+
+    if debug_mode:
+        debug_log(f"Command detected: {command}")
+
+    if check_user_requested_commit(transcript_path, debug=debug_mode):
         sys.exit(0)  # Allow - user explicitly requested
 
     # Block - no explicit request found

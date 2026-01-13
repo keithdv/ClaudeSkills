@@ -8,7 +8,8 @@ Every interface member gets a dedicated Interceptor class. Access interceptors d
 |------------------|-----------------|----------------|
 | Method | `{MethodName}Interceptor` | `stub.MethodName` |
 | Property | `{PropertyName}Interceptor` | `stub.PropertyName` |
-| Indexer | `{KeyType}IndexerInterceptor` | `stub.StringIndexer`, `stub.IntIndexer`, etc. |
+| Indexer (single) | `IndexerInterceptor` | `stub.Indexer` |
+| Indexer (multiple) | `Indexer{KeyType}Interceptor` | `stub.IndexerString`, `stub.IndexerInt32`, etc. |
 | Event | `{EventName}Interceptor` | `stub.EventNameInterceptor` |
 | Generic Method | `{MethodName}Interceptor` | `stub.MethodName.Of<T>()` |
 
@@ -51,26 +52,7 @@ For interface methods: `void M()`, `T M()`, `void M(args)`, `T M(args)`
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:method-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaServiceKnockOff : IHaService { }
-
-// Void method, no params
-// Assert.True(knockOff.Initialize.WasCalled);
-// knockOff.Initialize.OnCall = (ko) => { };
-
-// Return method, single param
-// Assert.Equal(42, knockOff.GetById2.LastCallArg);
-// knockOff.GetById2.OnCall = (ko, id) => new HaUser { Id = id };
-
-// Multiple params
-// var args = knockOff.Create.LastCallArgs;
-// Assert.Equal("Test", args?.name);
-// knockOff.Create.OnCall = (ko, name, value) =>
-//     new HaEntity { Name = name };
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-method-interceptor-example
 
 ## Property Interceptor
 
@@ -80,53 +62,44 @@ For interface properties: `T Prop { get; }`, `T Prop { set; }`, `T Prop { get; s
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `Value` | `T` | Backing value returned by getter (when `OnGet` not set) |
 | `GetCount` | `int` | Number of getter invocations |
 | `SetCount` | `int` | Number of setter invocations |
 | `LastSetValue` | `T?` | Last value passed to setter |
-| `OnGet` | `Func<TKnockOff, T>?` | Getter callback |
-| `OnSet` | `Action<TKnockOff, T>?` | Setter callback |
+| `OnGet` | `Func<TKnockOff, T>?` | Getter callback (overrides `Value`) |
+| `OnSet` | `Action<TKnockOff, T>?` | Setter callback (overrides writing to `Value`) |
 
 ### Methods
 
 | Method | Description |
 |--------|-------------|
-| `Reset()` | Clears counts, `LastSetValue`, `OnGet`, and `OnSet` |
+| `Reset()` | Clears counts, `LastSetValue`, `Value`, `OnGet`, and `OnSet` |
+
+### Setting Property Values
+
+**Prefer `.Value` for simple cases:**
+
+```csharp
+// Simple - just set the value
+stub.Name.Value = "Test User";
+
+// Verbose - only needed for dynamic behavior
+stub.Name.OnGet = (ko) => "Test User";
+```
 
 ### Behavior
 
-- When `OnGet` is set, backing field is NOT read
-- When `OnSet` is set, backing field is NOT written
-- `Reset()` does NOT clear backing field
-
-### Backing Field
-
-Each property has a backing field accessible directly on the stub:
-- `stub.NameBacking` for `Name` property
+- Getter returns `OnGet` result if set, otherwise `Value`
+- Setter calls `OnSet` if set, otherwise writes to `Value`
+- `Reset()` clears `Value` to `default`
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:property-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaPropertyServiceKnockOff : IHaPropertyService { }
-
-// Tracking
-// Assert.Equal(3, knockOff.Name.GetCount);
-// Assert.Equal(2, knockOff.Name.SetCount);
-// Assert.Equal("Last", knockOff.Name.LastSetValue);
-
-// Callbacks
-// knockOff.Name.OnGet = (ko) => "Always This";
-// knockOff.Name.OnSet = (ko, value) => capturedValue = value;
-
-// Backing field (direct access)
-// knockOff.NameBacking = "Pre-populated";
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-property-interceptor-example
 
 ## Indexer Interceptor
 
-For interface indexers. Named by key type: `StringIndexer`, `IntIndexer`, etc.
+For interface indexers. Single indexer uses `Indexer`; multiple indexers use type suffix: `IndexerString`, `IndexerInt32`, etc.
 
 ### Properties
 
@@ -147,9 +120,10 @@ For interface indexers. Named by key type: `StringIndexer`, `IntIndexer`, etc.
 
 ### Backing Dictionary
 
-Each indexer has a backing dictionary accessible directly on the stub:
-- `stub.StringIndexerBacking` for `this[string key]`
-- `stub.IntIndexerBacking` for `this[int index]`
+Each indexer has a backing dictionary accessible via the `Backing` property on the interceptor:
+- `stub.Indexer.Backing` for single indexer
+- `stub.IndexerString.Backing` for `this[string key]` (when multiple indexers)
+- `stub.IndexerInt32.Backing` for `this[int index]` (when multiple indexers)
 
 ### Getter Behavior
 
@@ -164,40 +138,7 @@ When **`OnGet` is set**:
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:indexer-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaPropertyStoreKnockOff : IHaPropertyStore { }
-
-// Pre-populate backing
-// knockOff.StringIndexerBacking["Key1"] = value1;
-// knockOff.StringIndexerBacking["Key2"] = value2;
-
-// Track access
-// _ = store["Key1"];
-// _ = store["Key2"];
-// Assert.Equal(2, knockOff.StringIndexer.GetCount);
-// Assert.Equal("Key2", knockOff.StringIndexer.LastGetKey);
-
-// Dynamic getter
-// knockOff.StringIndexer.OnGet = (ko, key) =>
-// {
-//     if (key == "special") return specialValue;
-//     return ko.StringIndexerBacking.GetValueOrDefault(key);
-// };
-
-// Track setter
-// store["NewKey"] = newValue;
-// Assert.Equal("NewKey", knockOff.StringIndexer.LastSetEntry?.key);
-
-// Intercept setter
-// knockOff.StringIndexer.OnSet = (ko, key, value) =>
-// {
-//     // Custom logic
-//     // Value does NOT go to backing dictionary
-// };
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-indexer-interceptor-example
 
 ## Event Interceptor
 
@@ -253,37 +194,7 @@ For interface events: `event EventHandler E`, `event EventHandler<T> E`, `event 
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:event-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaEventSourceKnockOff : IHaEventSource { }
-
-// Subscribe tracking
-// source.DataReceived += handler;
-// Assert.Equal(1, knockOff.DataReceived.SubscribeCount);
-// Assert.True(knockOff.DataReceived.HasSubscribers);
-
-// Raise event
-// knockOff.DataReceived.Raise("test data");
-// Assert.True(knockOff.DataReceived.WasRaised);
-// Assert.Equal("test data", knockOff.DataReceived.LastRaiseArgs?.e);
-
-// EventHandler (non-generic)
-// knockOff.Completed.Raise(); // null sender, EventArgs.Empty
-
-// Action with params
-// knockOff.ProgressChanged.Raise(75);
-// knockOff.DataUpdated.Raise("key", 42);
-
-// All raises
-// var allRaises = knockOff.DataReceived.AllRaises;
-// Assert.Equal(3, allRaises.Count);
-
-// Reset vs Clear
-// knockOff.DataReceived.Reset();  // Clears tracking, keeps handlers
-// knockOff.DataReceived.Clear();  // Clears tracking AND handlers
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-event-interceptor-example
 
 ## Overloaded Method Interceptors
 
@@ -307,32 +218,7 @@ Each overload interceptor has its own tracking:
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:overload-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaOverloadServiceKnockOff : IHaOverloadService { }
-
-// var knockOff = new HaOverloadServiceKnockOff();
-// IHaOverloadService service = knockOff;
-
-// Each overload tracked separately
-// service.Process("a");
-// service.Process("b", 1);
-// Assert.Equal(1, knockOff.Process1.CallCount);  // Process(string)
-// Assert.Equal(1, knockOff.Process2.CallCount);  // Process(string, int)
-
-// Each overload has its own callback
-// knockOff.Process1.OnCall = (ko, data) => { };
-// knockOff.Process2.OnCall = (ko, data, priority) => { };
-
-// Return methods
-// knockOff.Calculate1.OnCall = (ko, value) => value * 2;
-// knockOff.Calculate2.OnCall = (ko, a, b) => a + b;
-
-// Assert.Equal(10, service.Calculate(5));    // Calculate1
-// Assert.Equal(8, service.Calculate(3, 5));  // Calculate2
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-overload-interceptor-example
 
 ## Out Parameter Methods
 
@@ -346,28 +232,7 @@ Methods with `out` parameters require explicit delegate type for callbacks.
 
 ### Callback Syntax
 
-<!-- snippet: skill:interceptor-api:out-param-callback -->
-```csharp
-[KnockOff]
-public partial class HaParserKnockOff : IHaParser { }
-
-// Explicit delegate type required
-// knockOff.TryParse.OnCall =
-//     (TryParseInterceptor.TryParseDelegate)((ko, string input, out int result) =>
-//     {
-//         result = int.Parse(input);
-//         return true;
-//     });
-
-// Void with multiple out params
-// knockOff.GetData.OnCall =
-//     (GetDataInterceptor.GetDataDelegate)((ko, out string name, out int count) =>
-//     {
-//         name = "Test";
-//         count = 42;
-//     });
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-out-param-callback
 
 ### No Callback Behavior
 
@@ -388,46 +253,18 @@ Methods with `ref` parameters track the **input value** before any modification.
 
 ### Callback Syntax
 
-<!-- snippet: skill:interceptor-api:ref-param-callback -->
-```csharp
-[KnockOff]
-public partial class HaProcessorKnockOff : IHaProcessor { }
-
-// Explicit delegate type required
-// knockOff.Increment.OnCall =
-//     (IncrementInterceptor.IncrementDelegate)((ko, ref int value) =>
-//     {
-//         value = value * 2;  // Modify the ref param
-//     });
-
-// Mixed regular + ref params
-// knockOff.TryUpdate.OnCall =
-//     (TryUpdateInterceptor.TryUpdateDelegate)((ko, string key, ref string value) =>
-//     {
-//         value = value.ToUpper();
-//         return true;
-//     });
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-ref-param-callback
 
 ### Tracking Example
 
-<!-- snippet: skill:interceptor-api:ref-param-tracking -->
-```csharp
-// int x = 5;
-// processor.Increment(ref x);
-
-// Assert.Equal(10, x);  // Modified
-// Assert.Equal(5, knockOff.Increment.LastCallArg);  // Original input value
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-ref-param-tracking
 
 ## Reset Behavior Summary
 
 | Interceptor Type | Reset Clears | Reset Does NOT Clear |
 |-----------------|--------------|----------------------|
 | Method | `CallCount`, `LastCallArg`/`LastCallArgs`, `OnCall` | - |
-| Property | `GetCount`, `SetCount`, `LastSetValue`, `OnGet`, `OnSet` | Backing field |
+| Property | `GetCount`, `SetCount`, `LastSetValue`, `Value`, `OnGet`, `OnSet` | - |
 | Indexer | `GetCount`, `SetCount`, `LastGetKey`, `LastSetEntry`, `OnGet`, `OnSet` | Backing dictionary |
 | Event | `SubscribeCount`, `UnsubscribeCount`, `RaiseCount`, `AllRaises` | Handlers (use `Clear()` to remove) |
 | Generic Method | All typed interceptors, `CalledTypeArguments` | - |
@@ -444,18 +281,7 @@ Async methods use the same interceptor structure as sync methods. The `OnCall` c
 | `ValueTask` | `ValueTask` |
 | `ValueTask<T>` | `ValueTask<T>` |
 
-<!-- snippet: skill:interceptor-api:async-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaAsyncRepositoryKnockOff : IHaAsyncRepository { }
-
-// knockOff.GetByIdAsync2.OnCall = (ko, id) =>
-//     Task.FromResult<HaUser?>(new HaUser { Id = id });
-
-// knockOff.SaveAsync.OnCall = (ko, entity) =>
-//     Task.FromException<int>(new DbException("Failed"));
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-async-interceptor-example
 
 ## Generic Method Interceptors
 
@@ -505,31 +331,7 @@ For multiple type parameters: `Of<T1, T2>()` or `Of<T1, T2, T3>()`.
 
 ### Examples
 
-<!-- snippet: skill:interceptor-api:generic-interceptor-example -->
-```csharp
-[KnockOff]
-public partial class HaSerializerKnockOff : IHaSerializer { }
-
-// Configure per type
-// knockOff.Deserialize.Of<HaUser>().OnCall = (ko, json) =>
-//     JsonSerializer.Deserialize<HaUser>(json)!;
-
-// Per-type tracking
-// Assert.Equal(2, knockOff.Deserialize.Of<HaUser>().CallCount);
-// Assert.Equal("{...}", knockOff.Deserialize.Of<HaUser>().LastCallArg);
-
-// Aggregate tracking
-// Assert.Equal(5, knockOff.Deserialize.TotalCallCount);
-// var types = knockOff.Deserialize.CalledTypeArguments;
-
-// Multiple type parameters
-// knockOff.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
-
-// Reset single type vs all types
-// knockOff.Deserialize.Of<HaUser>().Reset();  // Single type
-// knockOff.Deserialize.Reset();              // All types
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-generic-interceptor-example
 
 ### Smart Defaults for Generic Methods
 
@@ -567,19 +369,4 @@ Without callback or user method, KnockOff returns sensible defaults:
 | `IDictionary<K,V>`, `IReadOnlyDictionary<K,V>` | `Dictionary<K,V>` |
 | `ISet<T>` | `HashSet<T>` |
 
-<!-- snippet: skill:interceptor-api:smart-defaults-example -->
-```csharp
-[KnockOff]
-public partial class HaDefaultsServiceKnockOff : IHaDefaultsService { }
-
-// Examples of smart defaults
-// service.GetCount();       // 0 (int)
-// service.GetItems();       // new List<string>()
-// service.GetIList();       // new List<string>() (from IList<string>)
-// service.GetOptional();    // null (nullable ref)
-// service.GetDisposable();  // throws (can't instantiate interface)
-
-// Task<T> applies smart default to inner type
-// await service.GetListAsync();  // Task.FromResult(new List<string>())
-```
-<!-- /snippet -->
+snippet: skill-interceptor-api-smart-defaults-example

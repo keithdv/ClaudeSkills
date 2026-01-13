@@ -18,7 +18,7 @@ The simplest validation uses standard .NET data annotations.
 
 ### Complete Data Annotations Entity
 
-<!-- snippet: docs:validation-and-rules:data-annotations-entity -->
+<!-- snippet: data-annotations-entity -->
 ```csharp
 /// <summary>
 /// Sample entity demonstrating all supported data annotation attributes.
@@ -41,7 +41,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### Required Attribute
 
-<!-- snippet: docs:validation-and-rules:required-attribute -->
+<!-- snippet: required-attribute -->
 ```csharp
 [Required]
     public partial string? FirstName { get; set; }
@@ -53,7 +53,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### StringLength Attribute
 
-<!-- snippet: docs:validation-and-rules:stringlength-attribute -->
+<!-- snippet: stringlength-attribute -->
 ```csharp
 // Maximum length only
     [StringLength(100)]
@@ -71,7 +71,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### MinLength/MaxLength Attributes
 
-<!-- snippet: docs:validation-and-rules:minmaxlength-attribute -->
+<!-- snippet: minmaxlength-attribute -->
 ```csharp
 // String minimum length
     [MinLength(3)]
@@ -93,7 +93,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### Range Attribute
 
-<!-- snippet: docs:validation-and-rules:range-attribute -->
+<!-- snippet: range-attribute -->
 ```csharp
 // Integer range
     [Range(1, 100)]
@@ -119,7 +119,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### RegularExpression Attribute
 
-<!-- snippet: docs:validation-and-rules:regularexpression-attribute -->
+<!-- snippet: regularexpression-attribute -->
 ```csharp
 // Code format: 2 letters + 4 digits
     [RegularExpression(@"^[A-Z]{2}\d{4}$")]
@@ -137,7 +137,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### EmailAddress Attribute
 
-<!-- snippet: docs:validation-and-rules:emailaddress-attribute -->
+<!-- snippet: emailaddress-attribute -->
 ```csharp
 [EmailAddress]
     public partial string? Email { get; set; }
@@ -149,7 +149,7 @@ internal partial class DataAnnotationsEntity : EntityBase<DataAnnotationsEntity>
 
 ### Combining Attributes
 
-<!-- snippet: docs:validation-and-rules:combining-attributes -->
+<!-- snippet: combining-attributes -->
 ```csharp
 [Required(ErrorMessage = "Email is required")]
     [EmailAddress(ErrorMessage = "Invalid email format")]
@@ -172,7 +172,7 @@ For calculated properties and inline validation, use fluent methods in the const
 
 ### Fluent Rules Person Example
 
-<!-- snippet: docs:validation-and-rules:fluent-rules-person -->
+<!-- snippet: fluent-rules-person -->
 ```csharp
 /// <summary>
 /// Sample person that demonstrates fluent rule registration.
@@ -193,7 +193,7 @@ internal partial class PersonWithFluentRules : EntityBase<PersonWithFluentRules>
 
 ### AddValidation (Sync)
 
-<!-- snippet: docs:validation-and-rules:fluent-validation -->
+<!-- snippet: fluent-validation -->
 ```csharp
 // Inline validation rule
         RuleManager.AddValidation(
@@ -204,7 +204,7 @@ internal partial class PersonWithFluentRules : EntityBase<PersonWithFluentRules>
 
 ### AddValidationAsync
 
-<!-- snippet: docs:validation-and-rules:fluent-validation-async -->
+<!-- snippet: fluent-validation-async -->
 ```csharp
 // Async validation rule
         RuleManager.AddValidationAsync(
@@ -215,7 +215,7 @@ internal partial class PersonWithFluentRules : EntityBase<PersonWithFluentRules>
 
 ### AddAction (Transformation)
 
-<!-- snippet: docs:validation-and-rules:fluent-action -->
+<!-- snippet: fluent-action -->
 ```csharp
 // Action rule for calculated values
         RuleManager.AddAction(
@@ -231,7 +231,7 @@ For complex validation logic, create custom rule classes.
 
 ### Age Validation Rule
 
-<!-- snippet: docs:validation-and-rules:age-validation-rule -->
+<!-- snippet: age-validation-rule -->
 ```csharp
 public interface IAgeValidationRule : IRule<IPerson> { }
 
@@ -257,7 +257,7 @@ public class AgeValidationRule : RuleBase<IPerson>, IAgeValidationRule
 
 ### Unique Email Rule (Async)
 
-<!-- snippet: docs:validation-and-rules:unique-email-rule -->
+<!-- snippet: unique-email-rule -->
 ```csharp
 public interface IUniqueEmailRule : IRule<IPerson> { }
 
@@ -287,7 +287,7 @@ public class UniqueEmailRule : AsyncRuleBase<IPerson>, IUniqueEmailRule
 
 ### Trigger Properties
 
-<!-- snippet: docs:validation-and-rules:trigger-properties -->
+<!-- snippet: trigger-properties -->
 ```csharp
 public class TriggerPropertiesConstructorExample : RuleBase<IPerson>
 {
@@ -312,7 +312,7 @@ public class TriggerPropertiesMethodExample : RuleBase<IPerson>
 
 ### Date Range Rule
 
-<!-- snippet: docs:validation-and-rules:date-range-rule -->
+<!-- snippet: date-range-rule -->
 ```csharp
 public interface IDateRangeRule : IRule<IEvent> { }
 
@@ -338,7 +338,7 @@ public class DateRangeRule : RuleBase<IEvent>, IDateRangeRule
 
 ### Complete Rule Example
 
-<!-- snippet: docs:validation-and-rules:complete-rule-example -->
+<!-- snippet: complete-rule-example -->
 ```csharp
 public interface IUniqueNameRule : IRule<IPerson> { }
 
@@ -387,7 +387,7 @@ public class UniqueNameRule : AsyncRuleBase<IPerson>, IUniqueNameRule
 
 ### Single Message
 
-<!-- snippet: docs:validation-and-rules:returning-messages-single -->
+<!-- snippet: returning-messages-single -->
 ```csharp
 public class SingleMessageExample : RuleBase<IPerson>
 {
@@ -404,7 +404,7 @@ public class SingleMessageExample : RuleBase<IPerson>
 
 ### Multiple Messages
 
-<!-- snippet: docs:validation-and-rules:returning-messages-multiple -->
+<!-- snippet: returning-messages-multiple -->
 ```csharp
 public class MultipleMessagesExample : RuleBase<IPerson>
 {
@@ -425,7 +425,7 @@ public class MultipleMessagesExample : RuleBase<IPerson>
 
 ### Conditional Messages
 
-<!-- snippet: docs:validation-and-rules:returning-messages-conditional -->
+<!-- snippet: returning-messages-conditional -->
 ```csharp
 public class ConditionalMessageExample : RuleBase<IPerson>
 {
@@ -445,7 +445,7 @@ public class ConditionalMessageExample : RuleBase<IPerson>
 
 ### Chained Messages
 
-<!-- snippet: docs:validation-and-rules:returning-messages-chained -->
+<!-- snippet: returning-messages-chained -->
 ```csharp
 public class ChainedConditionsExample : RuleBase<IPerson>
 {
@@ -465,7 +465,7 @@ public class ChainedConditionsExample : RuleBase<IPerson>
 
 ### Rule Interface Definition
 
-<!-- snippet: docs:validation-and-rules:rule-interface-definition -->
+<!-- snippet: rule-interface-definition -->
 ```csharp
 // Rule interfaces
 public interface IAgeValidationRule : IRule<IRuleRegistrationPerson> { }
@@ -475,7 +475,7 @@ public interface IUniqueNameValidationRule : IRule<IRuleRegistrationPerson> { }
 
 ### Entity Rule Injection
 
-<!-- snippet: docs:validation-and-rules:entity-rule-injection -->
+<!-- snippet: entity-rule-injection -->
 ```csharp
 public RuleRegistrationPerson(
         IValidateBaseServices<RuleRegistrationPerson> services,
@@ -490,7 +490,7 @@ public RuleRegistrationPerson(
 
 ### RuleManager.AddRule
 
-<!-- snippet: docs:validation-and-rules:rule-manager-addrule -->
+<!-- snippet: rule-manager-addrule -->
 ```csharp
 RuleManager.AddRule(uniqueNameRule);
         RuleManager.AddRule(ageRule);
@@ -503,7 +503,7 @@ For validation requiring database access, use async rules.
 
 ### Database-Dependent Async Rule
 
-<!-- snippet: docs:database-dependent-validation:async-rule -->
+<!-- snippet: async-rule -->
 ```csharp
 /// <summary>
 /// Async rule that validates email uniqueness using the command.
@@ -545,7 +545,7 @@ public class AsyncUniqueEmailRule : AsyncRuleBase<IUserWithEmail>, IAsyncUniqueE
 
 ### Async Action Rule
 
-<!-- snippet: docs:validation-and-rules:async-action-rule -->
+<!-- snippet: async-action-rule -->
 ```csharp
 /// <summary>
 /// Demonstrates AddActionAsync for async side effects.
@@ -584,7 +584,7 @@ internal partial class AsyncActionPerson : ValidateBase<AsyncActionPerson>, IAsy
 
 ### Pause All Actions
 
-<!-- snippet: docs:validation-and-rules:pause-all-actions -->
+<!-- snippet: pause-all-actions -->
 ```csharp
 /// <summary>
 /// Demonstrates PauseAllActions for bulk updates without triggering rules.
@@ -634,7 +634,7 @@ internal partial class PauseActionsPerson : ValidateBase<PauseActionsPerson>, IP
 
 ### Working with Messages
 
-<!-- snippet: docs:validation-and-rules:validation-messages -->
+<!-- snippet: validation-messages -->
 ```csharp
 /// <summary>
 /// Demonstrates accessing validation messages.
@@ -692,7 +692,7 @@ internal partial class ValidationMessagesPerson : ValidateBase<ValidationMessage
 
 ### LoadProperty Usage
 
-<!-- snippet: docs:validation-and-rules:load-property -->
+<!-- snippet: load-property -->
 ```csharp
 /// <summary>
 /// Demonstrates LoadProperty for setting values without triggering rules.
@@ -740,7 +740,7 @@ internal partial class LoadPropertyPerson : ValidateBase<LoadPropertyPerson>, IL
 
 ### IsModified Check
 
-<!-- snippet: docs:validation-and-rules:ismodified-check -->
+<!-- snippet: ismodified-check -->
 ```csharp
 /// <summary>
 /// Demonstrates checking IsModified before expensive async operations.
@@ -794,7 +794,7 @@ internal partial class IsModifiedCheckUser : EntityBase<IsModifiedCheckUser>, II
 
 ### Manual Rule Execution
 
-<!-- snippet: docs:validation-and-rules:manual-execution -->
+<!-- snippet: manual-execution -->
 ```csharp
 /// <summary>
 /// Demonstrates manual rule execution in factory methods.
@@ -840,7 +840,7 @@ internal partial class ManualExecutionEntity : EntityBase<ManualExecutionEntity>
 
 ### Parent-Child Validation Pattern
 
-<!-- snippet: docs:validation-and-rules:parent-child-validation -->
+<!-- snippet: parent-child-validation -->
 ```csharp
 /// <summary>
 /// Demonstrates accessing parent entity from child validation rules.
@@ -882,7 +882,7 @@ public class UniquePhoneTypeRule : RuleBase<IContactPhone>, IUniquePhoneTypeRule
 
 ### Parent-Child Rule Class
 
-<!-- snippet: docs:validation-and-rules:parent-child-rule-class -->
+<!-- snippet: parent-child-rule-class -->
 ```csharp
 public class UniquePhoneTypeRule : RuleBase<IContactPhone>, IUniquePhoneTypeRule
 {
@@ -902,7 +902,7 @@ public class UniquePhoneTypeRule : RuleBase<IContactPhone>, IUniquePhoneTypeRule
 
 ### Parent Access in Rule
 
-<!-- snippet: docs:validation-and-rules:parent-access-in-rule -->
+<!-- snippet: parent-access-in-rule -->
 ```csharp
 var hasDuplicate = target.ParentContact.PhoneList
             .Where(p => p != target)
@@ -914,7 +914,7 @@ var hasDuplicate = target.ParentContact.PhoneList
 
 ### Cross-Item Validation
 
-<!-- snippet: docs:collections:cross-item-validation -->
+<!-- snippet: cross-item-validation -->
 ```csharp
 /// <summary>
 /// List that re-validates siblings when properties change.
@@ -983,7 +983,7 @@ internal class ContactPhoneList : EntityListBase<IContactPhone>, IContactPhoneLi
 
 ### Why Factory Validation is Wrong
 
-<!-- snippet: docs:database-dependent-validation:anti-pattern -->
+<!-- snippet: anti-pattern -->
 ```csharp
 /// <summary>
 /// ANTI-PATTERN: Do NOT put validation in factory methods.

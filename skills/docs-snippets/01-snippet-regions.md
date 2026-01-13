@@ -1,151 +1,34 @@
 # 01 - Snippet Regions
 
-How to mark code in source files for extraction into documentation.
+How to mark code in source files for extraction into documentation using MarkdownSnippets.
 
 ---
 
-## Inline Code vs Snippets
+## Code Block Categories
 
-Documentation contains two types of code:
+Documentation contains different types of code:
 
-| Term | Format | Sourced from samples? |
-|------|--------|----------------------|
-| **Inline code** | Mid-sentence backticks like `EntityBase<T>` | No - out of scope |
-| **Snippet** | Fenced code block showing working code | Yes - always |
-| **Illustration** | Fenced code block showing non-executable content | No - intentionally unsourced |
+| Term | Marker | Description |
+|------|--------|-------------|
+| **Inline code** | None | Mid-sentence backticks like `EntityBase<T>` |
+| **Compiled snippet** | `snippet: {id}` | Working code extracted from samples via MarkdownSnippets |
+| **Pseudo-code** | `pseudo:{id}` | Illustrative code, not compiled |
+| **Invalid example** | `invalid:{id}` | Intentionally wrong code (anti-patterns) |
 
 **Inline code** names things within sentences - class names, method names, property names. These are not tracked.
 
-**Snippets** are fenced code blocks that demonstrate working behavior. Whether 1 line or 100 lines, if it's meant to work, it must be sourced from compiled sample code.
+**All fenced C# code blocks must have a snippet marker.** This ensures every code example has been consciously evaluated.
 
-**Illustrations** are fenced code blocks that intentionally show non-executable content:
-- **Anti-patterns** - WRONG/CORRECT comparisons showing what NOT to do
-- **Pseudocode** - Conceptual logic, not real syntax
-- **Hypothetical examples** - Code that doesn't exist in the project
-- **Partial fragments** - Incomplete code used to highlight a concept
+---
 
-Illustrations should be clearly marked with comments like `// WRONG` or `// Pseudocode` so readers understand they're not working examples.
+## Compiled Snippets
 
-```markdown
-Use `EntityBase<T>` as your base class.     <!-- inline code - OK -->
+### Defining in C# Files
 
-<!-- snippet: docs:entities:base-class -->  <!-- snippet - sourced from samples -->
-```csharp
-public class Person : EntityBase<Person> { }
-```
-<!-- /snippet -->
+Use `#region` with a unique name:
 
 ```csharp
-// WRONG - don't do this                    <!-- illustration - intentionally unsourced -->
-await personFactory.Save(person);
-
-// CORRECT
-person = await personFactory.Save(person);
-```
-```
-
----
-
-## The Problem
-
-Fenced code blocks written directly in documentation:
-- Have **syntax errors** (never compiled)
-- Use **outdated API** (code drifted from implementation)
-- Make **false assertions** (claims behavior that doesn't exist)
-
-## The Solution
-
-All fenced code blocks live in **compiled, tested projects**. Documentation **pulls from** these sources via `#region` markers.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    SOURCE OF TRUTH                          │
-│  Sample projects with #region docs:* markers                │
-│  - Compiled by dotnet build                                 │
-│  - Verified by dotnet test                                  │
-└─────────────────────────────┬───────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        ▼                     ▼                     ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│ Documentation │    │ Claude Skill  │    │    README     │
-└───────────────┘    └───────────────┘    └───────────────┘
-```
-
----
-
-## Code Sources
-
-Documentation snippets come from two types of projects:
-
-| Project Type | Purpose | Examples |
-|--------------|---------|----------|
-| **Snippet libraries** | Testable domain code | Entities, rules, factories, validation |
-| **Runnable apps** | Infrastructure code | Program.cs, DI setup, Razor components |
-
-**Why both?** Test projects can't validate infrastructure code. A `Program.cs` with incorrect service registration will compile but fail at runtime. Only a real runnable application catches these errors.
-
----
-
-## Project Structure
-
-All documentation-related content lives under `docs/`:
-
-```
-{Project}/
-├── src/
-│   └── {Project}/                              # Main library
-│
-├── docs/
-│   ├── *.md                                    # Documentation markdown
-│   ├── release-notes/                          # Version release notes
-│   │
-│   ├── todos/                                  # Active markdown plans
-│   │   └── completed/                          # Completed plans
-│   │
-│   └── samples/                                # All code for documentation
-│       ├── {Project}.Samples.DomainModel/      # Domain with #region snippets
-│       │   ├── Entities/
-│       │   │   ├── IPerson.cs
-│       │   │   └── Person.cs
-│       │   ├── Rules/
-│       │   │   └── AgeValidationRule.cs
-│       │   └── ...
-│       ├── {Project}.Samples.DomainModel.Tests/# Tests (proves snippets work)
-│       ├── {Project}.Samples.BlazorClient/     # Program.cs client snippets
-│       ├── {Project}.Samples.Server/           # Program.cs server snippets
-│       └── {Project}.Samples.Ef/               # EF Core (optional)
-│
-└── scripts/
-    └── extract-snippets.ps1                    # Scans docs/samples/
-```
-
-**Key insight:** The domain model IS the snippets. Entities, rules, and factories contain `#region` markers - no separate snippet library needed.
-
----
-
-## Region Naming Convention
-
-```
-#region docs:{doc-file}:{snippet-id}
-```
-
-| Part | Description | Example |
-|------|-------------|---------|
-| `docs:` | Required prefix (identifies extractable snippets) | `docs:` |
-| `{doc-file}` | Markdown filename **without extension** | `remote-factory` |
-| `{snippet-id}` | Unique identifier within that doc | `server-program-cs` |
-
-**Full example:** `#region docs:remote-factory:server-program-cs`
-
----
-
-## Basic Pattern
-
-```csharp
-// In ValidationAndRules/RuleBaseSamples.cs
-
-#region docs:validation-and-rules:age-validation-rule
+#region age-validation-rule
 public class AgeValidationRule : RuleBase<IPerson>
 {
     public AgeValidationRule() : base(p => p.Age) { }
@@ -160,10 +43,207 @@ public class AgeValidationRule : RuleBase<IPerson>
 #endregion
 ```
 
-**Rules:**
-- Every `#region docs:*` **must** have a matching `#endregion`
-- Each `docs:{file}:{id}` combination **must** be unique across all sample files
-- Content between markers is extracted with leading/trailing blank lines trimmed
+**Alternative syntax** (also supported):
+```csharp
+// begin-snippet: age-validation-rule
+public class AgeValidationRule : RuleBase<IPerson>
+{
+    // ...
+}
+// end-snippet
+```
+
+### Referencing in Markdown
+
+Simply add a line with `snippet: {id}`:
+
+```markdown
+## Age Validation
+
+snippet: age-validation-rule
+
+The rule validates that age is not negative.
+```
+
+### What MarkdownSnippets Generates
+
+After running `dotnet mdsnippets`, the markdown becomes:
+
+```markdown
+## Age Validation
+
+<!-- snippet: age-validation-rule -->
+<a id='snippet-age-validation-rule'></a>
+```csharp
+public class AgeValidationRule : RuleBase<IPerson>
+{
+    public AgeValidationRule() : base(p => p.Age) { }
+
+    protected override IRuleMessages Execute(IPerson target)
+    {
+        if (target.Age < 0)
+            return (nameof(target.Age), "Age cannot be negative").AsRuleMessages();
+        return None;
+    }
+}
+```
+<sup><a href='/docs/samples/Rules/AgeValidationRule.cs#L5-L16' title='Snippet source file'>snippet source</a> | <a href='#snippet-age-validation-rule' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The rule validates that age is not negative.
+```
+
+---
+
+## Pseudo-code (`pseudo:`)
+
+Illustrative code that shows conceptual patterns but isn't compiled:
+- **API signatures** - Interface definitions, method signatures
+- **Hypothetical examples** - Features that don't exist yet
+- **Partial fragments** - Incomplete code highlighting a concept (e.g., just a property name)
+
+```markdown
+<!-- pseudo:waitfortasks-signature -->
+```csharp
+Task WaitForTasks(CancellationToken? token = null);
+```
+<!-- /snippet -->
+```
+
+**Note:** MarkdownSnippets ignores `pseudo:` markers - they're just HTML comments. Your `verify-code-blocks.ps1` script checks these.
+
+---
+
+## Invalid Examples (`invalid:`)
+
+Intentionally wrong code showing what NOT to do:
+- **Anti-patterns** - WRONG/CORRECT comparisons
+- **Common mistakes** - Code that compiles but is incorrect
+- **Breaking changes** - Old patterns that no longer work
+
+```markdown
+<!-- snippet: invalid:wrong-save-pattern -->
+```csharp
+// WRONG - discards the updated entity
+await personFactory.Save(person);
+
+// CORRECT
+person = await personFactory.Save(person);
+```
+<!-- /snippet -->
+```
+
+**Tip:** If both wrong and correct code can compile, put them in the same compiled snippet:
+
+```csharp
+#region save-pattern-comparison
+// WRONG - discards the updated entity
+await personFactory.Save(person);
+
+// CORRECT - captures the new instance
+person = await personFactory.Save(person);
+#endregion
+```
+
+This way MarkdownSnippets keeps both in sync with API changes.
+
+---
+
+## Why Every Block Needs a Marker
+
+Without markers, there's no way to verify that a code block was intentionally left uncompiled vs. accidentally forgotten. The verification script ensures:
+- Every `snippet: {id}` has a matching `#region {id}` in code
+- Every `<!-- snippet: pseudo:{id} -->` has a matching `<!-- /snippet -->`
+- Every `<!-- snippet: invalid:{id} -->` has a matching `<!-- /snippet -->`
+- No unmarked C# code blocks exist
+
+---
+
+## Region Naming Convention
+
+Snippet IDs must be **globally unique** across the entire project.
+
+### Good Names
+
+```csharp
+#region person-entity
+#region age-validation-rule
+#region factory-create-pattern
+#region server-di-setup
+#region blazor-form-binding
+```
+
+### Naming Strategies
+
+| Strategy | Example |
+|----------|---------|
+| Feature + concept | `validation-age-rule` |
+| Entity + operation | `person-create-factory` |
+| Context + pattern | `server-di-setup` |
+
+### Avoid
+
+```csharp
+// BAD - too generic, likely to collide
+#region example
+#region usage
+#region pattern
+
+// GOOD - specific and unique
+#region validation-rule-example
+#region factory-usage
+#region save-pattern
+```
+
+---
+
+## Project Structure
+
+Documentation and skills live in the repository, both pulling from the same samples:
+
+```
+{Project}/
+├── README.md                                   # Main docs (mdsnippets-processed)
+├── src/
+│   └── {Project}/                              # Main library
+│
+├── .claude/
+│   └── skills/
+│       └── {skill}/                            # Local skill (versioned with code)
+│           ├── SKILL.md                        # mdsnippets-processed
+│           └── *.md
+│
+├── docs/
+│   ├── *.md                                    # Documentation (mdsnippets-processed)
+│   ├── release-notes/                          # Version release notes
+│   │
+│   ├── todos/                                  # Active markdown plans
+│   │   └── completed/                          # Completed plans
+│   │
+│   └── samples/                                # Single source for BOTH docs AND skills
+│       ├── {Project}.Samples.DomainModel/      # Domain with #region snippets
+│       │   ├── Entities/
+│       │   │   ├── IPerson.cs
+│       │   │   └── Person.cs
+│       │   ├── Rules/
+│       │   │   └── AgeValidationRule.cs
+│       │   └── ...
+│       ├── {Project}.Samples.DomainModel.Tests/# Tests (proves snippets work)
+│       ├── {Project}.Samples.BlazorClient/     # Program.cs client snippets
+│       ├── {Project}.Samples.Server/           # Program.cs server snippets
+│       └── {Project}.Samples.Ef/               # EF Core (optional)
+│
+├── scripts/
+│   └── verify-code-blocks.ps1                  # Verifies pseudo/invalid markers
+│
+├── mdsnippets.json                             # MarkdownSnippets config
+└── .config/
+    └── dotnet-tools.json                       # Tool manifest
+
+~/.claude/skills/{skill}/                       # Shared copy (for use outside repo)
+```
+
+**Key insight:** The domain model IS the snippets. Entities, rules, and factories contain `#region` markers - no separate snippet library needed. Both docs and skills use the same `snippet: {id}` syntax.
 
 ---
 
@@ -178,7 +258,7 @@ Infrastructure code lives in runnable projects. Use regions to mark the Neatoo-s
 
 var builder = WebApplication.CreateBuilder(args);
 
-#region docs:remote-factory:server-di-setup
+#region server-di-setup
 // Neatoo server setup
 builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembly);
 #endregion
@@ -188,7 +268,7 @@ builder.Services.AddScoped<IPersonDbContext, PersonDbContext>();
 
 var app = builder.Build();
 
-#region docs:remote-factory:server-endpoint
+#region server-endpoint
 // Neatoo endpoint with cancellation support
 app.MapPost("/api/neatoo", (HttpContext ctx, RemoteRequestDto request, CancellationToken ct) =>
 {
@@ -207,7 +287,7 @@ await app.RunAsync();
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-#region docs:remote-factory:client-di-setup
+#region client-di-setup
 // Neatoo client setup
 builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
@@ -215,53 +295,6 @@ builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =
 #endregion
 
 await builder.Build().RunAsync();
-```
-
----
-
-## File Organization
-
-Organize samples like a real domain project. The `#region` markers handle mapping to docs:
-
-```
-docs/samples/
-  {Project}.Samples.DomainModel/        # Domain entities WITH snippet regions
-    {Project}.Samples.DomainModel.csproj
-    Entities/
-      IPerson.cs                        # #region docs:entities:person-interface
-      Person.cs                         # #region docs:entities:person-class
-    Rules/
-      AgeValidationRule.cs              # #region docs:validation:age-rule
-    Factories/
-      PersonFactory.cs                  # #region docs:factories:create-pattern
-
-  {Project}.Samples.DomainModel.Tests/  # Tests (proves snippets work)
-  {Project}.Samples.BlazorClient/       # Program.cs client snippets
-  {Project}.Samples.Server/             # Program.cs server snippets
-  {Project}.Samples.Ef/                 # EF Core (optional)
-```
-
-**Key insight:** A file in `Entities/` can have snippets for any doc file. The folder structure shows users what a real project looks like; the region markers handle documentation mapping.
-
----
-
-## File Header Convention
-
-Include a header listing all snippets for discoverability:
-
-```csharp
-/// <summary>
-/// Code samples for docs/validation-and-rules.md
-///
-/// Snippets in this file:
-/// - docs:validation-and-rules:required-attribute
-/// - docs:validation-and-rules:age-validation-rule
-/// - docs:validation-and-rules:async-database-rule
-///
-/// Corresponding tests: RuleBaseSamplesTests.cs
-/// </summary>
-
-namespace Neatoo.Samples.DomainModel.Rules;
 ```
 
 ---
@@ -276,12 +309,12 @@ internal partial class OrderSamples : EntityBase<OrderSamples>
 {
     // Full class context for compilation...
 
-    #region docs:aggregates:state-tracking-properties
+    #region state-tracking-properties
     public partial string? Status { get; set; }     // IsModified tracked
     public partial decimal Total { get; set; }      // IsSavable updated
     #endregion
 
-    #region docs:aggregates:inline-validation
+    #region inline-validation
     RuleManager.AddValidation(
         t => t.Total <= 0 ? "Total must be positive" : "",
         t => t.Total);
@@ -290,6 +323,27 @@ internal partial class OrderSamples : EntityBase<OrderSamples>
 ```
 
 Documentation can reference either the full class OR the micro-snippets independently.
+
+---
+
+## File Header Convention
+
+Include a header listing all snippets for discoverability:
+
+```csharp
+/// <summary>
+/// Code samples for validation documentation.
+///
+/// Snippets in this file:
+/// - required-attribute
+/// - age-validation-rule
+/// - async-database-rule
+///
+/// Corresponding tests: RuleBaseSamplesTests.cs
+/// </summary>
+
+namespace Neatoo.Samples.DomainModel.Rules;
+```
 
 ---
 
@@ -303,7 +357,161 @@ Documentation can reference either the full class OR the micro-snippets independ
 
 ---
 
+## Testing Snippets
+
+Every snippet should have corresponding test coverage:
+
+```csharp
+// In Tests/ValidationAndRules/RuleBaseSamplesTests.cs
+
+public class RuleBaseSamplesTests : SamplesTestBase
+{
+    [Fact]
+    public async Task AgeValidationRule_NegativeAge_ReturnsError()
+    {
+        // Test that the documented rule actually works
+        var person = CreatePerson();
+        person.Age = -5;
+
+        await person.WaitForTasks();
+
+        Assert.False(person.IsValid);
+        Assert.Contains("Age cannot be negative", person.PropertyMessages);
+    }
+}
+```
+
+**Benefits:**
+- Proves the documented code actually works
+- Catches API changes that break examples
+- Documents expected behavior
+
+---
+
+## Common Mistakes
+
+### Missing #endregion
+
+```csharp
+// BAD - MarkdownSnippets will fail
+#region example-snippet
+// code
+// forgot #endregion
+```
+
+### Duplicate IDs
+
+```csharp
+// BAD - same ID in two files causes unpredictable behavior
+// File1.cs: #region save-pattern
+// File2.cs: #region save-pattern
+
+// GOOD - unique IDs
+// File1.cs: #region person-save-pattern
+// File2.cs: #region order-save-pattern
+```
+
+### Generic Region Names
+
+```csharp
+// BAD - collides with standard VS regions
+#region Properties
+#region Methods
+
+// GOOD - specific snippet names
+#region person-properties
+#region factory-methods
+```
+
+---
+
+## Setting Up From Scratch
+
+If your repository doesn't have a `docs/samples/` structure yet, follow these steps:
+
+### Step 1: Create Folder Structure
+
+```powershell
+# From your project root
+mkdir docs
+mkdir docs/samples
+```
+
+### Step 2: Create Sample Projects
+
+```powershell
+cd docs/samples
+
+# Domain model project (where snippets live)
+dotnet new classlib -n {Project}.Samples.DomainModel
+cd {Project}.Samples.DomainModel
+
+# Add reference to your main library
+dotnet add reference ../../../src/{Project}/{Project}.csproj
+cd ..
+
+# Test project
+dotnet new xunit -n {Project}.Samples.DomainModel.Tests
+cd {Project}.Samples.DomainModel.Tests
+dotnet add reference ../{Project}.Samples.DomainModel/{Project}.Samples.DomainModel.csproj
+cd ../..
+```
+
+### Step 3: Install MarkdownSnippets
+
+```powershell
+# From project root
+dotnet new tool-manifest  # if .config/dotnet-tools.json doesn't exist
+dotnet tool install MarkdownSnippets.Tool
+```
+
+### Step 4: Create Configuration
+
+Create `mdsnippets.json` in project root:
+
+```json
+{
+  "Convention": "InPlaceOverwrite",
+  "LinkFormat": "GitHub",
+  "OmitSnippetLinks": true,
+  "ExcludeDirectories": ["node_modules", "bin", "obj", ".git"]
+}
+```
+
+### Step 5: Add Your First Snippet
+
+1. Create a class in `docs/samples/{Project}.Samples.DomainModel/`:
+
+```csharp
+#region hello-world
+public class HelloWorld
+{
+    public string Greet() => "Hello, World!";
+}
+#endregion
+```
+
+2. Create a markdown file in `docs/`:
+
+```markdown
+# Getting Started
+
+snippet: hello-world
+```
+
+3. Run MarkdownSnippets:
+
+```powershell
+dotnet mdsnippets
+```
+
+4. Check the result - your markdown now contains the code.
+
+---
+
 ## Sample Project Setup
+
+These are the recommended project file configurations:
 
 ### Domain Model Project (Contains Snippets)
 
@@ -341,112 +549,3 @@ Documentation can reference either the full class OR the micro-snippets independ
   </ItemGroup>
 </Project>
 ```
-
-### Server Project
-
-```xml
-<!-- docs/samples/{Project}.Samples.Server/{Project}.Samples.Server.csproj -->
-<Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\{Project}.Samples.DomainModel\{Project}.Samples.DomainModel.csproj" />
-    <ProjectReference Include="..\{Project}.Samples.Ef\{Project}.Samples.Ef.csproj" />
-  </ItemGroup>
-</Project>
-```
-
-### Blazor Client Project
-
-```xml
-<!-- docs/samples/{Project}.Samples.BlazorClient/{Project}.Samples.BlazorClient.csproj -->
-<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\{Project}.Samples.DomainModel\{Project}.Samples.DomainModel.csproj" />
-  </ItemGroup>
-</Project>
-```
-
----
-
-## Testing Snippets
-
-Every snippet should have corresponding test coverage:
-
-```csharp
-// In Tests/ValidationAndRules/RuleBaseSamplesTests.cs
-
-public class RuleBaseSamplesTests : SamplesTestBase
-{
-    [Fact]
-    public void AgeValidationRule_NegativeAge_ReturnsError()
-    {
-        // Test that the documented rule actually works
-        var person = CreatePerson();
-        person.Age = -5;
-
-        await person.WaitForTasks();
-
-        Assert.False(person.IsValid);
-        Assert.Contains("Age cannot be negative", person.PropertyMessages);
-    }
-}
-```
-
-**Benefits:**
-- Proves the documented code actually works
-- Catches API changes that break examples
-- Documents expected behavior
-
----
-
-## Common Mistakes
-
-### Missing #endregion
-
-```csharp
-// BAD - script will fail
-#region docs:example:snippet-id
-// code
-// forgot #endregion
-```
-
-### Duplicate Keys
-
-```csharp
-// BAD - same key in two files
-// File1.cs: #region docs:methods:basic-example
-// File2.cs: #region docs:methods:basic-example
-
-// GOOD - unique keys
-// File1.cs: #region docs:methods:void-method
-// File2.cs: #region docs:methods:return-method
-```
-
-### Doc File Mismatch
-
-```csharp
-// BAD - doc file doesn't exist
-#region docs:nonexistent-page:snippet
-
-// GOOD - matches actual file docs/validation-and-rules.md
-#region docs:validation-and-rules:snippet
-```
-
----
-
-## Projects Using This Pattern
-
-| Project | Samples Location | Status |
-|---------|-----------------|--------|
-| Neatoo | `docs/samples/` | Migration needed |
-| KnockOff | `docs/samples/` | Migration needed |
-| RemoteFactory | `docs/samples/` | Not started |
-
-**Migration note:** Existing sample projects should be moved to `docs/samples/` with the structure: DomainModel (with snippets), DomainModel.Tests, Server, BlazorClient, and optionally Ef.

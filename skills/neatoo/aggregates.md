@@ -13,7 +13,7 @@ In Domain-Driven Design, an **Aggregate** is a cluster of entities treated as a 
 
 ## Aggregate Root Pattern
 
-<!-- snippet: docs:aggregates-and-entities:aggregate-root-pattern -->
+<!-- snippet: aggregate-root-pattern -->
 ```csharp
 /// <summary>
 /// Aggregate root with [Remote] operations - called from UI.
@@ -56,7 +56,7 @@ internal partial class SalesOrder : EntityBase<SalesOrder>, ISalesOrder
 
 ### Child Entity with Parent Access
 
-<!-- snippet: docs:aggregates-and-entities:child-entity-pattern -->
+<!-- snippet: child-entity-pattern -->
 ```csharp
 /// <summary>
 /// Child entity - no [Remote], called internally by parent.
@@ -97,7 +97,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ### Parent Access Property
 
-<!-- snippet: docs:aggregates-and-entities:parent-access-property -->
+<!-- snippet: parent-access-property -->
 ```csharp
 // Access parent through the Parent property
     public IContact? ParentContact => Parent as IContact;
@@ -108,7 +108,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ### Remote Fetch
 
-<!-- snippet: docs:aggregates-and-entities:remote-fetch -->
+<!-- snippet: remote-fetch -->
 ```csharp
 // [Remote] - Called from UI
     [Remote]
@@ -119,7 +119,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ### Remote Insert
 
-<!-- snippet: docs:aggregates-and-entities:remote-insert -->
+<!-- snippet: remote-insert -->
 ```csharp
 [Remote]
     [Insert]
@@ -129,7 +129,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ## Child Fetch Without Remote
 
-<!-- snippet: docs:aggregates-and-entities:child-fetch-no-remote -->
+<!-- snippet: child-fetch-no-remote -->
 ```csharp
 // No [Remote] - called internally by parent
     [Fetch]
@@ -141,7 +141,7 @@ internal partial class OrderLineItem : EntityBase<OrderLineItem>, IOrderLineItem
 
 ### Child Item
 
-<!-- snippet: docs:collections:child-item -->
+<!-- snippet: child-item -->
 ```csharp
 /// <summary>
 /// Child entity for phone numbers.
@@ -198,7 +198,7 @@ internal partial class Phone : EntityBase<Phone>, IPhone
 
 ### Interface Definition
 
-<!-- snippet: docs:collections:interface-definition -->
+<!-- snippet: interface-definition -->
 ```csharp
 /// <summary>
 /// Collection interface with domain-specific methods.
@@ -213,7 +213,7 @@ public interface IPhoneList : IEntityListBase<IPhone>
 
 ### List Implementation
 
-<!-- snippet: docs:collections:list-implementation -->
+<!-- snippet: list-implementation -->
 ```csharp
 /// <summary>
 /// EntityListBase implementation with factory injection.
@@ -273,12 +273,43 @@ internal class PhoneList : EntityListBase<IPhone>, IPhoneList
 
 Use IDs rather than direct references for cross-aggregate relationships:
 
+<!-- pseudo:cross-aggregate-reference -->
 ```csharp
 // Cross-aggregate reference by ID
 public partial Guid? CustomerId { get; set; }
 
 // NOT: public partial ICustomer? Customer { get; set; }
 ```
+<!-- /snippet -->
+
+## Child Creation Pattern
+
+Child entities should be created through the parent collection's add methods, not by injecting child factories into consuming code:
+
+<!-- pseudo:child-creation-pattern -->
+```csharp
+// CORRECT - Use aggregate's domain method
+var phone = contact.PhoneNumbers.AddPhoneNumber();
+phone.Number = "555-1234";
+
+// WRONG - Injecting child factory in Blazor component
+@inject IPhoneFactory PhoneFactory
+
+void AddPhone()
+{
+    var phone = PhoneFactory.Create();  // Bypasses aggregate!
+    contact.PhoneNumbers.Add(phone);
+}
+```
+<!-- /snippet -->
+
+The collection's `AddPhoneNumber()` method:
+- Creates via factory internally
+- Sets up parent-child relationship
+- Maintains aggregate consistency
+- Keeps factory injection inside the aggregate
+
+See pitfalls.md #15 for more details.
 
 ## Best Practices
 
@@ -286,3 +317,5 @@ public partial Guid? CustomerId { get; set; }
 2. **Reference by ID across aggregates** - Avoid complex loading
 3. **Use root for saves** - Only save via aggregate root factory
 4. **Validate at aggregate level** - Cross-entity business rules
+5. **Create children through parent's add methods** - Don't inject child factories externally
+6. **Work with interfaces** - Never cast to concrete types (see pitfalls.md #14)

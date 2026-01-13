@@ -20,7 +20,7 @@ This guide covers breaking changes between Neatoo versions and how to migrate yo
 
 Always reassign the result of `Save()` - it returns a new instance after the client-server roundtrip.
 
-<!-- snippet: docs:migration:save-reassignment -->
+<!-- snippet: save-reassignment -->
 ```csharp
 /// <summary>
 /// Migration pattern: Save() reassignment (v10.5+)
@@ -58,7 +58,7 @@ public static class SaveReassignmentMigration
 
 CancellationToken now flows from client to server via HTTP connection state.
 
-<!-- snippet: docs:migration:cancellation-token -->
+<!-- snippet: cancellation-token -->
 ```csharp
 /// <summary>
 /// Migration pattern: CancellationToken support (v10.5+)

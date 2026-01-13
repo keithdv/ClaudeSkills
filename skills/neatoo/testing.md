@@ -8,7 +8,7 @@ Testing Neatoo entities and rules focuses on verifying business logic in isolati
 
 ### Rule Definition
 
-<!-- snippet: docs:testing:sync-rule-definition -->
+<!-- snippet: sync-rule-definition -->
 ```csharp
 /// <summary>
 /// Interface for entities validated by NameValidationRule.
@@ -41,7 +41,7 @@ public class NameValidationRule : RuleBase<INamedEntity>
 
 ### Test Implementation
 
-<!-- snippet: docs:testing:sync-rule-test -->
+<!-- snippet: sync-rule-test -->
 ```csharp
 [TestMethod]
     public void RunRule_WhenNameIsEmpty_ReturnsError()
@@ -70,7 +70,7 @@ public class NameValidationRule : RuleBase<INamedEntity>
 
 ### Async Rule Definition
 
-<!-- snippet: docs:testing:async-rule-definition -->
+<!-- snippet: async-rule-definition -->
 ```csharp
 /// <summary>
 /// Interface for uniqueness checking - typically generated from a [Factory] Command.
@@ -123,7 +123,7 @@ public class UniqueNameAsyncRule : AsyncRuleBase<INamedEntityWithTracking>
 
 ### Async Test Implementation
 
-<!-- snippet: docs:testing:async-rule-test -->
+<!-- snippet: async-rule-test -->
 ```csharp
 [TestMethod]
     public async Task RunRule_WhenNameNotUnique_ReturnsError()
@@ -165,7 +165,7 @@ public class UniqueNameAsyncRule : AsyncRuleBase<INamedEntityWithTracking>
 
 ### Rule with Parent Definition
 
-<!-- snippet: docs:testing:rule-with-parent-definition -->
+<!-- snippet: rule-with-parent-definition -->
 ```csharp
 /// <summary>
 /// Interface for a line item that has a parent order.
@@ -211,7 +211,7 @@ public class QuantityLimitRule : RuleBase<ILineItem>
 
 ### Parent-Child Test Implementation
 
-<!-- snippet: docs:testing:rule-with-parent-test -->
+<!-- snippet: rule-with-parent-test -->
 ```csharp
 [TestMethod]
     public void RunRule_WhenQuantityExceedsParentLimit_ReturnsError()
@@ -237,6 +237,87 @@ public class QuantityLimitRule : RuleBase<ILineItem>
         Assert.AreEqual("Quantity", messages[0].PropertyName);
         Assert.IsTrue(messages[0].Message.Contains("100"));
     }
+```
+<!-- /snippet -->
+
+## Unit Testing Entities Directly
+
+For testing entity behavior without factory setup, use `EntityBaseServices<T>()`:
+
+<!-- snippet: entity-unit-test-class -->
+```csharp
+/// <summary>
+/// Entity class designed for direct unit testing.
+/// Uses [SuppressFactory] to prevent factory generation.
+/// </summary>
+[SuppressFactory]
+public class TestableProduct : EntityBase<TestableProduct>
+{
+    /// <summary>
+    /// Parameterless constructor using EntityBaseServices for unit testing.
+    /// WARNING: This bypasses DI and disables Save() functionality.
+    /// </summary>
+    public TestableProduct() : base(new EntityBaseServices<TestableProduct>())
+    {
+    }
+
+    public string? Name { get => Getter<string>(); set => Setter(value); }
+    public decimal Price { get => Getter<decimal>(); set => Setter(value); }
+    public int Quantity { get => Getter<int>(); set => Setter(value); }
+
+    /// <summary>
+    /// Calculated property - tests business logic without needing factories.
+    /// </summary>
+    public decimal TotalValue => Price * Quantity;
+
+    /// <summary>
+    /// Expose MarkNew for testing state transitions.
+    /// </summary>
+    public void SetAsNew() => MarkNew();
+
+    /// <summary>
+    /// Expose MarkOld for testing existing entity scenarios.
+    /// </summary>
+    public void SetAsExisting() => MarkOld();
+
+    /// <summary>
+    /// Expose MarkAsChild for testing child entity behavior.
+    /// </summary>
+    public void SetAsChild() => MarkAsChild();
+}
+```
+<!-- /snippet -->
+
+### Caution: Unit Testing Only
+
+Using `new EntityBaseServices<T>()` creates an entity with:
+
+| Works | Broken |
+|-------|--------|
+| Property get/set | Save operations |
+| IsModified, IsNew, IsDeleted | Parent-child relationships |
+| Calculated properties | Factory methods |
+| Business logic methods | `[Service]` dependencies |
+| State transitions | Remote operations |
+
+**Do not use in production code** - the factory is `null` and Save() will fail.
+
+### Test Example
+
+<!-- pseudo:test-example-ismodified -->
+```csharp
+[TestMethod]
+public void Product_WhenQuantityChanged_IsModifiedTrue()
+{
+    // Arrange - no factory needed
+    var product = new TestableProduct();
+
+    // Act
+    product.Quantity = 10;
+
+    // Assert
+    Assert.IsTrue(product.IsModified);
+}
 ```
 <!-- /snippet -->
 

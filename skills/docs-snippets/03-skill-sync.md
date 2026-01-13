@@ -1,6 +1,100 @@
 # 03 - Skill Sync
 
-How to keep Claude skills in sync with documentation and source code.
+How to keep Claude skills in sync with documentation and source code using local-first skills.
+
+---
+
+## Architecture Overview
+
+Skills live **in the repository** and are processed by MarkdownSnippets alongside documentation:
+
+```
+{Project}/
+├── .claude/
+│   └── skills/
+│       └── {skill}/                    # Local skill (versioned with code)
+│           ├── SKILL.md
+│           └── *.md
+├── docs/
+│   ├── *.md                            # Documentation
+│   └── samples/                        # Single source for BOTH
+└── mdsnippets.json
+
+~/.claude/skills/{skill}/               # Shared copy (for use outside repo)
+```
+
+**Key insight:** Both docs and skills use `snippet: {id}` markers. MarkdownSnippets processes them identically.
+
+---
+
+## Why Local-First?
+
+| Aspect | Old (Shared Only) | New (Local-First) |
+|--------|-------------------|-------------------|
+| Location | `~/.claude/skills/` only | `.claude/skills/` in repo |
+| Versioning | Manual sync table | Git-versioned with code |
+| Snippet sync | Manual or custom script | MarkdownSnippets (same as docs) |
+| CI verification | Manual check | `git diff --exit-code .claude/` |
+| When in repo | Load shared (may be stale) | Load local (always current) |
+
+---
+
+## How It Works
+
+### 1. Skills in Repository
+
+Create skills in `.claude/skills/{skill}/`:
+
+```
+{Project}/.claude/skills/neatoo/
+├── SKILL.md              # Overview, quick reference
+├── entities.md           # EntityBase, ValidateBase details
+├── factories.md          # Factory operations
+└── ...
+```
+
+### 2. MarkdownSnippets Processes Skills
+
+MarkdownSnippets scans ALL `.md` files not in excluded directories. Since `.claude/` isn't excluded, skills get processed:
+
+```bash
+dotnet mdsnippets
+# Output includes:
+# Processing: .claude/skills/neatoo/entities.md
+#   Snippet: person-entity
+#   Snippet: age-validation-rule
+```
+
+### 3. Claude Loads Local Skills
+
+When working in the repo, Claude loads `./.claude/skills/` (local) rather than `~/.claude/skills/` (shared). Local takes precedence.
+
+### 4. Copy to Shared on Commit
+
+After committing, copy to shared location so the skill is available when working in other projects:
+
+```powershell
+Copy-Item -Recurse -Force ".claude/skills/{skill}" "$HOME/.claude/skills/"
+```
+
+### When Is the Shared Copy Used?
+
+The shared copy (`~/.claude/skills/`) is loaded when you're **not** inside the skill's repository:
+
+| You're working in... | Claude loads skill from... |
+|---------------------|---------------------------|
+| `~/repos/Neatoo/` | `.claude/skills/neatoo/` (local - always current) |
+| `~/repos/KnockOff/` | `.claude/skills/knockoff/` (local) + `~/.claude/skills/neatoo/` (shared) |
+| `~/repos/MyClientApp/` | `~/.claude/skills/neatoo/` (shared) |
+| `~/repos/AnyOtherProject/` | `~/.claude/skills/*` (shared) |
+
+**Concrete scenario:** You're building a client application that uses the Neatoo library. You want Claude to understand Neatoo patterns (EntityBase, factories, validation rules) while helping you write domain code. Claude loads `~/.claude/skills/neatoo/` because you're not in the Neatoo repo itself.
+
+**Why both?**
+- **Local** ensures skill content matches the exact version of code you're editing
+- **Shared** makes skills available everywhere, even in projects that just *use* the library
+
+If you only develop within Neatoo/KnockOff repos, the shared copy matters less. But if you (or others) build applications using these libraries, the shared skills provide framework guidance.
 
 ---
 
@@ -11,127 +105,29 @@ How to keep Claude skills in sync with documentation and source code.
 | Audience | Developers reading docs | Claude assisting with code |
 | Detail level | Comprehensive tutorials | Condensed quick reference |
 | Code examples | Full context, step-by-step | Key patterns only |
-| Format | Jekyll/Markdown site | Skill markdown files |
-| Location | `{project}/docs/` or GitHub Pages | `~/.claude/skills/{skill}/` |
+| Location | `{project}/docs/` | `{project}/.claude/skills/{skill}/` |
+| Snippet source | `docs/samples/` | `docs/samples/` (same!) |
 
-**Key principle:** The skill is a **condensed summary** of documentation, not a duplicate.
-
----
-
-## Skill Structure
-
-Each skill follows this structure:
-
-```
-~/.claude/skills/{skill}/
-├── SKILL.md              # Main entry point (required)
-├── {topic}.md            # Sub-documents for specific topics
-├── {topic}.md
-└── ...
-```
-
-Example for Neatoo:
-
-```
-~/.claude/skills/neatoo/
-├── SKILL.md              # Overview, quick reference, when to use
-├── entities.md           # EntityBase, ValidateBase details
-├── rules.md              # Validation rules reference
-├── factories.md          # Factory operations
-├── client-server.md      # RemoteFactory setup
-├── blazor-integration.md # MudBlazor, binding patterns
-└── ...
-```
+**Key principle:** The skill is a **condensed summary** of documentation, not a duplicate. Both pull from the same compiled samples.
 
 ---
 
-## Sync Tracking Table
+## Adding Snippets to Skills
 
-Every skill SKILL.md should have a sync tracking table:
+Use the same `snippet: {id}` syntax as documentation:
 
+**In `.claude/skills/neatoo/entities.md`:**
 ```markdown
-## Skill Sync Status
+## Basic Entity Pattern
 
-| Repository | Last Synced Commit | Date |
-|------------|-------------------|------|
-| Neatoo | v10.6.0 | 2026-01-05 |
-| RemoteFactory | v10.5.0 | 2026-01-05 |
+snippet: person-entity
+
+The entity uses `[Factory]` attribute for source generation.
 ```
 
-**Update this table** after reviewing changes and updating the skill.
-
----
-
-## Workflow: Syncing Skill After Code Changes
-
-### Step 1: Identify What Changed
-
-Check commits since last sync:
-
-```bash
-# In the project repository
-git log --oneline {last-synced-commit}..HEAD
-```
-
-Or check release notes:
-- `docs/release-notes/` in the project
-- `CHANGELOG.md`
-
-### Step 2: Identify Skill-Relevant Changes
-
-Not all changes need skill updates. Focus on:
-
-| Change Type | Skill Update? |
-|-------------|---------------|
-| New public API | Yes |
-| Breaking changes | Yes (high priority) |
-| New patterns/best practices | Yes |
-| Bug fixes | Usually no |
-| Internal refactoring | No |
-| Performance improvements | No |
-
-### Step 3: Update Relevant Skill Files
-
-1. Read the updated documentation
-2. Condense key points into skill format
-3. Update code examples (from compiled samples)
-4. Update the sync tracking table
-
-### Step 4: Verify Skill Code Examples
-
-**Critical:** Skill code examples should come from the same compiled sources as documentation.
-
-**Preferred: Use snippet markers (automated)**
-```markdown
-<!-- snippet: docs:validation-and-rules:age-validation-rule -->
+**In `docs/samples/Entities/Person.cs`:**
 ```csharp
-// Replaced automatically by extract-snippets.ps1
-```
-<!-- /snippet -->
-```
-
-Then run:
-```powershell
-.\scripts\extract-snippets.ps1 -Update -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
-```
-
-**Alternative: Reference documentation**
-```markdown
-For full example, see docs/validation-and-rules.md#age-validation
-```
-
-**Never write code directly in skills** - always pull from compiled sources.
-
----
-
-## Skill Code Example Guidelines
-
-### Do: Use Condensed Examples
-
-```markdown
-### Basic Entity Pattern
-
-```csharp
+#region person-entity
 [Factory]
 internal partial class Person : EntityBase<Person>, IPerson
 {
@@ -139,179 +135,249 @@ internal partial class Person : EntityBase<Person>, IPerson
 
     [Required]
     public partial string? Name { get; set; }
+}
+#endregion
+```
 
-    [Create]
-    public void Create() { }
+After `dotnet mdsnippets`, the skill file contains the actual compiled code.
+
+---
+
+## Workflow: Updating Skills
+
+### When Code Changes
+
+1. Edit code in `docs/samples/`
+2. Run `dotnet build docs/samples/` - verify it compiles
+3. Run `dotnet test docs/samples/` - verify tests pass
+4. Run `dotnet mdsnippets` - syncs BOTH docs AND skills
+5. Review changes: `git diff docs/ .claude/`
+6. Commit everything together
+7. Copy to shared: `Copy-Item -Recurse -Force ".claude/skills/{skill}" "$HOME/.claude/skills/"`
+
+### When Adding New Skill Content
+
+1. Add the content to skill file with `snippet: {id}` references
+2. Ensure corresponding `#region {id}` exists in samples
+3. Run `dotnet mdsnippets`
+4. Commit and copy to shared
+
+---
+
+## Copy-on-Commit Options
+
+### Option 1: Manual (Simplest)
+
+Add to your commit workflow:
+
+```powershell
+# After git commit
+Copy-Item -Recurse -Force ".claude/skills/neatoo" "$HOME/.claude/skills/"
+```
+
+### Option 2: Git Hook
+
+Create `.git/hooks/post-commit`:
+
+```bash
+#!/bin/bash
+# Copy local skills to shared location
+
+SKILL_DIR=".claude/skills"
+SHARED_DIR="$HOME/.claude/skills"
+
+if [ -d "$SKILL_DIR" ]; then
+    for skill in "$SKILL_DIR"/*; do
+        if [ -d "$skill" ]; then
+            skill_name=$(basename "$skill")
+            echo "Copying skill: $skill_name"
+            cp -r "$skill" "$SHARED_DIR/"
+        fi
+    done
+fi
+```
+
+Make executable: `chmod +x .git/hooks/post-commit`
+
+### Option 3: PowerShell Post-Commit Hook
+
+For Windows, create a PowerShell script and call it from your workflow:
+
+```powershell
+# scripts/copy-skills-to-shared.ps1
+$localSkills = ".claude/skills"
+$sharedSkills = "$HOME/.claude/skills"
+
+if (Test-Path $localSkills) {
+    Get-ChildItem -Path $localSkills -Directory | ForEach-Object {
+        $dest = Join-Path $sharedSkills $_.Name
+        Write-Host "Copying skill: $($_.Name)" -ForegroundColor Cyan
+        Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
+    }
 }
 ```
 
-Focus on the pattern, not comprehensive coverage.
+---
+
+## CI Integration
+
+### Verify Skills Are In Sync
+
+```yaml
+# .github/workflows/build.yml
+
+- name: Run MarkdownSnippets
+  run: dotnet mdsnippets
+
+- name: Verify docs and skills unchanged
+  run: |
+    if [ -n "$(git status --porcelain docs/ .claude/)" ]; then
+      echo "Documentation or skills out of sync"
+      git diff docs/ .claude/
+      exit 1
+    fi
+```
+
+### Note on Shared Skills in CI
+
+CI environments don't have `~/.claude/skills/`. This is fine - the local skills in the repo are what get verified. The shared copy is only for local development convenience.
+
+---
+
+## Skill Structure Recommendations
+
+### SKILL.md (Entry Point)
+
+```markdown
+---
+name: {skill-name}
+description: Brief description for skill selection
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(...)
+---
+
+# {Skill Name}
+
+Brief overview.
+
+## Quick Reference
+
+Key patterns with `snippet:` references.
+
+## Detailed Guides
+
+Links to other skill files.
+```
+
+### Topic Files
+
+Keep focused on specific areas:
+- `entities.md` - Entity patterns
+- `factories.md` - Factory operations
+- `validation.md` - Rule patterns
+- etc.
+
+Each can use `snippet: {id}` to pull from compiled samples.
+
+---
+
+## Skill Code Guidelines
+
+### Do: Use Condensed Examples
+
+Skills are for **quick reference**, not tutorials. Show the pattern, link to docs for details:
+
+```markdown
+### Save Pattern
+
+snippet: save-pattern-correct
+
+**Important:** Always reassign - `Save()` returns a new instance.
+
+For complete examples, see `docs/factory-operations.md`.
 ```
 
 ### Don't: Duplicate Full Documentation
 
-Skills are for **quick reference**, not tutorials. Link to docs for full explanations:
+If you need 50 lines of explanation, it belongs in docs, not the skill. Skills should be scannable.
 
-```markdown
-### Async Rules
+### Do: Use the Same Snippets as Docs
 
-Async rules validate against external resources (database, API).
+The same `#region` can appear in both:
+- `docs/factory-operations.md` - Full context
+- `.claude/skills/neatoo/factories.md` - Quick reference
 
-```csharp
-public class UniqueEmailRule : AsyncRuleBase<IPerson>
+MarkdownSnippets keeps both in sync automatically.
+
+---
+
+## Migration from Shared-Only Skills
+
+If you have existing skills in `~/.claude/skills/{skill}/`:
+
+1. **Copy to repo:**
+   ```bash
+   cp -r ~/.claude/skills/neatoo .claude/skills/
+   ```
+
+2. **Convert to snippet references:**
+   Replace hardcoded code blocks with `snippet: {id}` where corresponding regions exist
+
+3. **Run MarkdownSnippets:**
+   ```bash
+   dotnet mdsnippets
+   ```
+
+4. **Commit the local skill:**
+   ```bash
+   git add .claude/skills/
+   git commit -m "feat: add neatoo skill to repository"
+   ```
+
+5. **Update shared on commit** (ongoing)
+
+---
+
+## Troubleshooting
+
+### MarkdownSnippets Not Processing Skills
+
+**Check:** Is `.claude` in `ExcludeDirectories`?
+
+```json
+// mdsnippets.json - ensure .claude is NOT listed
 {
-    // Condensed example
+  "ExcludeDirectories": [
+    "node_modules",
+    "bin",
+    "obj",
+    ".git"
+  ]
 }
 ```
 
-For complete async rule patterns including cancellation, see:
-- `docs/validation-and-rules.md` - Async Rules section
-- `docs/database-dependent-validation.md`
+### Skill Shows Stale Content
+
+**Cause:** Forgot to run `dotnet mdsnippets` or copy to shared.
+
+**Fix:**
+```bash
+dotnet mdsnippets
+Copy-Item -Recurse -Force ".claude/skills/{skill}" "$HOME/.claude/skills/"
 ```
+
+### Snippet Not Found in Skill
+
+**Cause:** The `snippet: {id}` references a region that doesn't exist.
+
+**Fix:** Same as docs - ensure `#region {id}` exists in `docs/samples/`.
 
 ---
 
-## When to Update Skills
+## Summary
 
-### Trigger: New Release
-
-After every release that includes user-facing changes:
-
-1. Review release notes
-2. Update affected skill files
-3. Update sync tracking table
-4. Test that Claude gives correct guidance
-
-### Trigger: Documentation Update
-
-After significant documentation updates:
-
-1. Review what changed in docs
-2. Determine if skill summary needs update
-3. Update relevant skill sections
-
-### Trigger: User Reports Issue
-
-If a user reports Claude giving incorrect guidance:
-
-1. Identify the skill section with wrong info
-2. Verify against current documentation
-3. Update skill from compiled sources
-4. Note the fix in skill commit message
-
----
-
-## Skill Review Checklist
-
-When updating a skill, verify:
-
-- [ ] Code examples compile (match documentation/samples)
-- [ ] API references are current (class names, method signatures)
-- [ ] Patterns shown are current best practices
-- [ ] Breaking changes from recent versions are reflected
-- [ ] Sync tracking table is updated
-
----
-
-## Example: Syncing After API Change
-
-**Scenario:** Neatoo 10.5.0 changed `Save()` to require reassignment.
-
-### 1. Identify the Change
-
-From release notes:
-> **Breaking:** `Save()` now returns a new deserialized instance. Must capture: `person = await personFactory.Save(person);`
-
-### 2. Find Affected Skill Sections
-
-Search skill files for `Save(`:
-```
-~/.claude/skills/neatoo/factories.md - Factory Usage section
-~/.claude/skills/neatoo/SKILL.md - Quick Reference section
-```
-
-### 3. Update Skill Content
-
-Before:
-```csharp
-await personFactory.Save(person);
-```
-
-After:
-```csharp
-person = await personFactory.Save(person);  // ALWAYS reassign!
-```
-
-### 4. Update Sync Table
-
-```markdown
-| Neatoo | v10.5.0 | 2026-01-05 |
-```
-
----
-
-## Skill Files for Neatoo Project
-
-| Skill File | Corresponding Docs | Topics Covered |
-|------------|-------------------|----------------|
-| SKILL.md | docs/index.md, docs/quick-start.md | Overview, quick reference |
-| entities.md | docs/aggregates-and-entities.md | EntityBase, ValidateBase, Value Objects |
-| rules.md | docs/validation-and-rules.md | Rules engine, validation |
-| factories.md | docs/factory-operations.md | CRUD, Commands & Queries |
-| client-server.md | docs/remote-factory.md | RemoteFactory setup |
-| properties.md | docs/property-system.md | Meta-properties |
-| blazor-integration.md | docs/blazor-binding.md | MudNeatoo, binding |
-| data-mapping.md | docs/mapper-methods.md | MapFrom, MapTo |
-| authorization.md | - | AuthorizeFactory |
-| testing.md | docs/testing.md | Test patterns |
-| source-generators.md | - | Generator output |
-| migration.md | docs/release-notes/ | Version migration |
-
----
-
-## Automated Skill Sync
-
-The `extract-snippets.ps1` script now supports skill files via the `-SkillPath` parameter.
-
-### How It Works
-
-1. Skills use the **same** `<!-- snippet: docs:{docfile}:{snippetid} -->` markers as documentation
-2. The script scans skill files for these markers
-3. Code is injected from the same compiled samples that feed documentation
-
-### Usage
-
-```powershell
-# Update both docs and skills
-.\scripts\extract-snippets.ps1 -Update -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
-
-# Verify both are in sync
-.\scripts\extract-snippets.ps1 -Verify -SkillPath "$env:USERPROFILE\.claude\skills\neatoo"
-```
-
-### Adding a Snippet Marker to a Skill File
-
-```markdown
-## Value Objects
-
-<!-- snippet: docs:aggregates-and-entities:value-object -->
-```csharp
-// This will be replaced by extract-snippets.ps1
-```
-<!-- /snippet -->
-```
-
-The snippet ID (`docs:aggregates-and-entities:value-object`) must match a `#region docs:*` marker in the samples.
-
-### Key Points
-
-- Skills can use **any** snippet from samples, not just ones matching the skill filename
-- The same snippet can appear in both documentation and skills
-- Run `-Verify -SkillPath` before committing to ensure skills are in sync
-
----
-
-## Future Improvements
-
-1. **Diff detection** - Script to compare skill code blocks against documentation
-2. **Staleness alerts** - Warn when skill hasn't been synced after N commits
+| Step | Command |
+|------|---------|
+| Sync snippets | `dotnet mdsnippets` |
+| Check changes | `git diff docs/ .claude/` |
+| Commit | `git add -A && git commit` |
+| Copy to shared | `Copy-Item -Recurse -Force ".claude/skills/{skill}" "$HOME/.claude/skills/"` |

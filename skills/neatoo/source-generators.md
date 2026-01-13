@@ -26,7 +26,7 @@ Neatoo uses Roslyn source generators to create factory interfaces, implementatio
 
 What the developer writes - generators create factory and property implementations:
 
-<!-- snippet: docs:source-generators:complete-entity -->
+<!-- snippet: complete-entity -->
 ```csharp
 /// <summary>
 /// Complete entity example - what the developer writes.
@@ -106,7 +106,7 @@ internal partial class Product : EntityBase<Product>, IProduct
 
 The minimum required for source generation:
 
-<!-- snippet: docs:source-generators:entity-input -->
+<!-- snippet: entity-input -->
 ```csharp
 /// <summary>
 /// Minimal entity showing required elements for source generation.
@@ -132,7 +132,7 @@ internal partial class MinimalEntity : EntityBase<MinimalEntity>, IMinimalEntity
 
 ## [Factory] Attribute
 
-<!-- snippet: docs:source-generators:factory-attribute -->
+<!-- snippet: factory-attribute -->
 ```csharp
 // The [Factory] attribute marks a class for factory generation.
 // Place it on the class declaration:
@@ -149,7 +149,7 @@ internal partial class MinimalEntity : EntityBase<MinimalEntity>, IMinimalEntity
 
 ## Partial Properties
 
-<!-- snippet: docs:source-generators:partial-property -->
+<!-- snippet: partial-property -->
 ```csharp
 // The 'partial' keyword on properties triggers implementation generation:
 //
@@ -195,10 +195,12 @@ RemoteFactory (the source generator powering Neatoo factories) enforces a **50-c
 
 Add the assembly attribute to increase the limit:
 
+<!-- pseudo:hint-name-length -->
 ```csharp
 // In AssemblyAttributes.cs or any .cs file in your project
 [assembly: FactoryHintNameLength(100)]
 ```
+<!-- /snippet -->
 
 Choose a value that accommodates your longest fully qualified type name. Common values:
 - `100` - suitable for most projects

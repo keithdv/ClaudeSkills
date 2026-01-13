@@ -6,7 +6,7 @@ Data mapping in Neatoo transfers property values between domain entities and per
 
 ## Mapper Methods Overview
 
-<!-- snippet: docs:mapper-methods:overview -->
+<!-- snippet: overview -->
 ```csharp
 /// <summary>
 /// Person entity demonstrating MapFrom, MapTo, MapModifiedTo.
@@ -71,7 +71,7 @@ internal partial class PersonWithMapper : EntityBase<PersonWithMapper>, IPersonW
 
 Use in `[Fetch]` operations to load data from persistence entities.
 
-<!-- snippet: docs:mapper-methods:map-from -->
+<!-- snippet: map-from -->
 ```csharp
 /// <summary>
 /// Demonstrates MapFrom usage in Fetch operations.
@@ -132,7 +132,7 @@ internal partial class FetchableProduct : EntityBase<FetchableProduct>, IFetchab
 
 Use in `[Insert]` operations to create new persistence entities.
 
-<!-- snippet: docs:mapper-methods:map-to -->
+<!-- snippet: map-to -->
 ```csharp
 /// <summary>
 /// Demonstrates MapTo usage in Insert operations.
@@ -196,7 +196,7 @@ internal partial class InsertableItem : EntityBase<InsertableItem>, IInsertableI
 
 Use in `[Update]` operations to only update changed properties.
 
-<!-- snippet: docs:mapper-methods:map-modified-to -->
+<!-- snippet: map-modified-to -->
 ```csharp
 /// <summary>
 /// Demonstrates MapModifiedTo for efficient updates.
@@ -267,7 +267,7 @@ internal partial class UpdatableRecord : EntityBase<UpdatableRecord>, IUpdatable
 
 For complex scenarios with transformations or value objects.
 
-<!-- snippet: docs:mapper-methods:custom-mapping -->
+<!-- snippet: custom-mapping -->
 ```csharp
 /// <summary>
 /// Demonstrates custom mapping logic for computed fields.
@@ -327,7 +327,7 @@ internal partial class EmployeeWithComputed : EntityBase<EmployeeWithComputed>, 
 
 Mapping between domain and persistence entities with different structures.
 
-<!-- snippet: docs:mapper-methods:different-shapes -->
+<!-- snippet: different-shapes -->
 ```csharp
 /// <summary>
 /// Demonstrates mapping between different entity structures.
@@ -415,7 +415,7 @@ internal partial class CustomerWithAddress : EntityBase<CustomerWithAddress>, IC
 
 ### DbContext Interface
 
-<!-- snippet: docs:ef-integration:dbcontext-interface -->
+<!-- snippet: dbcontext-interface -->
 ```csharp
 public interface ISampleDbContext
 {
@@ -429,7 +429,7 @@ public interface ISampleDbContext
 
 ### DbContext Class
 
-<!-- snippet: docs:ef-integration:dbcontext-class -->
+<!-- snippet: dbcontext-class -->
 ```csharp
 public class SampleDbContext : DbContext, ISampleDbContext
 {
@@ -464,7 +464,7 @@ public class SampleDbContext : DbContext, ISampleDbContext
 
 ### Entity Class
 
-<!-- snippet: docs:ef-integration:entity-class -->
+<!-- snippet: entity-class -->
 ```csharp
 public class PersonEntity
 {

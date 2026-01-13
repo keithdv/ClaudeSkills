@@ -17,7 +17,7 @@ Neatoo entities implement `INotifyPropertyChanged`, enabling automatic UI update
 
 Bind directly to entity properties - change notification is automatic:
 
-<!-- snippet: docs:blazor-integration:property-binding -->
+<!-- snippet: property-binding -->
 ```csharp
 *@
         @* Bind directly to entity properties - change notification is automatic *@
@@ -32,7 +32,7 @@ Bind directly to entity properties - change notification is automatic:
 
 Display validation messages from PropertyMessages collection:
 
-<!-- snippet: docs:blazor-integration:validation-display -->
+<!-- snippet: validation-display -->
 ```csharp
 *@
         @* Display validation messages from PropertyMessages collection *@
@@ -51,7 +51,7 @@ Display validation messages from PropertyMessages collection:
 
 Use IsSavable for Save button enablement (checks IsModified, IsValid, !IsBusy, !IsChild):
 
-<!-- snippet: docs:blazor-integration:issavable-button -->
+<!-- snippet: issavable-button -->
 ```csharp
 *@
     @* IsSavable checks: IsModified, IsValid, !IsBusy, !IsChild *@
@@ -68,7 +68,7 @@ Use IsSavable for Save button enablement (checks IsModified, IsValid, !IsBusy, !
 
 Show loading indicators during async validation:
 
-<!-- snippet: docs:blazor-integration:isbusy-handling -->
+<!-- snippet: isbusy-handling -->
 ```csharp
 *@
     @if (Person.IsBusy)
@@ -84,7 +84,7 @@ Show loading indicators during async validation:
 
 Load entities in OnInitializedAsync:
 
-<!-- snippet: docs:blazor-integration:async-loading -->
+<!-- snippet: async-loading -->
 ```csharp
 *@
     protected override async Task OnInitializedAsync()
@@ -103,7 +103,7 @@ Load entities in OnInitializedAsync:
 
 Always reassign after Save - it returns a new instance:
 
-<!-- snippet: docs:blazor-integration:save-pattern -->
+<!-- snippet: save-pattern -->
 ```csharp
 *@
     private async Task SavePerson()

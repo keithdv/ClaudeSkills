@@ -1,3 +1,20 @@
+## Core Rules
+
+- **STOP and ask** when you hit an obstacle - don't push through with workarounds
+- **STOP and ask** before reverting, undoing, or changing direction
+- **STOP and ask** before modifying out-of-scope tests
+- **STOP and ask** before using reflection
+- **Never commit** unless explicitly asked
+- **Broken code is OK** - leave it broken and review with me before fixing
+- **MARKDOWN FILES** always load the docs-snippet skill when working with any markdown files
+
+##### Folder Structure
+- `docs/` - Documentation as markdown files
+- `docs/todos/` - Plans and work-in-progress as markdown files
+- `docs/todos/completed` - Completed work-in-progress markdown files
+- `docs/realies-notes` - Release Notes folder
+---
+
 #### When You Hit an Obstacle - STOP
 
 **Do NOT work around obstacles with solutions that defeat the original purpose.**
@@ -12,6 +29,26 @@ When something doesn't work as expected (code isn't testable, API doesn't exist,
 **Good example:** Asked to test production code → code isn't testable → STOP and say: "This code can't be tested as-is because [specific reason]. Options: (1) refactor production code for testability, (2) integration test instead, (3) skip this test. Which approach?"
 
 **The goal is collaboration, not completion at any cost.**
+
+---
+
+#### DO NOT REVERT OR REVERSE COURSE WITHOUT STOPPING TO REVIEW!!!!!
+
+**Never undo work, reverse direction, or roll back changes without explicit approval.**
+
+This applies to ALL reversals:
+- Git operations (`git checkout`, `git revert`, `git reset`)
+- Re-editing files to remove changes you just made
+- Deleting code you just wrote
+- Changing approach mid-task
+- "Fixing" something by undoing it
+
+When something isn't working or you think you need to change direction:
+1. **STOP** - Do not start undoing anything
+2. **REPORT** - Explain what's broken and what you're considering
+3. **ASK** - "Should I revert X, try Y, or take a different approach?"
+
+**Why this matters:** The user may prefer to leave code broken temporarily while fixing the root cause elsewhere. Undoing work without asking destroys progress and wastes time.
 
 ---
 
@@ -36,7 +73,7 @@ When working on a task, existing tests may start failing. Before modifying any t
 
 **The rule:** When modifying existing tests, the **original intent must be preserved**. If you can't preserve the intent while completing your task, STOP and ask.
 
-**Why this matters:** Tests exist to catch bugs. Modifying tests to hide failures means bugs get "fixed" temporarily but resurface later. We end up debugging the same issues repeatedly.
+**Why this matters:** Tests exist to catch bugs. Modifying tests to hide failures means bugs ship and resurface later.
 
 **Bad example:** Implementing flat API → `IEnumerator<T>` tests fail → comment out `IEnumerator<T>` tests → mark task complete. *Bug is hidden, not fixed.*
 
@@ -55,82 +92,25 @@ When working on a task, existing tests may start failing. Before modifying any t
 
 ---
 
+#### No Reflection Without Approval
+
+**Do NOT use reflection in code without reviewing and getting approval first.**
+
+The goal is to have no reflection, even in tests.
+
+Before writing any code that uses `System.Reflection`, `Type.GetMethod()`, `MethodInfo.Invoke()`, or similar:
+1. **STOP** - Consider if there's a non-reflection alternative
+2. **REPORT** - Explain why reflection seems necessary
+3. **ASK** - Get approval before proceeding
+
+---
+
 #### Documentation Code Examples
 
 When working with `docs/` or Claude skills that contain code examples:
 
 1. **Always run `/docs-snippets`** to load the documentation sync skill
-2. **Code-first workflow**:
-   - Add code to `docs/samples/` projects first (so it compiles and tests)
-   - Mark with `#region docs:{target}:{id}`
-   - Run `.\scripts\extract-snippets.ps1 -Update` to sync to docs
-3. **Never write code directly in documentation** - always source from compiled samples
 
-##### ⚠️ CRITICAL: Samples Must Compile and Be Tested
-
-The entire purpose of the `docs/samples/` project is to ensure documentation examples are **syntactically correct and working code**.
-
-- **All sample code MUST compile** - no commented-out code as a workaround
-- **All samples MUST have unit tests** that verify the code actually works
-- **Snippets can be partial extracts** - a `#region` may extract just a few lines from a larger method
-- **Never use `// commented code` patterns** to avoid compilation - this completely defeats the purpose
-
-##### Supporting Code Outside Regions
-
-**Only code inside `#region` markers gets extracted to docs.** Supporting code (type definitions, setup, helper methods) can exist OUTSIDE regions to make the snippet compile:
-
-```csharp
-// Supporting code - NOT extracted to docs
-public class EmailService
-{
-    public virtual void Send(string to, string body) { }
-}
-
-[KnockOff<EmailService>]
-public partial class EmailServiceTests { }
-
-// Usage example - this IS extracted
-public static void Example()
-{
-    #region docs:example:usage
-    var stub = new EmailServiceTests.Stubs.EmailService();
-    stub.Send.OnCall = (ko, to, body) => Console.WriteLine($"To: {to}");
-    stub.Object.Send("test@example.com", "Hello");
-    #endregion
-}
-```
-
-The docs will show only the 3 lines inside the region, but the full file compiles because the supporting types exist.
-
-**Bad example:** Can't make usage code compile → comment it out with `// knockOff.Method.OnCall = ...`. *This defeats the entire purpose of having compiled samples.*
-
-**Good example:** Put supporting types/setup outside regions, extract only the usage pattern.
-
-##### Pseudocode in Documentation
-
-Pseudocode showing conceptual patterns (e.g., `// In real code: db.SaveChangesAsync()`) is acceptable in documentation and does not need to come from `docs/samples/`. This is distinct from commented-out code used to avoid compilation errors.
-
-**Acceptable:** Pseudocode illustrating what database operations would look like inside a compiling method:
-```csharp
-[Insert]
-public Task Insert()
-{
-    // In real implementation:
-    // db.Orders.Add(entity);
-    // await db.SaveChangesAsync();
-    return Task.CompletedTask;
-}
-```
-
-**Not acceptable:** Commenting out code because it won't compile:
-```csharp
-// Can't compile because Save() doesn't exist on this factory
-// entity = await factory.Save(entity);
-```
-
-The distinction: pseudocode is *intentionally illustrative*, while commented-out code is a *workaround for a problem*. Don't expand use of "pseudocode" as a solution to difficult situations.
-
----
 
 #### DDD Documentation Guidelines
 
@@ -154,11 +134,6 @@ For all Neatoo repositories:
 ---
 
 #### Project Conventions
-
-##### Folder Structure
-- `docs/` - Documentation as markdown files
-- `docs/todos/` - Plans and work-in-progress as markdown files
-- `docs/todos/completed` - Completed work-in-progress markdown files
 
 
 ##### Todo Files

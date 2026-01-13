@@ -8,6 +8,7 @@ Step-by-step patterns for migrating from Moq to KnockOff.
 |-----|----------|
 | `new Mock<IService>()` | `new ServiceKnockOff()` |
 | `mock.Object` | `IService svc = stub;` (implicit) or `stub.Object` (class stubs) |
+| `.Setup(x => x.Prop).Returns(v)` | `stub.Prop.Value = v` (static) or `stub.Prop.OnGet = ...` (dynamic) |
 | `.Setup(x => x.M())` | `stub.M.OnCall = (ko, ...) => ...` |
 | `.Returns(v)` | `OnCall = (ko) => v` |
 | `.ReturnsAsync(v)` | `OnCall = (ko) => Task.FromResult(v)` |
@@ -20,217 +21,78 @@ Step-by-step patterns for migrating from Moq to KnockOff.
 
 ### Step 1: Create KnockOff Class
 
-<!-- snippet: skill:moq-migration:step1-create -->
-```csharp
-// Before: Moq
-// var mock = new Mock<IMmUserService>();
-
-// After: Create class once
-[KnockOff]
-public partial class MmUserServiceKnockOff : IMmUserService { }
-
-// In test
-// var knockOff = new MmUserServiceKnockOff();
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step1-create
 
 ### Step 2: Replace mock.Object
 
 **Interface stubs** use implicit conversion (they implement the interface directly):
 
-<!-- snippet: skill:moq-migration:step2-object -->
-```csharp
-// Before
-// var service = mock.Object;
-// DoWork(mock.Object);
-
-// After - interface stubs: implicit conversion
-// IMmUserService service = knockOff;
-// DoWork(knockOff);  // Implicit conversion to IMmUserService
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step2-object
 
 **Class stubs** use `.Object` property (similar to Moq):
 
-<!-- snippet: skill:moq-migration:class-stub-object-usage -->
-```csharp
-var stub = new MmEmailServiceTests.Stubs.MmEmailService();
-MmEmailService service = stub.Object;
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-class-stub-object-usage
 
 **Interface access** works via implicit conversion:
 
-<!-- snippet: skill:moq-migration:interface-access-usage -->
-```csharp
-// Standalone stubs implement interfaces via implicit conversion
-IMmEmployee employee = knockOff;
-
-// For inherited interfaces, cast to the base type
-IMmEntityBase baseEntity = knockOff;
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-interface-access-usage
 
 ### Step 3: Convert Setup/Returns
 
-<!-- snippet: skill:moq-migration:step3-setup -->
-```csharp
-// Before
-// mock.Setup(x => x.GetUser(It.IsAny<int>()))
-//     .Returns(new MmUser { Id = 1 });
-
-// After
-// knockOff.GetUser.OnCall = (ko, id) =>
-//     new MmUser { Id = id };
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step3-setup
 
 ### Step 4: Convert ReturnsAsync
 
-<!-- snippet: skill:moq-migration:step4-async -->
-```csharp
-// Before
-// mock.Setup(x => x.GetUserAsync(It.IsAny<int>()))
-//     .ReturnsAsync(new MmUser { Id = 1 });
-
-// After
-// knockOff.GetUserAsync.OnCall = (ko, id) =>
-//     Task.FromResult<MmUser?>(new MmUser { Id = id });
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step4-async
 
 ### Step 5: Convert Verify
 
-<!-- snippet: skill:moq-migration:step5-verify -->
-```csharp
-// Before
-// mock.Verify(x => x.Save(It.IsAny<MmUser>()), Times.Once);
-// mock.Verify(x => x.Delete(It.IsAny<int>()), Times.Never);
-// mock.Verify(x => x.GetAll(), Times.AtLeastOnce);
-// mock.Verify(x => x.Update(It.IsAny<MmUser>()), Times.Exactly(3));
-
-// After
-// Assert.Equal(1, knockOff.Save.CallCount);
-// Assert.Equal(0, knockOff.Delete.CallCount);
-// Assert.True(knockOff.GetAll.WasCalled);
-// Assert.Equal(3, knockOff.Update.CallCount);
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step5-verify
 
 ### Step 6: Convert Callback
 
-<!-- snippet: skill:moq-migration:step6-callback -->
-```csharp
-// Before
-// MmUser? captured = null;
-// mock.Setup(x => x.Save(It.IsAny<MmUser>()))
-//     .Callback<MmUser>(u => captured = u);
-
-// After (automatic tracking)
-// service.Save(user);
-// var captured = knockOff.Save.LastCallArg;
-
-// Or with callback
-// knockOff.Save.OnCall = (ko, user) =>
-// {
-//     customList.Add(user);
-// };
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-step6-callback
 
 ## Common Patterns
 
 ### Static Returns
 
-<!-- snippet: skill:moq-migration:static-returns -->
-```csharp
-// Moq
-// mock.Setup(x => x.GetConfig()).Returns(new MmConfig { Timeout = 30 });
-
-// KnockOff Option 1: User method
-[KnockOff]
-public partial class MmConfigServiceKnockOff : IMmConfigService
-{
-    protected MmConfig GetConfig() => new MmConfig { Timeout = 30 };
-}
-
-// KnockOff Option 2: Callback
-// knockOff.GetConfig2.OnCall = (ko) => new MmConfig { Timeout = 30 };
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-static-returns
 
 ### Conditional Returns
 
-<!-- snippet: skill:moq-migration:conditional-returns -->
-```csharp
-// Moq
-// mock.Setup(x => x.GetUser(1)).Returns(new MmUser { Name = "Admin" });
-// mock.Setup(x => x.GetUser(2)).Returns(new MmUser { Name = "Guest" });
-// mock.Setup(x => x.GetUser(It.IsAny<int>())).Returns((MmUser?)null);
-
-// KnockOff
-// knockOff.GetUser.OnCall = (ko, id) => id switch
-// {
-//     1 => new MmUser { Name = "Admin" },
-//     2 => new MmUser { Name = "Guest" },
-//     _ => null
-// };
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-conditional-returns
 
 ### Throwing Exceptions
 
-<!-- snippet: skill:moq-migration:throwing-exceptions -->
-```csharp
-[KnockOff]
-public partial class MmConnectionKnockOff : IMmConnectionService { }
-
-// Moq
-// mock.Setup(x => x.Connect()).Throws(new TimeoutException());
-
-// KnockOff
-// knockOff.Connect.OnCall = (ko) =>
-//     throw new TimeoutException();
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-throwing-exceptions
 
 ### Sequential Returns
 
-<!-- snippet: skill:moq-migration:sequential-returns -->
-```csharp
-[KnockOff]
-public partial class MmSequenceKnockOff : IMmSequenceService { }
-
-// Moq
-// mock.SetupSequence(x => x.GetNext())
-//     .Returns(1)
-//     .Returns(2)
-//     .Returns(3);
-
-// KnockOff
-// var results = new Queue<int>([1, 2, 3]);
-// knockOff.GetNext.OnCall = (ko) => results.Dequeue();
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-sequential-returns
 
 ### Property Setup
 
-<!-- snippet: skill:moq-migration:property-setup -->
+snippet: skill-moq-migration-setup-property
+
+**Use `Value` for static values (recommended):**
 ```csharp
-[KnockOff]
-public partial class MmPropServiceKnockOff : IMmPropService { }
-
 // Moq
-// mock.Setup(x => x.Name).Returns("Test");
-// mock.SetupSet(x => x.Name = It.IsAny<string>()).Verifiable();
+mock.Setup(x => x.Name).Returns("Test");
 
-// KnockOff
-// knockOff.Name.OnGet = (ko) => "Test";
-// Setter tracking is automatic
-// service.Name = "Value";
-// Assert.Equal("Value", knockOff.Name.LastSetValue);
+// KnockOff - use Value for static data
+knockOff.Name.Value = "Test";
 ```
-<!-- /snippet -->
+
+**Use `OnGet` for dynamic values:**
+snippet: skill-moq-migration-property-setup
+
+**Setter tracking is automatic:**
+```csharp
+service.Name = "NewValue";
+Assert.Equal("NewValue", knockOff.Name.LastSetValue);
+Assert.Equal(1, knockOff.Name.SetCount);
+```
 
 ### SetupProperty (Tracked Properties)
 
@@ -260,25 +122,7 @@ knockOff.PreviousVisitDate.Value = null;    // Nullable works identically
 
 ### Multiple Interfaces
 
-<!-- snippet: skill:moq-migration:multiple-interfaces -->
-```csharp
-// Moq
-// var mock = new Mock<IMmRepository>();
-// mock.As<IMmUnitOfWork>()
-//     .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-//     .ReturnsAsync(1);
-
-// KnockOff - create separate stubs
-[KnockOff]
-public partial class MmRepositoryKnockOff : IMmRepository { }
-
-[KnockOff]
-public partial class MmUnitOfWorkKnockOff : IMmUnitOfWork { }
-
-// repoKnockOff.Save.OnCall = (ko, entity) => { };
-// uowKnockOff.SaveChangesAsync2.OnCall = (ko, ct) => Task.FromResult(1);
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-multiple-interfaces
 
 ### Interface Inheritance
 
@@ -293,16 +137,7 @@ mock.Setup(x => x.Name).Returns("John");  // Derived interface member
 
 KnockOff - same behavior, all members accessible directly:
 
-<!-- snippet: skill:moq-migration:interface-inheritance-callbacks -->
-```csharp
-var knockOff = new MmInheritedEmployeeKnockOff();
-
-// All members tracked on stub (flat API)
-knockOff.Id.OnGet = (ko) => 42;
-knockOff.Name.OnGet = (ko) => "John";
-knockOff.Department.OnGet = (ko) => "Engineering";
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-interface-inheritance-callbacks
 
 The `Value` property works for all inherited members via the interceptor:
 ```csharp
@@ -315,94 +150,63 @@ This works regardless of inheritance depth or whether the base interface comes f
 
 ### Argument Matching
 
-<!-- snippet: skill:moq-migration:argument-matching -->
-```csharp
-[KnockOff]
-public partial class MmLoggerKnockOff : IMmLogger { }
-
-// Moq
-// mock.Setup(x => x.Log(It.Is<string>(s => s.Contains("error"))))
-//     .Callback<string>(s => errors.Add(s));
-
-// KnockOff
-// knockOff.Log.OnCall = (ko, message) =>
-// {
-//     if (message.Contains("error"))
-//         errors.Add(message);
-// };
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-argument-matching
 
 ### Method Overloads
 
-<!-- snippet: skill:moq-migration:method-overloads -->
-```csharp
-[KnockOff]
-public partial class MmProcessorKnockOff : IMmProcessorService { }
-
-// Moq - can setup specific overloads
-// mock.Setup(x => x.Process("specific")).Returns(...);
-// mock.Setup(x => x.Process(It.IsAny<string>(), It.IsAny<int>())).Returns(...);
-
-// KnockOff - each overload has its own handler (1-based suffix)
-// knockOff.Process1.OnCall = (ko, data) => { /* 1-param overload */ };
-// knockOff.Process2.OnCall = (ko, data, priority) => { /* 2-param overload */ };
-
-// For return values
-// knockOff.Calculate1.OnCall = (ko, value) => value * 2;
-// knockOff.Calculate2.OnCall = (ko, a, b) => a + b;
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-method-overloads
 
 ### Out Parameters
 
-<!-- snippet: skill:moq-migration:out-params -->
-```csharp
-[KnockOff]
-public partial class MmParserKnockOff : IMmParser { }
-
-// Moq
-// mock.Setup(x => x.TryParse(It.IsAny<string>(), out It.Ref<int>.IsAny))
-//     .Returns(new TryParseDelegate((string input, out int result) =>
-//     {
-//         return int.TryParse(input, out result);
-//     }));
-
-// KnockOff - explicit delegate type required
-// knockOff.TryParse.OnCall =
-//     (TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-//     {
-//         return int.TryParse(input, out result);
-//     });
-
-// Tracking: only input params (out excluded)
-// Assert.Equal("42", knockOff.TryParse.LastCallArg);
-```
-<!-- /snippet -->
+snippet: skill-moq-migration-out-params
 
 ### Ref Parameters
 
-<!-- snippet: skill:moq-migration:ref-params -->
+snippet: skill-moq-migration-ref-params
+
+### Strict Mode (MockBehavior.Strict)
+
+Moq's strict mode throws when unconfigured methods are called:
+
+<!-- pseudo:moq-migration-strict-moq -->
 ```csharp
-[KnockOff]
-public partial class MmRefProcessorKnockOff : IMmRefProcessor { }
+// Moq - strict mode via constructor
+var mock = new Mock<IUserService>(MockBehavior.Strict);
+mock.Setup(x => x.GetUser(1)).Returns(new User());
 
-// Moq
-// mock.Setup(x => x.Increment(ref It.Ref<int>.IsAny))
-//     .Callback(new IncrementDelegate((ref int value) => value++));
+// Unconfigured call throws MockException
+mock.Object.GetUser(2);  // Throws!
+```
+<!-- /snippet -->
 
-// KnockOff - explicit delegate type required
-// knockOff.Increment.OnCall =
-//     (IncrementHandler.IncrementDelegate)((ko, ref int value) =>
-//     {
-//         value++;
-//     });
+KnockOff supports the same behavior:
 
-// Tracking captures INPUT value (before modification)
-// int x = 5;
-// processor.Increment(ref x);
-// Assert.Equal(6, x);  // Modified
-// Assert.Equal(5, knockOff.Increment.LastCallArg);  // Original
+<!-- pseudo:moq-migration-strict-knockoff -->
+```csharp
+// Extension method (recommended) - works with any stub type
+var stub = new UserServiceKnockOff().Strict();
+var stub = new Stubs.IUserService().Strict();
+
+// Property setter
+var stub = new UserServiceKnockOff();
+stub.Strict = true;
+
+// Constructor parameter (inline stubs only)
+var stub = new Stubs.IUserService(strict: true);
+
+// Attribute default
+[KnockOff(Strict = true)]
+public partial class UserServiceKnockOff : IUserService { }
+```
+<!-- /snippet -->
+
+Unconfigured calls throw `StubException`:
+
+<!-- pseudo:moq-migration-strict-throws -->
+```csharp
+var stub = new UserServiceKnockOff().Strict();
+// stub.GetUser.OnCall not set
+stub.Object.GetUser(1);  // Throws StubException!
 ```
 <!-- /snippet -->
 
@@ -419,12 +223,11 @@ public partial class MmRefProcessorKnockOff : IMmRefProcessor { }
 | Ref parameters | Supported | Supported |
 | Events | Supported | Supported (with Raise/tracking) |
 | Generic methods | Supported | Supported (via `.Of<T>()` pattern) |
-| Strict mode | Supported | Not supported |
+| Strict mode | Supported | Supported |
 | VerifyNoOtherCalls | Supported | Not supported |
 
 ## Keep Using Moq For
 
-- Strict mode requirements
 - `VerifyNoOtherCalls` verification
 
 ## Gradual Migration

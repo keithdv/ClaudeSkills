@@ -15,34 +15,11 @@ Define protected methods in your stub class matching interface method signatures
 
 ### Basic Example
 
-<!-- snippet: skill:customization-patterns:user-method-basic -->
-```csharp
-[KnockOff]
-public partial class CpCalculatorKnockOff : ICpCalculator
-{
-    protected int Add(int a, int b) => a + b;
-
-    protected double Divide(int numerator, int denominator) =>
-        denominator == 0 ? 0 : (double)numerator / denominator;
-}
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-user-method-basic
 
 ### Async Methods
 
-<!-- snippet: skill:customization-patterns:user-method-async -->
-```csharp
-[KnockOff]
-public partial class CpRepoKnockOff : ICpRepository
-{
-    protected Task<CpUser?> GetByIdAsync(int id) =>
-        Task.FromResult<CpUser?>(new CpUser { Id = id });
-
-    protected ValueTask<int> CountAsync() =>
-        new ValueTask<int>(100);
-}
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-user-method-async
 
 ### Rules
 
@@ -69,122 +46,36 @@ Set delegates on interface spy interceptors at runtime for per-test customizatio
 
 Use `OnCall =` property assignment:
 
-<!-- snippet: skill:customization-patterns:callback-method -->
+snippet: skill-customization-patterns-callback-method
+
+### Property Values
+
+**Prefer `.Value` for simple cases:**
+
 ```csharp
-[KnockOff]
-public partial class CpCallbackServiceKnockOff : ICpCallbackService { }
-
-// Void, no params
-// knockOff.Initialize.OnCall = (ko) =>
-// {
-//     // Custom initialization logic
-// };
-
-// Return, single param
-// knockOff.GetById2.OnCall = (ko, id) =>
-//     new CpUser { Id = id, Name = "Mocked" };
-
-// Return, multiple params - individual parameters
-// knockOff.Search.OnCall = (ko, query, limit, offset) =>
-//     results.Skip(offset).Take(limit).ToList();
+stub.Name.Value = "Test User";
+stub.IsActive.Value = true;
 ```
-<!-- /snippet -->
 
-### Property Callbacks
+Use `OnGet`/`OnSet` callbacks only when you need dynamic behavior:
 
-<!-- snippet: skill:customization-patterns:callback-property -->
-```csharp
-[KnockOff]
-public partial class CpPropertyServiceKnockOff : ICpPropertyService { }
-
-// Getter
-// knockOff.CurrentUser.OnGet = (ko) =>
-//     new CpUser { Name = "TestUser" };
-
-// Setter
-// knockOff.CurrentUser.OnSet = (ko, value) =>
-// {
-//     capturedUser = value;
-//     // Note: Value does NOT go to backing field
-// };
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-callback-property
 
 ### Indexer Callbacks
 
-<!-- snippet: skill:customization-patterns:callback-indexer -->
-```csharp
-[KnockOff]
-public partial class CpPropertyStoreKnockOff : ICpPropertyStore { }
-
-// Getter (receives key)
-// knockOff.StringIndexer.OnGet = (ko, key) => key switch
-// {
-//     "admin" => adminConfig,
-//     "guest" => guestConfig,
-//     _ => null
-// };
-
-// Setter (receives key and value)
-// knockOff.StringIndexer.OnSet = (ko, key, value) =>
-// {
-//     // Custom logic
-//     // Note: Value does NOT go to backing dictionary
-// };
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-callback-indexer
 
 ### Overloaded Method Callbacks
 
 When an interface has overloaded methods, each overload has its own interceptor with a numeric suffix (1-based):
 
-<!-- snippet: skill:customization-patterns:callback-overloads -->
-```csharp
-[KnockOff]
-public partial class CpOverloadServiceKnockOff : ICpOverloadService { }
-
-// var knockOff = new CpOverloadServiceKnockOff();
-
-// Each overload has its own handler
-// knockOff.Process1.OnCall = (ko, data) => { /* 1-param overload */ };
-// knockOff.Process2.OnCall = (ko, data, priority) => { /* 2-param overload */ };
-
-// Methods with return values work the same way
-// knockOff.Calculate1.OnCall = (ko, value) => value * 2;
-// knockOff.Calculate2.OnCall = (ko, a, b) => a + b;
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-callback-overloads
 
 ### Out Parameter Callbacks
 
 Methods with `out` parameters require explicit delegate type:
 
-<!-- snippet: skill:customization-patterns:callback-out-params -->
-```csharp
-[KnockOff]
-public partial class CpParserKnockOff : ICpParser { }
-
-// var knockOff = new CpParserKnockOff();
-
-// REQUIRED: Explicit delegate type
-// knockOff.TryParse.OnCall =
-//     (TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-//     {
-//         if (int.TryParse(input, out result))
-//             return true;
-//         result = 0;
-//         return false;
-//     });
-
-// Void with multiple out params
-// knockOff.GetStats.OnCall =
-//     (GetStatsHandler.GetStatsDelegate)((ko, out int count, out double average) =>
-//     {
-//         count = 42;
-//         average = 3.14;
-//     });
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-callback-out-params
 
 **Tracking**: Out parameters are NOT tracked (they're outputs). Only input parameters appear in `LastCallArg`/`LastCallArgs`.
 
@@ -192,48 +83,17 @@ public partial class CpParserKnockOff : ICpParser { }
 
 Methods with `ref` parameters also require explicit delegate type. Ref parameters ARE tracked (input value before modification).
 
-<!-- snippet: skill:customization-patterns:callback-ref-params -->
-```csharp
-[KnockOff]
-public partial class CpProcessorKnockOff : ICpProcessor { }
-
-// var knockOff = new CpProcessorKnockOff();
-
-// Explicit delegate type required
-// knockOff.Increment.OnCall =
-//     (IncrementHandler.IncrementDelegate)((ko, ref int value) =>
-//     {
-//         value = value * 2;  // Modify the ref param
-//     });
-
-// Mixed regular + ref params
-// knockOff.TryUpdate.OnCall =
-//     (TryUpdateHandler.TryUpdateDelegate)((ko, string key, ref string value) =>
-//     {
-//         if (key == "valid")
-//         {
-//             value = value.ToUpper();
-//             return true;
-//         }
-//         return false;
-//     });
-
-// Tracking captures INPUT value (before modification)
-// int x = 5;
-// processor.Increment(ref x);
-// Assert.Equal(10, x);  // Modified
-// Assert.Equal(5, knockOff.Increment.LastCallArg);  // Original input
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-callback-ref-params
 
 ### Callback Signatures
 
-| Member | Callback | Signature |
+| Member | Assignment | Signature |
 |--------|----------|-----------|
 | Method (no params) | `OnCall =` | `Action<TKnockOff>` or `Func<TKnockOff, R>` |
 | Method (with params) | `OnCall =` | `Action<TKnockOff, T1, T2, ...>` or `Func<TKnockOff, T1, T2, ..., R>` |
-| Property getter | `OnGet =` | `Func<TKnockOff, T>` |
-| Property setter | `OnSet =` | `Action<TKnockOff, T>` |
+| Property (simple) | `.Value =` | `T` (direct value assignment) |
+| Property getter | `OnGet =` | `Func<TKnockOff, T>` (overrides `.Value`) |
+| Property setter | `OnSet =` | `Action<TKnockOff, T>` (overrides writing to `.Value`) |
 | Indexer getter | `OnGet =` | `Func<TKnockOff, TKey, TValue>` |
 | Indexer setter | `OnSet =` | `Action<TKnockOff, TKey, TValue>` |
 
@@ -256,7 +116,7 @@ public partial class CpProcessorKnockOff : ICpProcessor { }
 |    -> Methods only, stops here              |
 +---------------------------------------------+
 | 3. DEFAULT                                  |
-|    -> Properties: backing field             |
+|    -> Properties: .Value                    |
 |    -> Methods: null (nullable) or           |
 |               throw (non-nullable) or       |
 |               silent (void)                 |
@@ -266,90 +126,33 @@ public partial class CpProcessorKnockOff : ICpProcessor { }
 
 ### Priority in Action
 
-<!-- snippet: skill:customization-patterns:priority-in-action -->
-```csharp
-[KnockOff]
-public partial class CpPriorityServiceKnockOff : ICpPriorityService
-{
-    protected int Calculate(int x) => x * 2;  // User method
-}
-
-// var knockOff = new CpPriorityServiceKnockOff();
-// ICpPriorityService service = knockOff;
-
-// No callback -> uses user method
-// var r1 = service.Calculate(5);  // Returns 10
-
-// Callback -> overrides user method
-// knockOff.Calculate2.OnCall = (ko, x) => x * 100;
-// var r2 = service.Calculate(5);  // Returns 500
-
-// Reset -> back to user method
-// knockOff.Calculate2.Reset();
-// var r3 = service.Calculate(5);  // Returns 10
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-priority-in-action
 
 ## Reset Behavior
 
 `Reset()` clears:
 - Call tracking (`CallCount`, `LastCallArg`/`LastCallArgs`)
 - Callbacks (`OnCall`, `OnGet`, `OnSet`)
+- Property `.Value` (reset to `default`)
 
 Does NOT clear:
-- Backing fields for properties
 - Backing dictionaries for indexers
 
-<!-- snippet: skill:customization-patterns:reset-behavior -->
-```csharp
-[KnockOff]
-public partial class CpResetRepositoryKnockOff : ICpResetRepository { }
-
-// knockOff.GetUser.OnCall = (ko, id) => specialUser;
-// service.GetUser(1);
-// service.GetUser(2);
-
-// knockOff.GetUser.Reset();
-
-// Assert.Equal(0, knockOff.GetUser.CallCount);  // Tracking cleared
-// Callback also cleared - now falls back to user method or default
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-reset-behavior
 
 ## Combining Both Patterns
 
-<!-- snippet: skill:customization-patterns:combining-patterns -->
-```csharp
-[KnockOff]
-public partial class CpCombinedRepoKnockOff : ICpCombinedRepository
-{
-    // Default: not found
-    protected CpUser? GetById(int id) => null;
-}
-
-// Test 1: Uses default
-// Assert.Null(knockOff.AsCustCombinedRepository().GetById(999));
-
-// Test 2: Override for specific IDs
-// knockOff.GetById2.OnCall = (ko, id) => id == 1
-//     ? new CpUser { Name = "Admin" }
-//     : null;
-
-// Test 3: Reset and different behavior
-// knockOff.GetById2.Reset();
-// knockOff.GetById2.OnCall = (ko, id) =>
-//     new CpUser { Name = $"User-{id}" };
-```
-<!-- /snippet -->
+snippet: skill-customization-patterns-combining-patterns
 
 ## Decision Guide
 
 | Question | Recommendation |
 |----------|----------------|
 | Same behavior in all tests? | User method |
-| Different per test? | Callback |
+| Different per test? | Callback or `.Value` |
 | Need to capture call info? | Either (tracking always available) |
 | Shared across test classes? | User method |
 | Complex conditional logic? | Callback |
-| Just static value? | User method (simpler) |
+| Just static property value? | `.Value` (simplest) |
+| Just static method return? | User method |
 | Need to verify side effects? | Callback |
