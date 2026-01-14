@@ -4,6 +4,35 @@
 
 Neatoo's property system provides enterprise-grade infrastructure through Roslyn source generators. Partial properties become managed properties with automatic change tracking, validation state, busy indicators, and UI binding.
 
+## Partial Properties Are Required
+
+When you add a property to a Neatoo `EntityBase<>`, it almost always should be a `partial` property. **For a property to be serialized or trigger a rule, it must be a `partial` property on a `partial` class.**
+
+Private fields are **not** serialized by Neatoo. If you use a private field with a read-only property wrapper, the data will exist on the server but will be `null` on the client after RemoteFactory transfers the object.
+
+```csharp
+// WRONG - private fields are NOT serialized
+// The _history field is populated on server, but will be null on client!
+private IConsultationHistory? _history;
+public IConsultationHistory? History => _history;
+
+// WRONG - private field for child entity collection
+private List<IVisit> _visits = new();
+public IReadOnlyList<IVisit> Visits => _visits.AsReadOnly();
+
+// CORRECT - partial properties ARE serialized and can trigger rules
+public partial IConsultationHistory? History { get; set; }
+
+// CORRECT - use NeatooList for child collections
+public NeatooList<IVisit> Visits { get; } = new();
+```
+
+This applies to:
+- Child entities in aggregates
+- Any property that needs to transfer between client and server via RemoteFactory
+- Any property that should trigger validation rules
+- Collections of child entities
+
 ## Property Access Patterns
 
 <!-- snippet: docs:property-system:property-access -->

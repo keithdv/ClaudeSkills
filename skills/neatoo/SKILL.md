@@ -27,6 +27,12 @@ Use this skill when:
 - Configuring authorization for factory operations
 - Troubleshooting Neatoo source generator issues
 
+## Critical Rules
+
+- When you add a property to a Neatoo `EntityBase<>`, it almost always should be a `partial` property
+- For a property to be serialized or trigger a rule, it **must** be a `partial` property on a `partial` class
+- See **properties.md** for details and examples
+
 ## Reference Files
 
 | File | Topics |
