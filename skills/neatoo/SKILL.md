@@ -37,6 +37,7 @@ Use this skill when:
 
 | File | Topics |
 |------|--------|
+| **best-practices.md** | Interface-first design, factory pattern, save patterns |
 | **entities.md** | EntityBase, ValidateBase, Value Objects, property patterns |
 | **aggregates.md** | Aggregate roots, entity graphs, parent-child, complete examples |
 | **rules.md** | Rules engine, data annotations, custom rules, async validation |
@@ -49,7 +50,7 @@ Use this skill when:
 | **blazor-integration.md** | MudBlazor binding, validation display |
 | **source-generators.md** | What gets generated, troubleshooting |
 | **migration.md** | Version upgrade patterns |
-| **pitfalls.md** | Common mistakes and quick checklist |
+| **pitfalls.md** | Common mistakes and anti-patterns (see best-practices.md for correct patterns) |
 
 ## Repository References
 

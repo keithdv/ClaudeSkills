@@ -49,7 +49,7 @@ Neatoo.RemoteFactory enables sharing domain models between Blazor WebAssembly cl
 
 ### Server DI Configuration
 
-<!-- snippet: docs:remote-factory:server-di-setup -->
+<!-- snippet: server-di-setup -->
 ```csharp
 builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembly);
 ```
@@ -57,7 +57,7 @@ builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembl
 
 ### Server Endpoint Mapping
 
-<!-- snippet: docs:remote-factory:server-endpoint -->
+<!-- snippet: server-endpoint -->
 ```csharp
 app.MapPost("/api/neatoo", (HttpContext httpContext, RemoteRequestDto request, CancellationToken cancellationToken) =>
 {
@@ -79,7 +79,7 @@ app.MapPost("/api/neatoo", (HttpContext httpContext, RemoteRequestDto request, C
 
 ### Client DI Configuration
 
-<!-- snippet: docs:remote-factory:client-di-setup -->
+<!-- snippet: client-di-setup -->
 ```csharp
 builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
 builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>

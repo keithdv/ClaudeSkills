@@ -35,7 +35,7 @@ This applies to:
 
 ## Property Access Patterns
 
-<!-- snippet: docs:property-system:property-access -->
+<!-- snippet: property-access -->
 ```csharp
 /// <summary>
 /// Entity demonstrating property access patterns.
@@ -67,7 +67,7 @@ internal partial class PropertyAccessDemo : EntityBase<PropertyAccessDemo>, IPro
 
 ## Display Name Access
 
-<!-- snippet: docs:property-system:display-name -->
+<!-- snippet: display-name -->
 ```csharp
 /// <summary>
 /// Entity demonstrating DisplayName attribute.
@@ -103,7 +103,7 @@ internal partial class DisplayNameDemo : EntityBase<DisplayNameDemo>, IDisplayNa
 
 ## SetValue and LoadProperty
 
-<!-- snippet: docs:property-system:setvalue-loadvalue -->
+<!-- snippet: setvalue-loadvalue -->
 ```csharp
 /// <summary>
 /// Entity demonstrating SetValue vs LoadValue.
@@ -151,7 +151,7 @@ internal partial class LoadValueDemo : EntityBase<LoadValueDemo>, ILoadValueDemo
 
 ## Pause Actions
 
-<!-- snippet: docs:property-system:pause-actions -->
+<!-- snippet: pause-actions -->
 ```csharp
 /// <summary>
 /// Entity demonstrating PauseAllActions pattern.
@@ -189,7 +189,7 @@ internal partial class BulkUpdateDemo : EntityBase<BulkUpdateDemo>, IBulkUpdateD
 
 ## Bulk Updates
 
-<!-- snippet: docs:property-system:bulk-updates -->
+<!-- snippet: bulk-updates -->
 ```csharp
 /// <summary>
 /// Examples demonstrating bulk update patterns with PauseAllActions.
@@ -269,12 +269,14 @@ public class ExternalData
 
 Access individual property metadata via indexer:
 
+<!-- pseudo:property-level-access -->
 ```csharp
 var prop = entity[nameof(entity.FirstName)];
 prop.IsModified    // Was this property changed?
 prop.IsBusy        // Async validation running?
 prop.DisplayName   // UI-friendly label
 ```
+<!-- /snippet -->
 
 ## Key Concepts
 

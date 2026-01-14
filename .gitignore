@@ -8,6 +8,10 @@
 !agents/
 !agents/**
 
+!hooks/
+!hooks/**
+hooks/__pycache__/
+
 # And these files
 !.gitignore
 !README.md

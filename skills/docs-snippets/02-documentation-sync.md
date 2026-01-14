@@ -1,115 +1,126 @@
 # 02 - Documentation Sync
 
-How to sync code snippets from sample projects into documentation markdown files.
+How to sync code snippets from sample projects into documentation using MarkdownSnippets.
 
 ---
 
 ## Overview
 
-The sync process:
-1. Scans sample files for `#region docs:*` markers
-2. Extracts code content
-3. Injects into documentation at `<!-- snippet: ... -->` placeholders
+[MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets) is a dotnet tool that:
+1. Scans code files for `#region {id}` markers
+2. Scans markdown files for `snippet: {id}` references
+3. Injects the code content into the markdown
+
+---
+
+## Setup
+
+### Install MarkdownSnippets
+
+```bash
+# Create tool manifest (if not exists)
+dotnet new tool-manifest
+
+# Install the tool
+dotnet tool install MarkdownSnippets.Tool
+
+# Verify installation
+dotnet mdsnippets --help
+```
+
+### Create Configuration
+
+Create `mdsnippets.json` in project root:
+
+```json
+{
+  "Convention": "InPlaceOverwrite",
+  "LinkFormat": "GitHub",
+  "UrlPrefix": "",
+  "OmitSnippetLinks": true,
+  "ReadOnly": false,
+  "ExcludeDirectories": [
+    "node_modules",
+    "bin",
+    "obj",
+    ".git"
+  ]
+}
+```
+
+**Configuration options:**
+
+| Setting | Values | Description |
+|---------|--------|-------------|
+| `Convention` | `InPlaceOverwrite` | Modifies `.md` files directly |
+| | `SourceTransform` | Converts `.source.md` to `.md` |
+| `LinkFormat` | `GitHub`, `GitLab`, `None` | Format for source links |
+| `OmitSnippetLinks` | `true/false` | Hide/show "snippet source" links |
+| `ReadOnly` | `true/false` | Mark generated content read-only |
 
 ---
 
 ## Markdown Placeholder Syntax
 
-Add placeholders in documentation where you want compiled code injected:
+Add references in documentation where you want compiled code injected:
 
 ```markdown
 ## Age Validation Example
 
-<!-- snippet: docs:validation-and-rules:age-validation-rule -->
-```csharp
-// This content will be replaced by extract-snippets.ps1
-```
-<!-- /snippet -->
+snippet: age-validation-rule
+
+This rule validates that age is not negative.
 ```
 
-**Format:**
-```markdown
-<!-- snippet: docs:{doc-file}:{snippet-id} -->
-```csharp
-placeholder content (will be replaced)
-```
-<!-- /snippet -->
-```
-
-**Important:**
-- The placeholder must exist BEFORE running the script
-- The `{doc-file}` and `{snippet-id}` must match a region in the samples project
-- Use `csharp` or `razor` for the code fence language
+That's it - just `snippet: {id}` on its own line. No HTML comments, no code fences, no closing tags.
 
 ---
 
-## The Extraction Script
+## Running MarkdownSnippets
 
-Each project has `scripts/extract-snippets.ps1`:
+### Basic Usage
 
-### List Snippets (Default)
-
-```powershell
-# Just scan and list all snippets (no modifications)
-.\scripts\extract-snippets.ps1
+```bash
+# From project root
+dotnet mdsnippets
 ```
 
-Output:
+**Output:**
 ```
-Neatoo Documentation Snippet Extractor
-=======================================
-Samples Path: C:\src\...\docs\samples
-Docs Path: C:\src\...\docs
-
-Scanning source files...
-
-Found 62 snippets:
-  validation-and-rules.md:
-    - required-attribute (DataAnnotationSamples.cs)
-    - age-validation-rule (RuleBaseSamples.cs)
-    - async-database-rule (AsyncRuleSamples.cs)
-  aggregates-and-entities.md:
-    - entity-base-class (EntityBaseSamples.cs)
-    ...
+Processing directory: /path/to/project
+  docs/validation-and-rules.md
+    age-validation-rule
+    required-attribute
+  docs/factories.md
+    create-pattern
+    save-pattern
+Processed 4 snippets in 2 files
 ```
 
-### Verify Mode (CI)
+### What It Generates
 
-```powershell
-# Check if docs are in sync with samples (exits with error if not)
-.\scripts\extract-snippets.ps1 -Verify
+The markdown is transformed to include the code:
+
+**Before (what you write):**
+```markdown
+snippet: age-validation-rule
 ```
 
-Output when in sync:
+**After (what mdsnippets generates):**
+```markdown
+<!-- snippet: age-validation-rule -->
+<a id='snippet-age-validation-rule'></a>
+```csharp
+public class AgeValidationRule : RuleBase<IPerson>
+{
+    // code from the #region
+}
 ```
-Verification complete. 56 snippets verified, 6 orphan snippets.
-```
-
-Output when out of sync:
-```
-Documentation out of sync with samples:
-  - validation-and-rules.md: age-validation-rule
-  - collections.md: list-cascade-delete
-
-Run '.\scripts\extract-snippets.ps1 -Update' to sync documentation.
-```
-
-### Update Mode (Local)
-
-```powershell
-# Extract snippets and update documentation files
-.\scripts\extract-snippets.ps1 -Update
+<sup><a href='/path/to/file.cs#L5-L16' title='Snippet source file'>snippet source</a></sup>
+<!-- endSnippet -->
 ```
 
-Output:
-```
-Updating documentation files...
-  Updated: validation-and-rules.md
-  Updated: aggregates-and-entities.md
-  Updated: factory-operations.md
-
-Update complete. 3 files updated, 56 snippets processed.
-```
+If `OmitSnippetLinks: true`, the `<sup>` source link is omitted.
 
 ---
 
@@ -117,14 +128,12 @@ Update complete. 3 files updated, 56 snippets processed.
 
 ### Step 1: Add Code to Samples Project
 
-Create or edit a file in `docs/samples/`:
-
 ```csharp
-// docs/samples/Neatoo.Samples.DomainModel/ValidationAndRules/NewRuleSamples.cs
+// docs/samples/Neatoo.Samples.DomainModel/Rules/EmailValidationRule.cs
 
-namespace Neatoo.Samples.DomainModel.ValidationAndRules;
+namespace Neatoo.Samples.DomainModel.Rules;
 
-#region docs:validation-and-rules:email-validation-rule
+#region email-validation-rule
 public class EmailValidationRule : RuleBase<IPerson>
 {
     public EmailValidationRule() : base(p => p.Email) { }
@@ -142,18 +151,18 @@ public class EmailValidationRule : RuleBase<IPerson>
 ### Step 2: Build to Verify Compilation
 
 ```bash
-dotnet build docs/samples/Neatoo.Samples.DomainModel/
+dotnet build docs/samples/
 ```
 
 ### Step 3: Add Test Coverage
 
 ```csharp
-// docs/samples/Neatoo.Samples.DomainModel.Tests/ValidationAndRules/NewRuleSamplesTests.cs
+// docs/samples/Neatoo.Samples.DomainModel.Tests/Rules/EmailValidationRuleTests.cs
 
-public class NewRuleSamplesTests : SamplesTestBase
+public class EmailValidationRuleTests : SamplesTestBase
 {
     [Fact]
-    public void EmailValidationRule_InvalidEmail_ReturnsError()
+    public async Task InvalidEmail_ReturnsError()
     {
         var person = CreatePerson();
         person.Email = "not-an-email";
@@ -165,24 +174,20 @@ public class NewRuleSamplesTests : SamplesTestBase
 }
 ```
 
-### Step 4: Add Placeholder to Documentation
+### Step 4: Add Reference to Documentation
 
 ```markdown
 <!-- In docs/validation-and-rules.md -->
 
 ### Email Validation
 
-<!-- snippet: docs:validation-and-rules:email-validation-rule -->
-```csharp
-// Placeholder - will be replaced
-```
-<!-- /snippet -->
+snippet: email-validation-rule
 ```
 
-### Step 5: Run Update
+### Step 5: Run MarkdownSnippets
 
-```powershell
-.\scripts\extract-snippets.ps1 -Update
+```bash
+dotnet mdsnippets
 ```
 
 ### Step 6: Verify Result
@@ -191,185 +196,208 @@ Check that `docs/validation-and-rules.md` now contains the actual compiled code.
 
 ---
 
-## Workflow: Adding Infrastructure Snippets (Program.cs)
+## Workflow: Updating Existing Snippets
 
-Infrastructure code (server setup, client setup) must live in runnable projects.
+When you modify code in a `#region`:
 
-### Step 1: Add Regions to Server Program.cs
-
-```csharp
-// docs/samples/Neatoo.Samples.Server/Program.cs
-
-var builder = WebApplication.CreateBuilder(args);
-
-#region docs:remote-factory:server-di-setup
-builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembly);
-#endregion
-
-// Other app-specific setup...
-
-var app = builder.Build();
-
-#region docs:remote-factory:server-endpoint
-app.MapPost("/api/neatoo", (HttpContext ctx, RemoteRequestDto request, CancellationToken ct) =>
-{
-    var handler = ctx.RequestServices.GetRequiredService<HandleRemoteDelegateRequest>();
-    return handler(request, ct);
-});
-#endregion
-
-await app.RunAsync();
-```
-
-### Step 2: Verify Server Runs
+1. Edit the code in the samples project
+2. Build and test to verify it works
+3. Run `dotnet mdsnippets` to update docs
+4. Commit both code and doc changes together
 
 ```bash
-# Server must actually start without errors
-dotnet run --project docs/samples/Neatoo.Samples.Server/
+# After editing code
+dotnet build docs/samples/
+dotnet test docs/samples/
+dotnet mdsnippets
+git add docs/
+git commit -m "feat: update validation rule behavior"
 ```
 
-### Step 3: Add Placeholders to Documentation
+---
+
+## Workflow: Adding Non-Compiled Code Blocks
+
+For pseudo-code or anti-patterns that shouldn't be compiled:
+
+### Pseudo-code
 
 ```markdown
-<!-- In docs/remote-factory.md -->
+Here's the conceptual pattern:
 
-### Server Setup
-
-<!-- snippet: docs:remote-factory:server-di-setup -->
+<!-- snippet: pseudo:save-concept -->
 ```csharp
-// Will be replaced
-```
-<!-- /snippet -->
-
-### Endpoint Configuration
-
-<!-- snippet: docs:remote-factory:server-endpoint -->
-```csharp
-// Will be replaced
+// In a real implementation:
+// await db.SaveChangesAsync();
 ```
 <!-- /snippet -->
 ```
 
-### Step 4: Sync and Verify
+### Anti-patterns
 
-```powershell
-.\scripts\extract-snippets.ps1 -Update
+```markdown
+<!-- snippet: invalid:wrong-approach -->
+```csharp
+// WRONG - don't do this
+await factory.Save(entity);
+```
+<!-- /snippet -->
 ```
 
-**Why runnable projects matter:** If the service registration is wrong, it compiles but fails at runtime. By having actual runnable Server/BlazorClient projects, you catch these errors before they reach documentation.
+**Note:** MarkdownSnippets ignores these - they're just HTML comments. Your `verify-code-blocks.ps1` script validates them.
 
 ---
 
-## Orphan Snippets
+## Error Handling
 
-**Orphan snippets** exist in samples but have no corresponding marker in docs.
+### "Snippet not found"
 
-```
-Orphan snippets (in samples but not in docs):
-  - validation-and-rules.md: experimental-rule
-  - collections.md: future-feature
-```
+**Cause:** `snippet: {id}` references a snippet that doesn't exist in code.
 
-This is a **warning**, not an error. Orphans are useful for:
-- Code that compiles but isn't yet documented
-- Alternative examples kept for reference
-- Future documentation planned
+**Fix:**
+1. Check spelling of the snippet ID
+2. Verify `#region {id}` exists in code: `grep -r "region {id}" docs/samples/`
+3. Ensure the region is in a scanned directory
 
----
+### "Duplicate snippet"
 
-## Script Parameters
+**Cause:** Same `#region {id}` exists in multiple files.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `-Verify` | Check sync status, exit 1 if out of sync | - |
-| `-Update` | Inject snippets into documentation | - |
-| `-SamplesPath` | Path to samples projects | `docs/samples/` |
-| `-DocsPath` | Path to docs directory | `docs/` |
+**Fix:** Rename one of the regions to be unique.
+
+### Snippet Not Updating
+
+**Cause:** MarkdownSnippets only updates content it generated.
+
+**Check:**
+- Look for `<!-- snippet: {id} -->` and `<!-- endSnippet -->`
+- If these don't exist, add `snippet: {id}` reference first
 
 ---
 
 ## Handling Different Code Languages
 
-The script supports both C# and Razor:
+MarkdownSnippets auto-detects language from file extension:
+
+| Extension | Language |
+|-----------|----------|
+| `.cs` | `csharp` |
+| `.razor` | `razor` |
+| `.fs` | `fsharp` |
+| `.vb` | `vb` |
+| `.xml` | `xml` |
+| `.json` | `json` |
+
+### Razor Example
+
+```razor
+@* In docs/samples/Components/PersonForm.razor *@
+
+@#region person-form-binding
+<EditForm Model="@Person" OnValidSubmit="@HandleSubmit">
+    <MudTextField @bind-Value="Person.Name" Label="Name" />
+    <MudButton ButtonType="ButtonType.Submit">Save</MudButton>
+</EditForm>
+@#endregion
+```
 
 ```markdown
-<!-- For C# -->
-<!-- snippet: docs:validation-and-rules:rule-example -->
-```csharp
-...
+snippet: person-form-binding
 ```
-<!-- /snippet -->
-
-<!-- For Razor -->
-<!-- snippet: docs:blazor-binding:edit-form -->
-```razor
-...
-```
-<!-- /snippet -->
-```
-
-The script detects `.razor` files and uses the appropriate language fence.
 
 ---
 
-## Script Location
+## Advanced: Include Full Files
 
-Each project should have the script at:
+If no matching snippet region is found, MarkdownSnippets searches for a file with that name:
 
-```
-{project}/
-├── scripts/
-│   └── extract-snippets.ps1
-├── src/
-│   └── {Project}/
-└── docs/
-    ├── *.md
-    └── samples/
-        ├── {Project}.Samples.DomainModel/
-        ├── {Project}.Samples.DomainModel.Tests/
-        ├── {Project}.Samples.Server/
-        └── {Project}.Samples.BlazorClient/
+```markdown
+snippet: LICENSE.txt
 ```
 
-**The Neatoo script can be copied to other projects** - it's parameterized to work with any project structure following this convention.
+This includes the entire `LICENSE.txt` file.
+
+---
+
+## Advanced: Remote Snippets
+
+Include content from URLs:
+
+```markdown
+snippet: https://raw.githubusercontent.com/owner/repo/main/example.cs
+```
+
+Or reference a specific snippet in a remote file:
+
+```markdown
+web-snippet: https://url/to/file.cs#snippet-name
+```
+
+---
+
+## CI Integration
+
+Verify documentation stays in sync:
+
+```yaml
+# .github/workflows/build.yml
+
+- name: Restore tools
+  run: dotnet tool restore
+
+- name: Build samples
+  run: dotnet build docs/samples/
+
+- name: Test samples
+  run: dotnet test docs/samples/
+
+- name: Run MarkdownSnippets
+  run: dotnet mdsnippets
+
+- name: Verify no changes
+  run: |
+    if [ -n "$(git status --porcelain docs/)" ]; then
+      echo "Documentation out of sync"
+      git diff docs/
+      exit 1
+    fi
+```
+
+---
+
+## Comparison: Old vs New
+
+| Aspect | Old (extract-snippets.ps1) | New (MarkdownSnippets) |
+|--------|---------------------------|------------------------|
+| Region format | `#region docs:{file}:{id}` | `#region {id}` |
+| Markdown placeholder | `<!-- snippet: docs:{file}:{id} -->` + code fence + `<!-- /snippet -->` | `snippet: {id}` |
+| Source links | None | Auto-generated |
+| Verification | Custom script | Built-in (fails on missing) |
+| Language detection | Manual | Automatic |
 
 ---
 
 ## Troubleshooting
 
-### "Doc file not found: xyz.md"
+### mdsnippets Not Finding Regions
 
-The script looks for `{doc-file}.md` in the docs directory. Check:
-- The doc-file part of the region matches the actual filename
-- The file exists in `docs/` or adjust `DocsPath`
+Check:
+1. File is in a scanned directory (not in `ExcludeDirectories`)
+2. Region uses correct syntax: `#region name` or `// begin-snippet: name`
+3. No typos in region name
 
-### Snippet Not Updating
+### Generated Content Looks Wrong
 
-The script only updates content between existing markers. If the marker doesn't exist in the markdown, nothing happens.
+If you edited the generated section manually:
+1. Delete everything between `<!-- snippet: -->` and `<!-- endSnippet -->`
+2. Replace with just `snippet: {id}`
+3. Re-run `dotnet mdsnippets`
 
-1. Add the placeholder first:
-   ```markdown
-   <!-- snippet: docs:file:id -->
-   ```csharp
-   placeholder
-   ```
-   <!-- /snippet -->
-   ```
-2. Then run `-Update`
+### Line Endings Issues
 
-### Line Ending Issues
+MarkdownSnippets normalizes line endings. If git shows changes:
 
-The script normalizes line endings for comparison. If verification still fails:
-- Check for mixed line endings in source files
-- Ensure Git isn't auto-converting on checkout
-
----
-
-## Projects Using This Pattern
-
-| Project | Script Location | Docs Location |
-|---------|----------------|---------------|
-| Neatoo | `scripts/extract-snippets.ps1` | `docs/` |
-| KnockOff | `scripts/extract-snippets.ps1` | `docs/` |
-| RemoteFactory | TBD | TBD |
-| neatoodotnet.github.io | `scripts/inject-code-blocks.ps1` | `_pages/` |
+```bash
+# Configure git to handle line endings
+git config core.autocrlf input
+```

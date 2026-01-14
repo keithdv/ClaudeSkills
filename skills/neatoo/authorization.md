@@ -29,7 +29,7 @@ Neatoo's authorization system controls access to factory operations. Authorizati
 
 Define an interface with methods marked by `[AuthorizeFactory]`:
 
-<!-- snippet: docs:authorization:auth-interface -->
+<!-- snippet: auth-interface -->
 ```csharp
 /// <summary>
 /// Authorization interface defines which operations require authorization.
@@ -80,7 +80,7 @@ public interface IDocumentAuth
 
 Implement the interface with your authorization logic:
 
-<!-- snippet: docs:authorization:auth-implementation -->
+<!-- snippet: auth-implementation -->
 ```csharp
 /// <summary>
 /// Authorization implementation checks user permissions.
@@ -114,7 +114,7 @@ public class DocumentAuth : IDocumentAuth
 
 Apply `[AuthorizeFactory<TAuth>]` to protect an entity:
 
-<!-- snippet: docs:authorization:entity-with-auth -->
+<!-- snippet: entity-with-auth -->
 ```csharp
 /// <summary>
 /// Entity with authorization - all factory operations are protected.
@@ -181,7 +181,7 @@ internal partial class Document : EntityBase<Document>, IDocument
 
 Different operations can have different requirements:
 
-<!-- snippet: docs:authorization:operation-specific -->
+<!-- snippet: operation-specific -->
 ```csharp
 /// <summary>
 /// Different authorization rules for different operations.
@@ -233,7 +233,7 @@ public class PublicReadAuth : IPublicReadAuth
 
 Hierarchical permissions based on user roles:
 
-<!-- snippet: docs:authorization:role-based -->
+<!-- snippet: role-based -->
 ```csharp
 /// <summary>
 /// Role-based authorization with hierarchical permissions.

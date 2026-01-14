@@ -24,7 +24,7 @@ The `[Create]` method runs **client-side** to initialize a new entity.
 
 ### Basic Create
 
-<!-- snippet: docs:factory-operations:create-basic -->
+<!-- snippet: create-basic -->
 ```csharp
 /// <summary>
 /// Basic entity with simple Create operation.
@@ -57,7 +57,7 @@ internal partial class SimpleProduct : EntityBase<SimpleProduct>, ISimpleProduct
 
 ### Create with Service Injection
 
-<!-- snippet: docs:factory-operations:create-with-service -->
+<!-- snippet: create-with-service -->
 ```csharp
 /// <summary>
 /// Entity with Create operation using service injection.
@@ -124,7 +124,7 @@ The `[Fetch]` method runs **server-side** to load an entity from the database.
 
 ### Basic Fetch
 
-<!-- snippet: docs:factory-operations:fetch-basic -->
+<!-- snippet: fetch-basic -->
 ```csharp
 /// <summary>
 /// Entity with basic Fetch operation.
@@ -166,7 +166,7 @@ internal partial class FetchableProduct : EntityBase<FetchableProduct>, IFetchab
 
 ### Multiple Fetch Overloads
 
-<!-- snippet: docs:factory-operations:fetch-multiple-overloads -->
+<!-- snippet: fetch-multiple-overloads -->
 ```csharp
 /// <summary>
 /// Entity with multiple Fetch overloads for different lookup methods.
@@ -237,7 +237,7 @@ internal partial class ProductWithMultipleFetch : EntityBase<ProductWithMultiple
 
 The `[Insert]` method runs **server-side** to persist a new entity.
 
-<!-- snippet: docs:factory-operations:insert-operation -->
+<!-- snippet: insert-operation -->
 ```csharp
 /// <summary>
 /// Entity demonstrating Insert operation pattern.
@@ -305,7 +305,7 @@ internal partial class InventoryItem : EntityBase<InventoryItem>, IInventoryItem
 
 The `[Update]` method runs **server-side** to persist changes to an existing entity.
 
-<!-- snippet: docs:factory-operations:update-operation -->
+<!-- snippet: update-operation -->
 ```csharp
 [Update]
     public async Task Update([Service] IInventoryDb db)
@@ -336,7 +336,7 @@ The `[Update]` method runs **server-side** to persist changes to an existing ent
 
 The `[Delete]` method runs **server-side** to remove an entity.
 
-<!-- snippet: docs:factory-operations:delete-operation -->
+<!-- snippet: delete-operation -->
 ```csharp
 [Delete]
     public async Task Delete([Service] IInventoryDb db)
@@ -363,7 +363,7 @@ The `Save()` method routes to the appropriate operation based on entity state:
 
 ### Save Usage Examples
 
-<!-- snippet: docs:factory-operations:save-usage-examples -->
+<!-- snippet: save-usage-examples -->
 ```csharp
 /// <summary>
 /// Examples demonstrating correct Save() usage patterns.
@@ -421,6 +421,7 @@ public static class SaveUsageExamples
 
 **IMPORTANT**: `Save()` returns a new object instance. You must reassign:
 
+<!-- pseudo:factories-reassign-save -->
 ```csharp
 // WRONG - stale reference
 await personFactory.Save(person);
@@ -428,6 +429,7 @@ await personFactory.Save(person);
 // CORRECT - capture new instance
 person = await personFactory.Save(person);
 ```
+<!-- /snippet -->
 
 ### Why Reassignment is Required
 
@@ -443,7 +445,7 @@ The save process:
 
 Entities can save themselves via `entity.Save()` instead of `factory.Save(entity)`:
 
-<!-- snippet: docs:factory-operations:entity-save-method -->
+<!-- snippet: entity-save-method -->
 ```csharp
 /// <summary>
 /// Examples demonstrating entity.Save() vs factory.Save() patterns.
@@ -523,7 +525,7 @@ Child entities with parent references use a specific factory pattern.
 
 ### Child Entity Pattern
 
-<!-- snippet: docs:factory-operations:child-entity -->
+<!-- snippet: child-entity -->
 ```csharp
 /// <summary>
 /// Child entity - no [Remote] since managed through parent.
@@ -596,7 +598,7 @@ internal partial class InvoiceLine : EntityBase<InvoiceLine>, IInvoiceLine
 > and marked `IsDeleted = true`. If you only iterate `this`, removed items will silently
 > remain in the database.
 
-<!-- snippet: docs:factory-operations:list-factory -->
+<!-- snippet: list-factory -->
 ```csharp
 /// <summary>
 /// List factory handles collection of child entities.
@@ -664,7 +666,7 @@ Use `[Execute]` for operations that don't follow the standard CRUD lifecycle.
 
 ### Command Pattern
 
-<!-- snippet: docs:database-dependent-validation:command-pattern -->
+<!-- snippet: command-pattern -->
 ```csharp
 /// <summary>
 /// Command for checking email uniqueness.
@@ -737,3 +739,5 @@ The `[Remote]` attribute indicates a method runs on the server.
 3. **Using property setters in Fetch** - Use `LoadProperty()` instead
 4. **Not processing DeletedList** - Collections need to handle deletions
 5. **Missing await** - All factory methods are async
+6. **Injecting child factories into consuming code** - Use parent's add methods instead (see pitfalls.md #15)
+7. **Casting to concrete to call internal methods** - Add methods to interface instead (see pitfalls.md #14)

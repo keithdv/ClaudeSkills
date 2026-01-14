@@ -19,21 +19,64 @@ KnockOff provides **two complementary patterns** for customizing stub behavior:
 | **User Methods** | Compile-time | All tests | Consistent defaults |
 | **Callbacks** | Runtime | Per-test | Test-specific overrides |
 
-<!-- snippet: skill:SKILL:duality-pattern -->
-```csharp
-// Pattern 1: User method (compile-time default)
-[KnockOff]
-public partial class SkServiceKnockOff : ISkService
-{
-    protected int GetValue(int id) => id * 2;  // Default for all tests
-}
-
-// Pattern 2: Callback (runtime override)
-// knockOff.GetValue2.OnCall = (ko, id) => id * 100;  // Override for this test
-```
-<!-- /snippet -->
+snippet: skill-SKILL-duality-pattern
 
 **Priority Order**: Callback → User method → Default
+
+## Source Generation Mindset
+
+**KnockOff generates all interface members automatically.** You do NOT need to:
+- Worry about interface complexity
+- Count how many methods an interface has
+- Manually implement anything
+- Assess whether an interface is "too large" or "too complex"
+
+### The Only Question
+
+When considering KnockOff for any interface, ask only:
+
+> "Can I add `[KnockOff<TInterface>]` and configure the 1-3 members my test actually calls?"
+
+The answer is almost always **yes**.
+
+### Complex Interfaces Are Fine
+
+```csharp
+// IEditBase has 50+ members? Doesn't matter.
+[KnockOff<IEditBase>]
+public partial class MyTests
+{
+    // Generator creates everything. You configure only what you need:
+    // stub.IsValid.OnGet = (ko) => true;
+    // stub.IsDirty.OnGet = (ko) => false;
+    // That's it. The other 48 members just work with smart defaults.
+}
+```
+
+### When KnockOff Genuinely Won't Work
+
+Rare cases where KnockOff cannot be used:
+- Sealed classes (can't inherit)
+- Delegates with `ref`/`out` parameters
+- Types requiring complex constructor logic that can't be stubbed
+
+**If uncertain: TRY IT FIRST.** Add the attribute, build, see if it compiles. If it fails, THEN ask for clarification - don't abandon KnockOff preemptively.
+
+### Anti-Pattern: Manual Test Doubles
+
+**NEVER** create hand-written test doubles like this when KnockOff would work:
+
+```csharp
+// ❌ WRONG - Don't do this
+public class FakeEditBase : IEditBase
+{
+    public bool IsValid => true;
+    public bool IsDirty => false;
+    // ... 48 more manual implementations
+}
+```
+
+This defeats the purpose of having a source generator.
 
 ## Installation
 
@@ -45,56 +88,13 @@ dotnet add package KnockOff
 
 ### 1. Create KnockOff Stub
 
-<!-- snippet: skill:SKILL:quick-start-interface -->
-```csharp
-public interface ISkDataService
-{
-    string Name { get; set; }
-    string? GetDescription(int id);
-    int GetCount();
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-quick-start-interface
 
-<!-- snippet: skill:SKILL:quick-start-stub -->
-```csharp
-[KnockOff]
-public partial class SkDataServiceKnockOff : ISkDataService
-{
-    private readonly int _count;
-
-    public SkDataServiceKnockOff(int count = 42) => _count = count;
-
-    // Define behavior for non-nullable method
-    protected int GetCount() => _count;
-
-    // GetDescription not defined - returns null by default
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-quick-start-stub
 
 ### 2. Use in Tests
 
-<!-- snippet: skill:SKILL:quick-start-usage -->
-```csharp
-var knockOff = new SkDataServiceKnockOff(count: 100);
-ISkDataService service = knockOff;
-
-// Property - uses generated backing field
-service.Name = "Test";
-Assert.Equal("Test", service.Name);
-Assert.Equal(1, knockOff.Name.SetCount);
-
-// Nullable method - returns null, call is still tracked
-var description = service.GetDescription(5);
-Assert.Null(description);
-Assert.True(knockOff.GetDescription.WasCalled);
-Assert.Equal(5, knockOff.GetDescription.LastCallArg);
-
-// Non-nullable method - returns constructor value
-Assert.Equal(100, service.GetCount());
-```
-<!-- /snippet -->
+snippet: skill-SKILL-quick-start-usage
 
 ## Stub Patterns
 
@@ -103,6 +103,7 @@ KnockOff supports multiple stub patterns:
 | Pattern | Attribute | Target | Use Case |
 |---------|-----------|--------|----------|
 | **Explicit** | `[KnockOff]` on class implementing interface | Interface | Reusable stubs, user methods |
+| **Generic Standalone** | `[KnockOff]` on generic class implementing generic interface | Interface | Reusable generic stubs |
 | **Inline Interface** | `[KnockOff<TInterface>]` on test class | Interface | Test-local interface stubs |
 | **Inline Class** | `[KnockOff<TClass>]` on test class | Class | Test-local class stubs |
 | **Inline Delegate** | `[KnockOff<TDelegate>]` on test class | Delegate | Test-local delegate stubs |
@@ -111,73 +112,69 @@ KnockOff supports multiple stub patterns:
 
 Generate stubs inside test classes using `[KnockOff<TInterface>]`:
 
-<!-- snippet: skill:SKILL:inline-stub-pattern -->
-```csharp
-[KnockOff<ISkInlineUserService>]
-[KnockOff<ISkInlineLogger>]
-public partial class SkInlineUserServiceTests
-{
-    // Generates: Stubs.ISkInlineUserService, Stubs.ISkInlineLogger
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-inline-stub-pattern
 
 In test:
 
-<!-- snippet: skill:SKILL:inline-stub-usage -->
-```csharp
-var stub = new SkInlineUserServiceTests.Stubs.ISkInlineUserService();
-stub.GetUser.OnCall = (ko, id) => new SkUser { Id = id };
-
-ISkInlineUserService service = stub;  // Implicit conversion
-var user = service.GetUser(42);
-
-Assert.True(stub.GetUser.WasCalled);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-inline-stub-usage
 
 #### Partial Properties (C# 13+)
 
-<!-- snippet: skill:SKILL:partial-properties -->
+snippet: skill-SKILL-partial-properties
+
+### Generic Standalone Stubs
+
+Create reusable generic stubs that work with any type argument:
+
 ```csharp
-[KnockOff<ISkInlineUserService>]
-public partial class SkPartialPropertyTests
+public interface IRepository<T> where T : class
 {
-    public partial Stubs.ISkInlineUserService UserStub { get; }  // Auto-instantiated
+    T? GetById(int id);
+    void Save(T entity);
 }
+
+// Generic standalone stub - reusable with any type
+[KnockOff]
+public partial class RepositoryStub<T> : IRepository<T> where T : class { }
 ```
-<!-- /snippet -->
+
+Use the same stub class with different type arguments:
+
+```csharp
+// Same stub class, different types
+var userRepo = new RepositoryStub<User>();
+var orderRepo = new RepositoryStub<Order>();
+
+// Configure each independently
+userRepo.GetById.OnCall = (ko, id) => new User { Id = id };
+orderRepo.GetById.OnCall = (ko, id) => new Order { Id = id };
+
+// Tracking works per instance
+userRepo.Save.CallCount;  // tracks User saves
+orderRepo.Save.CallCount; // tracks Order saves
+```
+
+**Type Parameter Arity:** The stub class must have the **same number of type parameters** as the interface:
+
+```csharp
+// Correct: matching arity
+[KnockOff]
+public partial class CacheStub<TKey, TValue> : ICache<TKey, TValue> { }
+
+// Error KO0008: mismatched arity (2 vs 1)
+[KnockOff]
+public partial class BadStub<T, TExtra> : IRepository<T> { }
+```
 
 ### Delegate Stubs
 
 Stub named delegate types using `[KnockOff<TDelegate>]`:
 
-<!-- snippet: skill:SKILL:delegate-stubs -->
-```csharp
-[KnockOff<SkIsUniqueRule>]
-[KnockOff<SkUserFactory>]
-public partial class SkValidationTests
-{
-    // Generates: Stubs.SkIsUniqueRule, Stubs.SkUserFactory
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-delegate-stubs
 
 In test:
 
-<!-- snippet: skill:SKILL:delegate-stubs-usage -->
-```csharp
-var stub = new SkValidationTests.Stubs.SkIsUniqueRule();
-stub.Interceptor.OnCall = (ko, value) => value != "duplicate";
-
-SkIsUniqueRule rule = stub;  // Implicit conversion
-Assert.True(rule("unique"));
-Assert.False(rule("duplicate"));
-
-Assert.Equal(2, stub.Interceptor.CallCount);
-Assert.Equal("duplicate", stub.Interceptor.LastCallArg);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-delegate-stubs-usage
 
 **Note:** Delegates with `ref`/`out` parameters cannot be stubbed (Func<>/Action<> limitation).
 
@@ -185,27 +182,9 @@ Assert.Equal("duplicate", stub.Interceptor.LastCallArg);
 
 Stub virtual/abstract class members using `[KnockOff<TClass>]`:
 
-<!-- snippet: skill:SKILL:class-stubs-class -->
-```csharp
-public class SkEmailService
-{
-    public virtual void Send(string to, string subject, string body)
-        => Console.WriteLine($"Sending to {to}");
+snippet: skill-SKILL-class-stubs-class
 
-    public virtual string ServerName { get; set; } = "default";
-}
-```
-<!-- /snippet -->
-
-<!-- snippet: skill:SKILL:class-stubs -->
-```csharp
-[KnockOff<SkEmailService>]
-public partial class SkEmailServiceTests
-{
-    // Generates: Stubs.SkEmailService
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-class-stubs
 
 In test:
 ```csharp
@@ -232,15 +211,7 @@ Class stubs use the **same API** as interface stubs for interceptors:
 
 #### Constructor Parameters
 
-<!-- snippet: skill:SKILL:class-constructor -->
-```csharp
-[KnockOff<SkRepository>]
-public partial class SkConstructorTests
-{
-    // Generates: Stubs.SkRepository
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-class-constructor
 
 ```csharp
 var stub = new SkConstructorTests.Stubs.SkRepository("Server=test");
@@ -251,15 +222,7 @@ Assert.Equal("Server=test", stub.Object.ConnectionString);
 
 Abstract members return defaults unless configured:
 
-<!-- snippet: skill:SKILL:abstract-classes -->
-```csharp
-[KnockOff<SkBaseRepository>]
-public partial class SkAbstractTests
-{
-    // Generates: Stubs.SkBaseRepository
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-abstract-classes
 
 ```csharp
 var stub = new SkAbstractTests.Stubs.SkBaseRepository();
@@ -272,100 +235,40 @@ Assert.Equal("Server=test", stub.Object.ConnectionString);
 
 Non-virtual members are NOT intercepted. Access through `.Object`:
 
-<!-- snippet: skill:SKILL:non-virtual-members -->
-```csharp
-[KnockOff<SkNonVirtualService>]
-public partial class SkNonVirtualTests
-{
-    // Generates: Stubs.SkNonVirtualService
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-non-virtual-members
 
 ```csharp
 stub.Object.NonVirtualProperty = "Direct";
 stub.Object.NonVirtualMethod();  // Calls base class directly
 ```
 
-## Interface Properties
+## Accessing Interceptors
 
-Each interface gets its own property for tracking and configuration:
+Each interface member gets its own interceptor for tracking and configuration:
 
-<!-- snippet: skill:SKILL:interface-access -->
-```csharp
-[KnockOff]
-public partial class SkUserServiceKnockOff : ISkUserService { }
-
-[KnockOff]
-public partial class SkPropertyStoreKnockOff : ISkPropertyStore { }
-
-[KnockOff]
-public partial class SkEventSourceKnockOff : ISkEventSource { }
-
-// Access patterns with flat API (v11.x):
-// userKnockOff.GetUser             // Method handler
-// storeKnockOff.StringIndexer      // Indexer handler
-// eventKnockOff.DataReceivedInterceptor // Event handler
-```
-<!-- /snippet -->
+snippet: skill-SKILL-interface-access
 
 ### Multiple Interfaces
 
 When implementing multiple interfaces, each has a separate property:
 
-<!-- snippet: skill:SKILL:multiple-interfaces -->
-```csharp
-[KnockOff]
-public partial class SkRepositoryKnockOff : ISkRepository { }
+snippet: skill-SKILL-multiple-interfaces
 
-[KnockOff]
-public partial class SkUnitOfWorkKnockOff : ISkUnitOfWork { }
+### Accessing as Interface Type
 
-// Access patterns with flat API (v11.x):
-// repoKnockOff.Save.WasCalled
-// uowKnockOff.Commit.WasCalled
-```
-<!-- /snippet -->
+snippet: skill-SKILL-interface-class-access
+
+See [Moq Migration](moq-migration.md) for detailed interface access patterns.
 
 ## OnCall API
 
 **Callbacks use property assignment** with `OnCall =`:
 
-<!-- snippet: skill:SKILL:oncall-patterns -->
-```csharp
-[KnockOff]
-public partial class SkOnCallKnockOff : ISkOnCallService { }
-
-// No parameters
-// knockOff.Clear.OnCall = (ko) => { };
-
-// Single parameter
-// knockOff.GetById2.OnCall = (ko, id) => new SkUser { Id = id };
-
-// Multiple parameters - individual params, not tuples
-// knockOff.Find.OnCall = (ko, name, active) =>
-//     users.Where(u => u.Name == name && u.Active == active).ToList();
-
-// Void method
-// knockOff.Save.OnCall = (ko, entity) => { /* logic */ };
-```
-<!-- /snippet -->
+snippet: skill-SKILL-oncall-patterns
 
 **Out/Ref parameters** - use explicit delegate type:
 
-<!-- snippet: skill:SKILL:oncall-out-ref -->
-```csharp
-[KnockOff]
-public partial class SkParserKnockOff : ISkParser { }
-
-// Out/Ref parameters - use explicit delegate type:
-// knockOff.TryParse.OnCall =
-//     (TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-//     {
-//         return int.TryParse(input, out result);
-//     });
-```
-<!-- /snippet -->
+snippet: skill-SKILL-oncall-out-ref
 
 ## Smart Default Return Values
 
@@ -379,24 +282,7 @@ KnockOff returns sensible defaults for unconfigured methods instead of throwing:
 | Collection interfaces | concrete type | `IList<T>` → `new List<T>()` |
 | Other non-nullable | throws | `string`, `IDisposable` |
 
-<!-- snippet: skill:SKILL:smart-defaults -->
-```csharp
-[KnockOff]
-public partial class SkSmartDefaultKnockOff : ISkSmartDefaultService { }
-
-// var knockOff = new SkSmartDefaultKnockOff();
-// ISkSmartDefaultService service = knockOff;
-
-// No configuration needed:
-// var count = service.GetCount();       // 0 (value type)
-// var items = service.GetItems();       // new List<string>() (has new())
-// var list = service.GetIList();        // new List<string>() (IList<T> -> List<T>)
-// var optional = service.GetOptional(); // null (nullable ref)
-
-// Only throws for types that can't be safely defaulted:
-// service.GetDisposable();  // throws - can't instantiate IDisposable
-```
-<!-- /snippet -->
+snippet: skill-SKILL-smart-defaults
 
 **Collection Interface Mapping:**
 
@@ -407,22 +293,34 @@ public partial class SkSmartDefaultKnockOff : ISkSmartDefaultService { }
 | `IDictionary<K,V>`, `IReadOnlyDictionary<K,V>` | `Dictionary<K,V>` |
 | `ISet<T>` | `HashSet<T>` |
 
+## Strict Mode
+
+By default, stubs return smart defaults for unconfigured methods. **Strict mode** throws `StubException` instead.
+
+<!-- pseudo:skill-strict-mode-quick -->
+```csharp
+// Fluent API (recommended)
+var stub = new UserServiceKnockOff().Strict();
+var stub = new Stubs.IUserService().Strict();
+
+// Constructor parameter (inline only)
+var stub = new Stubs.IUserService(strict: true);
+
+// Attribute default
+[KnockOff(Strict = true)]
+public partial class StrictServiceKnockOff : IUserService { }
+```
+<!-- /snippet -->
+
+Unconfigured calls throw `StubException`. Configure `OnCall`/`OnGet`/`OnSet` for expected interactions.
+
+See [Strict Mode](strict-mode.md) for detailed patterns and Moq migration.
+
 ## Stub Minimalism
 
 **Only stub what the test needs.** Don't implement every interface member.
 
-<!-- snippet: skill:SKILL:stub-minimalism -->
-```csharp
-// GOOD - minimal stub, most methods just work with smart defaults
-[KnockOff]
-public partial class SkMinimalServiceKnockOff : ISkMinimalService
-{
-    // Only define methods needing custom behavior
-    protected SkUser? GetUser(int id) => new SkUser { Id = id };
-    // GetCount returns 0, GetUsers() returns new List<SkUser>(), etc.
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-stub-minimalism
 
 ## Interceptor Types
 
@@ -447,16 +345,7 @@ knockOff.GetUser.Reset();  // Clears tracking AND callbacks
 
 Define protected methods matching interface signatures:
 
-<!-- snippet: skill:SKILL:customization-user-method -->
-```csharp
-[KnockOff]
-public partial class SkRepoKnockOff : ISkRepoService
-{
-    protected SkUser? GetById(int id) => new SkUser { Id = id };
-    protected Task<SkUser?> GetByIdAsync(int id) => Task.FromResult<SkUser?>(new SkUser { Id = id });
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-customization-user-method
 
 Rules:
 - Must be `protected`
@@ -467,60 +356,29 @@ Rules:
 
 #### Method Callbacks
 
-<!-- snippet: skill:SKILL:customization-callbacks-method -->
-```csharp
-[KnockOff]
-public partial class SkCallbackMethodKnockOff : ISkCallbackService { }
+snippet: skill-SKILL-customization-callbacks-method
 
-// Void method
-// knockOff.DoWork.OnCall = (ko) => { /* custom logic */ };
+#### Properties
 
-// Return method (single param)
-// knockOff.GetById2.OnCall = (ko, id) =>
-//     new SkUser { Id = id, Name = "Mocked" };
+**Use `Value` for static values (recommended):**
 
-// Return method (multiple params) - individual parameters
-// knockOff.Search.OnCall = (ko, query, limit, offset) =>
-//     results.Skip(offset).Take(limit).ToList();
-```
-<!-- /snippet -->
+snippet: skill-SKILL-property-value-pattern
 
-#### Property Callbacks
+**Use `OnGet`/`OnSet` for dynamic behavior:**
 
-<!-- snippet: skill:SKILL:customization-callbacks-property -->
-```csharp
-// knockOff.CurrentUser.OnGet = (ko) =>
-//     new SkUser { Name = "TestUser" };
+snippet: skill-SKILL-customization-callbacks-property
 
-// knockOff.CurrentUser.OnSet = (ko, value) =>
-// {
-//     capturedUser = value;
-//     // Note: Value does NOT go to backing field
-// };
-```
-<!-- /snippet -->
+**Decision guide:**
+| Scenario | Use |
+|----------|-----|
+| Static test data | `Value` |
+| Different value each call | `OnGet` |
+| Depends on stub state | `OnGet` |
+| Capture/validate on set | `OnSet` |
 
 #### Indexer Callbacks
 
-<!-- snippet: skill:SKILL:customization-callbacks-indexer -->
-```csharp
-[KnockOff]
-public partial class SkCallbackIndexerKnockOff : ISkCallbackPropertyStore { }
-
-// knockOff.StringIndexer.OnGet = (ko, key) => key switch
-// {
-//     "admin" => adminConfig,
-//     "guest" => guestConfig,
-//     _ => null
-// };
-
-// knockOff.StringIndexer.OnSet = (ko, key, value) =>
-// {
-//     // Custom logic
-//     // Note: Value does NOT go to backing dictionary
-// };
-```
-<!-- /snippet -->
+snippet: skill-SKILL-customization-callbacks-indexer
 
 ### Priority Order
 
@@ -538,88 +396,36 @@ public partial class SkCallbackIndexerKnockOff : ISkCallbackPropertyStore { }
 
 ### Call Tracking
 
-<!-- snippet: skill:SKILL:verification-call-tracking -->
-```csharp
-[KnockOff]
-public partial class SkVerificationKnockOff : ISkVerificationService { }
-
-// Basic
-// Assert.True(knockOff.GetUser.WasCalled);
-// Assert.Equal(3, knockOff.GetUser.CallCount);
-
-// Arguments (single param)
-// Assert.Equal(42, knockOff.GetUser.LastCallArg);
-
-// Arguments (multiple params - named tuple)
-// var args = knockOff.Create.LastCallArgs;
-// Assert.Equal("Test", args?.name);
-// Assert.Equal(100, args?.value);
-
-// Destructuring
-// if (knockOff.Create.LastCallArgs is var (name, value))
-// {
-//     Assert.Equal("Test", name);
-// }
-```
-<!-- /snippet -->
+snippet: skill-SKILL-verification-call-tracking
 
 ### Property Tracking
 
-<!-- snippet: skill:SKILL:verification-property-tracking -->
-```csharp
-// Assert.Equal(2, knockOff.Name.GetCount);
-// Assert.Equal(3, knockOff.Name.SetCount);
-// Assert.Equal("LastValue", knockOff.Name.LastSetValue);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-verification-property-tracking
 
 ### Indexer Tracking
 
-<!-- snippet: skill:SKILL:verification-indexer-tracking -->
-```csharp
-[KnockOff]
-public partial class SkVerificationIndexerKnockOff : ISkVerificationPropertyStore { }
-
-// Assert.Equal("key1", knockOff.StringIndexer.LastGetKey);
-
-// var setEntry = knockOff.StringIndexer.LastSetEntry;
-// Assert.Equal("key", setEntry?.key);
-// Assert.Equal(value, setEntry?.value);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-verification-indexer-tracking
 
 ## Backing Storage
 
 ### Properties
 
-<!-- snippet: skill:SKILL:backing-properties -->
+Properties use `interceptor.Value` for storage:
+
 ```csharp
 [KnockOff]
 public partial class SkBackingServiceKnockOff : ISkBackingService { }
 
-// Direct access to backing field (interface-prefixed)
-// knockOff.NameBacking = "Pre-populated value";
+// Direct access to backing value via interceptor
+knockOff.Name.Value = "Pre-populated value";
 
-// Without OnGet, getter returns backing field
-// Assert.Equal("Pre-populated value", service.Name);
+// Without OnGet, getter returns interceptor.Value
+Assert.Equal("Pre-populated value", service.Name);
 ```
-<!-- /snippet -->
 
 ### Indexers
 
-<!-- snippet: skill:SKILL:backing-indexers -->
-```csharp
-[KnockOff]
-public partial class SkBackingPropertyStoreKnockOff : ISkBackingPropertyStore { }
-
-// Pre-populate backing dictionary (interface-prefixed)
-// knockOff.StringIndexerBacking["key1"] = value1;
-// knockOff.StringIndexerBacking["key2"] = value2;
-
-// Without OnGet, getter checks backing dictionary
-// Assert.Equal(value1, store["key1"]);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-backing-indexers
 
 **Important**: `Reset()` does NOT clear backing storage.
 
@@ -628,6 +434,7 @@ public partial class SkBackingPropertyStoreKnockOff : ISkBackingPropertyStore { 
 | Feature | Status |
 |---------|--------|
 | Explicit stubs (`[KnockOff]` on interface impl) | Supported |
+| Generic standalone stubs (`Stub<T> : IRepo<T>`) | Supported |
 | Inline interface stubs (`[KnockOff<TInterface>]`) | Supported |
 | Inline class stubs (`[KnockOff<TClass>]`) | Supported |
 | Delegate stubs (`[KnockOff<TDelegate>]`) | Supported |
@@ -655,148 +462,35 @@ public partial class SkBackingPropertyStoreKnockOff : ISkBackingPropertyStore { 
 
 ### Conditional Returns
 
-<!-- snippet: skill:SKILL:pattern-conditional -->
-```csharp
-[KnockOff]
-public partial class SkPatternServiceKnockOff : ISkPatternService { }
-
-// knockOff.GetUser.OnCall = (ko, id) => id switch
-// {
-//     1 => new SkUser { Name = "Admin" },
-//     2 => new SkUser { Name = "Guest" },
-//     _ => null
-// };
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-conditional
 
 ### Throwing Exceptions
 
-<!-- snippet: skill:SKILL:pattern-exceptions -->
-```csharp
-// knockOff.Connect.OnCall = (ko) =>
-//     throw new TimeoutException("Connection failed");
-
-// knockOff.SaveAsync.OnCall = (ko, entity) =>
-//     Task.FromException<int>(new DbException("Save failed"));
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-exceptions
 
 ### Sequential Returns
 
-<!-- snippet: skill:SKILL:pattern-sequential -->
-```csharp
-// var results = new Queue<int>([1, 2, 3]);
-// knockOff.GetNext.OnCall = (ko) => results.Dequeue();
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-sequential
 
 ### Async Methods
 
-<!-- snippet: skill:SKILL:pattern-async -->
-```csharp
-[KnockOff]
-public partial class SkAsyncPatternRepositoryKnockOff : ISkAsyncPatternRepository { }
-
-// knockOff.GetUserAsync.OnCall = (ko, id) =>
-//     Task.FromResult<SkUser?>(new SkUser { Id = id });
-
-// knockOff.SaveAsync.OnCall = (ko, entity) =>
-//     Task.FromResult(1);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-async
 
 ### Events
 
-<!-- snippet: skill:SKILL:pattern-events -->
-```csharp
-[KnockOff]
-public partial class SkEventPatternSourceKnockOff : ISkEventPatternSource { }
-
-// var knockOff = new SkEventPatternSourceKnockOff();
-// ISkEventPatternSource source = knockOff;
-
-// Subscribe tracking
-// source.DataReceived += (s, e) => Console.WriteLine(e);
-// Assert.Equal(1, knockOff.DataReceived.SubscribeCount);
-// Assert.True(knockOff.DataReceived.HasSubscribers);
-
-// Raise events from tests
-// knockOff.DataReceived.Raise("test data");
-// Assert.True(knockOff.DataReceived.WasRaised);
-// Assert.Equal(1, knockOff.DataReceived.RaiseCount);
-
-// Action-style events
-// knockOff.ProgressChanged.Raise(75);
-
-// Reset vs Clear
-// knockOff.DataReceived.Reset();  // Clears tracking, keeps handlers
-// knockOff.DataReceived.Clear();  // Clears tracking AND handlers
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-events
 
 ### Generic Methods
 
 Generic methods use the `.Of<T>()` pattern for type-specific configuration:
 
-<!-- snippet: skill:SKILL:pattern-generics -->
-```csharp
-[KnockOff]
-public partial class SkGenericSerializerKnockOff : ISkGenericSerializer { }
-
-// var knockOff = new SkGenericSerializerKnockOff();
-// ISkGenericSerializer service = knockOff;
-
-// Configure behavior per type argument
-// knockOff.Deserialize.Of<SkUser>().OnCall = (ko, json) =>
-//     JsonSerializer.Deserialize<SkUser>(json)!;
-
-// knockOff.Deserialize.Of<SkOrder>().OnCall = (ko, json) =>
-//     new SkOrder { Id = 123 };
-
-// Per-type call tracking
-// service.Deserialize<SkUser>("{...}");
-// service.Deserialize<SkUser>("{...}");
-// service.Deserialize<SkOrder>("{...}");
-
-// Assert.Equal(2, knockOff.Deserialize.Of<SkUser>().CallCount);
-// Assert.Equal(1, knockOff.Deserialize.Of<SkOrder>().CallCount);
-
-// Aggregate tracking across all type arguments
-// Assert.Equal(3, knockOff.Deserialize.TotalCallCount);
-// Assert.True(knockOff.Deserialize.WasCalled);
-
-// See which types were called
-// var types = knockOff.Deserialize.CalledTypeArguments;
-// // [typeof(SkUser), typeof(SkOrder)]
-
-// Multiple type parameters
-// knockOff.Convert.Of<string, int>().OnCall = (ko, s) => s.Length;
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-generics
 
 ### Method Overloads
 
 When an interface has overloaded methods, each overload gets its own interceptor with a **numeric suffix** (1-based):
 
-<!-- snippet: skill:SKILL:pattern-overloads -->
-```csharp
-[KnockOff]
-public partial class SkOverloadedServiceKnockOff : ISkOverloadedService { }
-
-// var knockOff = new SkOverloadedServiceKnockOff();
-// ISkOverloadedService service = knockOff;
-
-// Each overload has its own handler (1-based numbering)
-// knockOff.Process1.CallCount;  // Calls to Process(string)
-// knockOff.Process2.CallCount;  // Calls to Process(string, int)
-// knockOff.Process3.CallCount;  // Calls to Process(string, int, bool)
-
-// Set callbacks for each overload
-// knockOff.Process1.OnCall = (ko, data) => { /* 1-param */ };
-// knockOff.Process2.OnCall = (ko, data, priority) => { /* 2-param */ };
-// knockOff.Process3.OnCall = (ko, data, priority, async) => { /* 3-param */ };
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-overloads
 
 Methods without overloads don't get a suffix:
 ```csharp
@@ -807,19 +501,7 @@ knockOff.SendEmail.CallCount;  // Single method - no suffix
 
 KnockOff stubs can be nested inside test classes:
 
-<!-- snippet: skill:SKILL:pattern-nested -->
-```csharp
-public partial class SkUserServiceTests  // Must be partial!
-{
-    [KnockOff]
-    public partial class SkRepoNestedKnockOff : ISkRepository { }
-
-    // In test method:
-    // var knockOff = new SkRepoNestedKnockOff();
-    // ...
-}
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-nested
 
 **Critical:** All containing classes must be `partial`. This is a C# requirement—the generator produces partial class wrappers that must merge with your declarations.
 
@@ -845,70 +527,67 @@ Works at any nesting depth—just ensure every class in the hierarchy is `partia
 
 Methods with `out` parameters are fully supported. Out parameters are outputs, not inputs, so they're excluded from tracking but included in callbacks.
 
-<!-- snippet: skill:SKILL:pattern-out-params -->
-```csharp
-[KnockOff]
-public partial class SkOutParamParserKnockOff : ISkOutParamParser { }
-
-// var knockOff = new SkOutParamParserKnockOff();
-// ISkOutParamParser parser = knockOff;
-
-// Callback requires explicit delegate type for out/ref
-// knockOff.TryParse.OnCall =
-//     (TryParseHandler.TryParseDelegate)((ko, string input, out int result) =>
-//     {
-//         if (int.TryParse(input, out result))
-//             return true;
-//         result = 0;
-//         return false;
-//     });
-
-// Call the method
-// var success = parser.TryParse("42", out var value);
-// Assert.True(success);
-// Assert.Equal(42, value);
-
-// Tracking only includes INPUT params (not out params)
-// Assert.Equal("42", knockOff.TryParse.LastCallArg);
-// Assert.Equal(1, knockOff.TryParse.CallCount);
-```
-<!-- /snippet -->
+snippet: skill-SKILL-pattern-out-params
 
 ### Ref Parameters
 
 Methods with `ref` parameters track the **input value** (before any callback modification).
 
-<!-- snippet: skill:SKILL:pattern-ref-params -->
+snippet: skill-SKILL-pattern-ref-params
+
+## Best Practices
+
+### Embrace Source Generation
+
+- **Complex interfaces are fine** — KnockOff generates everything; configure only what you test
+- **Try it first** — If uncertain whether KnockOff works, add the attribute and build
+- **Never create manual test doubles** — Defeats the purpose of source generation
+
+### Stub Minimalism
+
+Only configure members your test actually calls:
+
 ```csharp
+// GOOD - minimal, relies on smart defaults
 [KnockOff]
-public partial class SkRefProcessorKnockOff : ISkRefProcessor { }
-
-// var knockOff = new SkRefProcessorKnockOff();
-// ISkRefProcessor processor = knockOff;
-
-// Callback can modify ref params - explicit delegate type required
-// knockOff.Increment.OnCall =
-//     (IncrementHandler.IncrementDelegate)((ko, ref int value) =>
-//     {
-//         value = value * 2;  // Double it
-//     });
-
-// int x = 5;
-// processor.Increment(ref x);
-// Assert.Equal(10, x);  // Modified by callback
-
-// Tracking captures INPUT value (before modification)
-// Assert.Equal(5, knockOff.Increment.LastCallArg);
+public partial class UserServiceKnockOff : IUserService
+{
+    protected User? GetUser(int id) => new User { Id = id };
+    // Other 10 methods use smart defaults
+}
 ```
-<!-- /snippet -->
+
+### Choose the Right Pattern
+
+| Need | Use |
+|------|-----|
+| Same behavior across all tests | User methods |
+| Per-test customization | Callbacks |
+| Static property value | `Value` property |
+| Dynamic/computed value | `OnGet` callback |
+| Interface used in multiple test classes | Stand-alone stub |
+| One-off stub for single test class | Inline stub |
+
+### Common Pitfalls
+
+| Pitfall | Solution |
+|---------|----------|
+| Nested class won't compile | Make ALL containing classes `partial` |
+| Out/ref callback won't compile | Use explicit delegate type: `(Handler.Delegate)((ko, ...) => ...)` |
+| Reset didn't clear property value | `Reset()` clears tracking/callbacks only—set `Value = default` explicitly |
+| Can't find overload interceptor | Overloads get numeric suffixes: `Method1`, `Method2` |
+| Same inline stub in multiple classes | Use stand-alone stub to reduce generated code |
+
+For comprehensive guidance, see [Best Practices](docs/guides/best-practices.md).
 
 ## Moq Migration Quick Reference
 
 | Moq | KnockOff |
 |-----|----------|
 | `new Mock<IService>()` | `new ServiceKnockOff()` |
-| `mock.Object` | Cast or `knockOff.AsService()` |
-| `.Setup(x => x.Method())` | `IService.Method.OnCall = (ko, ...) => ...` |
+| `mock.Object` | `IService svc = stub;` (implicit) or `stub.Object` (class stubs) |
+| `.Setup(x => x.Property).Returns(v)` | `stub.Property.Value = v` (static) or `stub.Property.OnGet = ...` (dynamic) |
+| `.Setup(x => x.Method())` | `stub.Method.OnCall = (ko, ...) => ...` |
 | `.Returns(value)` | `OnCall = (ko) => value` |
 | `.ReturnsAsync(value)` | `OnCall = (ko) => Task.FromResult(value)` |
 | `.Callback(action)` | Logic inside `OnCall` callback |
@@ -919,9 +598,11 @@ public partial class SkRefProcessorKnockOff : ISkRefProcessor { }
 ## Additional Resources
 
 For detailed guidance, see:
+- [Best Practices](docs/guides/best-practices.md) - Consolidated best practices guide
 - [Customization Patterns](customization-patterns.md) - Deep dive on user methods vs callbacks
 - [Interceptor API Reference](interceptor-api.md) - Complete API for all interceptor types
 - [Moq Migration](moq-migration.md) - Step-by-step migration patterns
+- [Strict Mode](strict-mode.md) - Throwing on unconfigured calls
 - [Version Migrations](migrations.md) - Breaking changes and upgrade guides
 
 ## Skill Sync Status
