@@ -12,7 +12,7 @@
 - `docs/` - Documentation as markdown files
 - `docs/todos/` - Plans and work-in-progress as markdown files
 - `docs/todos/completed` - Completed work-in-progress markdown files
-- `docs/realies-notes` - Release Notes folder
+- `docs/release-notes/` - Release Notes folder
 ---
 
 #### When You Hit an Obstacle - STOP
@@ -137,12 +137,119 @@ For all Neatoo repositories:
 
 
 ##### Todo Files
-Todo files in `docs/todos/` must:
-- Include a **task list** with checkboxes (`- [ ]` / `- [x]`)
-- Be **updated as work progresses** to reflect completed items
-- Contain enough context to **resume work without prior conversation history**
 
-The goal is continuity: any todo file should allow picking up exactly where we left off in a new session.
+Todo files in `docs/todos/` track significant work. Each file should contain enough context to resume work in a new session.
+
+**When to create a todo:**
+- Multi-step features
+- Breaking changes
+- Refactoring
+- Investigation work
+
+**Don't create todos for:** Simple bug fixes, trivial changes (just do them).
+
+**Required structure:**
+
+```markdown
+# [Title of Work]
+
+**Status:** In Progress | Complete | Blocked
+**Priority:** High | Medium | Low
+**Created:** YYYY-MM-DD
+
+---
+
+## Problem
+
+[What problem are we solving?]
+
+## Solution
+
+[High-level approach]
+
+---
+
+## Tasks
+
+- [ ] First task
+- [ ] Second task
+- [x] Completed task
+
+---
+
+## Progress Log
+
+### YYYY-MM-DD
+- Did X
+- Discovered Y
+- Next: Z
+
+---
+
+## Results / Conclusions
+
+[What was learned? What decisions were made?]
+```
+
+**Workflow:**
+1. Create `docs/todos/{descriptive-name}.md`
+2. Work through tasks, updating checkboxes
+3. Add to Progress Log as you go
+4. When complete: Change Status, move to `docs/todos/completed/`, reference in release notes
+
+---
+
+##### Release Notes
+
+Release notes live in `docs/release-notes/` with individual version files.
+
+**Structure:**
+```
+docs/release-notes/
+├── index.md          # Version index
+├── v10.6.0.md
+└── v10.5.0.md
+```
+
+**Version file template:**
+
+```markdown
+# {Project} {Version}
+
+**Release Date:** YYYY-MM-DD
+**Breaking Changes:** Yes | No
+
+---
+
+## Summary
+
+[1-2 sentence overview]
+
+---
+
+## What's New
+
+### [Feature Name]
+
+[Description with code example]
+
+---
+
+## Migration Guide
+
+[Required if breaking changes - show Before/After code]
+
+---
+
+## Related
+
+- [Completed Todo](../todos/completed/feature-name.md)
+```
+
+**Version naming:**
+- Breaking changes → Major (10.x → 11.0)
+- New features → Minor (10.1 → 10.2)
+- Bug fixes → Patch (10.1.0 → 10.1.1)
 
 ---
 

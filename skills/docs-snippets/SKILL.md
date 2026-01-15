@@ -1,146 +1,219 @@
 ---
 name: docs-snippets
-description: Documentation snippet synchronization. Load whenever working with markdown documentation files including README.md or docs/*.md. Load before every commit to git.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(pwsh:*, powershell:*, dotnet:*)
+description: This skill should be used when working with "markdown documentation", "README.md", "docs/*.md", "code examples in documentation", "snippet sync", "dotnet mdsnippets", "MarkdownSnippets", "code block markers", "pseudo code blocks", "ready to commit", or preparing documentation for commit. Provides workflow for keeping code examples compiled and tested via MarkdownSnippets.
 ---
 
-# Documentation Snippets Skill
+# Documentation Snippets
 
-Code examples in documentation must be **compiled and tested**. This skill manages the sync between sample projects and documentation using [MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets).
+Code examples in documentation must be **compiled and tested**. This skill manages synchronization between sample projects and documentation using [MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets).
 
-## Single Source of Truth
+## Core Principle
 
-Whether you're updating:
-- **README.md** - The project's main documentation (first thing users see)
-- **Repository docs** (`{project}/docs/*.md`) - Read by developers
-- **Claude skills** (`{project}/.claude/skills/{skill}/`) - Used by Claude
-
-**All code snippets come from the samples project.** MarkdownSnippets processes all these locations identically.
-
-**README.md is not exempt.** Code examples in the README must use snippet markers just like any other documentation file. This ensures the README stays in sync with actual tested code.
-
-Skills live **in the repository** alongside the code they describe, then get copied to the shared location (`~/.claude/skills/`) on commit for use outside the repo.
-
-## When to Use This Skill
-
-- Adding code examples to documentation
-- Syncing docs after code changes
-- Verifying docs are current
-- **"Are we ready to commit?"** - run the checklist
-- Preparing a release
+**If it compiles, it should be compiled.** Every code example that could run should exist in a samples project with `#region` markers, not as hand-written markdown that drifts from reality.
 
 ## Quick Reference
 
-### Project Structure
+### Marker Types
 
-```
-{Project}/
-├── README.md                                   # Main docs (mdsnippets-processed)
-├── .claude/
-│   └── skills/
-│       └── {skill}/                            # Local skill (versioned, mdsnippets-processed)
-│           ├── SKILL.md
-│           └── *.md
-├── docs/
-│   ├── *.md                                    # Documentation (mdsnippets-processed)
-│   ├── release-notes/                          # Version notes
-│   ├── todos/                                  # Active plans
-│   │   └── completed/                          # Done plans
-│   └── samples/                                # Single source for BOTH docs and skills
-│       ├── {Project}.Samples.DomainModel/      # Domain with #region snippets
-│       ├── {Project}.Samples.DomainModel.Tests/
-│       ├── {Project}.Samples.Server/           # Server Program.cs
-│       └── {Project}.Samples.BlazorClient/     # Client Program.cs
-├── scripts/
-│   └── verify-code-blocks.ps1                  # Verifies pseudo/invalid markers
-├── mdsnippets.json                             # MarkdownSnippets config
-└── .config/
-    └── dotnet-tools.json                       # Tool manifest
+All C# code blocks require a marker:
 
-~/.claude/skills/{skill}/                       # Shared copy (for use outside repo)
-```
-
-**On commit:** Local skill is copied to shared location so it's available when working in other projects.
+| Marker | Purpose | Source |
+|--------|---------|--------|
+| `snippet: {id}` | Compiled, tested code | Extracted from `#region {id}` in samples |
+| `<!-- pseudo:{id} -->` | Illustrative fragments | Manual, not compiled |
+| `<!-- invalid:{id} -->` | Anti-patterns, wrong code | Manual, intentionally broken |
+| `<!-- generated:{path}#L{n}-L{m} -->` | Source-generator output | Manual, with line tracking |
 
 ### Key Commands
 
 ```powershell
-# Sync documentation AND skills with code snippets
+dotnet mdsnippets                          # Sync snippets to docs
+git diff --exit-code docs/                 # Verify no drift
+pwsh scripts/verify-code-blocks.ps1       # Check all blocks have markers
+```
+
+## Workflow: Adding Code to Documentation
+
+### Step 1: Add Code to Samples Project
+
+Create a region in `docs/samples/`:
+
+```csharp
+#region user-validation
+public class UserValidation
+{
+    public bool IsValid(string email) => email.Contains("@");
+}
+#endregion
+```
+
+### Step 2: Reference in Documentation
+
+Add a single line where the code should appear:
+
+```markdown
+## Email Validation
+
+snippet: user-validation
+
+This validates email format.
+```
+
+### Step 3: Run MarkdownSnippets
+
+```powershell
 dotnet mdsnippets
-
-# Verify all code blocks have markers (pseudo/invalid)
-pwsh scripts/verify-code-blocks.ps1
-
-# Check if docs/skills changed (CI verification)
-dotnet mdsnippets && git diff --exit-code docs/ .claude/skills/
-
-# Copy local skill to shared location (on commit)
-Copy-Item -Recurse -Force ".claude/skills/{skill}" "$HOME/.claude/skills/"
 ```
 
-### Snippet Marker Types
+The tool injects the compiled code into the markdown, wrapped in `<!-- snippet: -->` and `<!-- endSnippet -->` markers.
 
-**Core principles:**
-1. **If it compiles, it should be compiled.**
-2. **No commented code in snippets.** Comments like `// await db.SaveChangesAsync();` defeat the purpose.
+### Step 4: Commit Both
 
-All C# code blocks must have a marker. Four types are supported:
+Always commit code changes and documentation changes together.
 
-| Type | Purpose | How It Works |
-|------|---------|--------------|
-| `snippet: {id}` | Compiled, tested code | MarkdownSnippets extracts from `#region {id}` |
-| `<!-- pseudo:{id} -->` | Illustrative code | Manual marker, not processed by mdsnippets |
-| `<!-- invalid:{id} -->` | Anti-patterns, wrong examples | Manual marker, not processed by mdsnippets |
-| `<!-- generated:{path}#L{start}-L{end} -->` | Source-generated output | Manual marker with line tracking for drift detection |
-
-**Decision flowchart:**
-```
-Is this code intentionally broken/wrong?     → invalid:
-Is this showing source-generated output?     → generated:
-Is this compilable C# (even from Moq, etc)?  → snippet: (add to samples, NO commented code)
-Is this an API signature/incomplete fragment? → pseudo:
-```
-
-**"But the types don't exist!"** — That's not an excuse for `pseudo:`. If the code would compile with supporting types, create placeholder types in the samples project. Stubs, interfaces, simple classes — whatever the snippet needs to compile. The samples project exists to make documentation code real.
-
-See [01-snippet-regions.md](01-snippet-regions.md) for detailed syntax and examples.
-
-### Ready to Commit Checklist
+## Choosing the Right Marker
 
 ```
-[ ] dotnet build                              # Code compiles
-[ ] dotnet test                               # Tests pass
-[ ] dotnet mdsnippets                         # Snippets extracted to docs AND skills
-[ ] git diff --exit-code docs/ .claude/       # No uncommitted changes
-[ ] pwsh scripts/verify-code-blocks.ps1       # All code blocks have markers
-[ ] Copy skill to shared location             # ~/.claude/skills/{skill}/
-[ ] Release notes needed?                     # If features/fixes, add to docs/release-notes/
-[ ] If release: version updated, release notes created
+Is this code intentionally broken?        → invalid:
+Is this source-generator output?          → generated:
+Could this compile with proper types?     → snippet: (add to samples)
+Is this just a signature/fragment?        → pseudo:
 ```
 
-### Configuration (mdsnippets.json)
+**"But the types don't exist!"** — Create placeholder types in the samples project. The samples project exists to make documentation code real.
+
+See [references/marker-types.md](references/marker-types.md) for detailed guidance.
+
+## Ready to Commit Checklist
+
+Before committing changes to documentation or code:
+
+```
+[ ] dotnet build                           # Code compiles
+[ ] dotnet test                            # Tests pass
+[ ] dotnet mdsnippets                      # Sync snippets
+[ ] git diff --exit-code docs/             # No uncommitted changes
+[ ] pwsh scripts/verify-code-blocks.ps1   # All blocks marked
+```
+
+If docs changed after `dotnet mdsnippets`, stage them:
+
+```powershell
+git add docs/
+```
+
+## Project Structure
+
+```
+{Project}/
+├── README.md                              # mdsnippets-processed
+├── docs/
+│   ├── *.md                               # mdsnippets-processed
+│   └── samples/                           # Code with #region markers
+│       ├── {Project}.Samples/
+│       └── {Project}.Samples.Tests/
+├── scripts/
+│   └── verify-code-blocks.ps1
+├── mdsnippets.json                        # Configuration
+└── .config/
+    └── dotnet-tools.json                  # Tool manifest
+```
+
+## Configuration
+
+Standard `mdsnippets.json`:
 
 ```json
 {
   "Convention": "InPlaceOverwrite",
   "LinkFormat": "GitHub",
-  "OmitSnippetLinks": true
+  "OmitSnippetLinks": true,
+  "ExcludeDirectories": ["node_modules", "bin", "obj", ".git"]
 }
 ```
 
-## Detailed Guides
+## Snippet Naming Conventions
 
-Load these guides based on what you're doing:
+IDs must be globally unique across the project:
 
-| When | Load | Why |
-|------|------|-----|
-| Adding code examples to docs | [01-snippet-regions.md](01-snippet-regions.md) | `#region` syntax, naming conventions, partial snippets |
-| Running `dotnet mdsnippets` fails | [02-documentation-sync.md](02-documentation-sync.md) | Troubleshooting sync errors, configuration |
-| Updating skill files | [03-skill-sync.md](03-skill-sync.md) | Local vs shared skills, copy-on-commit workflow |
-| CI failures or unmarked blocks | [04-verification.md](04-verification.md) | Verification scripts, CI integration |
-| "Are we ready to commit?" | [05-ready-to-commit.md](05-ready-to-commit.md) | Full checklist with commands |
-| Creating/updating todo files | [06-todos-and-plans.md](06-todos-and-plans.md) | Todo file format, `docs/todos/` conventions |
-| Adding release notes | [07-release-notes.md](07-release-notes.md) | Release note format, versioning |
-| Setting up new project | [08-migration-guide.md](08-migration-guide.md) | Initial setup, migrating from custom scripts |
-| Choosing snippet vs pseudo vs invalid | [09-marker-types.md](09-marker-types.md) | Detailed marker definitions, common mistakes |
+| Pattern | Example |
+|---------|---------|
+| feature-concept | `validation-email-rule` |
+| entity-operation | `user-create-factory` |
+| context-pattern | `server-di-setup` |
 
+Avoid generic names like `example`, `usage`, or `pattern`.
+
+## Non-Compiled Code Blocks
+
+### Pseudo-code
+
+For API signatures or incomplete fragments:
+
+```markdown
+<!-- pseudo:save-signature -->
+```csharp
+Task<T> Save<T>(T entity);
+```
+<!-- /snippet -->
+```
+
+### Invalid Examples
+
+For anti-patterns or intentionally wrong code:
+
+```markdown
+<!-- invalid:wrong-pattern -->
+```csharp
+// WRONG - don't do this
+await factory.Save(entity);  // Discards result
+```
+<!-- /snippet -->
+```
+
+### Generated Output
+
+For source-generator output with drift detection:
+
+```markdown
+<!-- generated:Generated/Factory.g.cs#L15-L22 -->
+```csharp
+public interface IUserFactory { }
+```
+<!-- /snippet -->
+```
+
+## Additional Resources
+
+### Reference Files
+
+- **[references/marker-types.md](references/marker-types.md)** - Detailed marker decisions, common mistakes
+- **[references/setup.md](references/setup.md)** - New project setup, tool installation
+- **[references/verification.md](references/verification.md)** - Verification scripts, CI integration
+
+### Scripts
+
+- **[scripts/verify-code-blocks.ps1](scripts/verify-code-blocks.ps1)** - Verification script for pseudo/invalid markers
+
+## Troubleshooting
+
+### "Snippet not found"
+
+The `snippet: {id}` has no matching `#region {id}` in code:
+1. Check spelling
+2. Run `grep -r "region {id}" docs/samples/`
+3. Verify file isn't in ExcludeDirectories
+
+### Unmarked Code Blocks
+
+The verify script found ```` ```csharp ```` without a marker:
+1. If compilable → Add to samples with `#region`, use `snippet:`
+2. If illustrative → Add `<!-- pseudo:{id} -->` wrapper
+3. If anti-pattern → Add `<!-- invalid:{id} -->` wrapper
+
+### Docs Out of Sync
+
+`dotnet mdsnippets` changed files:
+1. Review changes with `git diff docs/`
+2. Stage: `git add docs/`
+3. Commit with code changes

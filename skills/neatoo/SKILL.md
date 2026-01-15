@@ -29,9 +29,11 @@ Use this skill when:
 
 ## Critical Rules
 
+- **Await `WaitForTasks()` before checking `IsValid`** to wait for all rules to finish
 - When you add a property to a Neatoo `EntityBase<>`, it almost always should be a `partial` property
 - For a property to be serialized or trigger a rule, it **must** be a `partial` property on a `partial` class
-- See **properties.md** for details and examples
+- Neatoo requires `EntityListBase<T>` for child entity collections (not `List<T>`)
+- See **properties.md** for details and **aggregates.md** for collection patterns
 
 ## Reference Files
 
