@@ -1,62 +1,145 @@
 ---
 name: neatoo
-description: Whenever Neatoo is involved - using Neatoo; EntityBase<>; [Factory] - use this skill.
+description: Neatoo DDD framework for .NET with Blazor WebAssembly. Use when building domain entities with EntityBase, implementing business rules and validation, creating factories with [Factory] attribute, setting up client-server communication with RemoteFactory, working with aggregates and parent-child relationships, or troubleshooting source generator issues.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(dotnet:*), WebFetch, WebSearch
 ---
 
 # Neatoo Framework Skill
 
-## Description
+Neatoo is a Domain-Driven Design framework for .NET that provides:
+- **Entities with automatic state tracking** (IsModified, IsValid, IsBusy)
+- **Validation rules** via attributes and custom RuleBase classes
+- **Source-generated factories** for Create/Fetch/Save operations
+- **Client-server communication** via RemoteFactory for Blazor WebAssembly
 
-Neatoo is a Domain-Driven Design (DDD) framework for .NET that simplifies building business applications with Blazor WebAssembly and WPF. It combines two core repositories:
+## Quick Decision Tree
 
-- **Neatoo Core**: DDD framework with entities, rules, validation, and Roslyn source generators
-- **Neatoo.RemoteFactory**: Client-server communication layer enabling shared domain models
+| User Intent | Go To |
+|-------------|-------|
+| Create an entity or aggregate | [creating-entities.md](creating-entities.md) |
+| Add validation or business rules | [adding-validation.md](adding-validation.md) |
+| Save data (Insert/Update/Delete) | [saving-data.md](saving-data.md) |
+| Work with child collections | [parent-child.md](parent-child.md) |
+| Set up Blazor client-server | [client-server.md](client-server.md) |
+| Something isn't working | [troubleshooting.md](troubleshooting.md) |
+| Quick syntax lookup | [quick-reference.md](quick-reference.md) |
 
-## When to Use This Skill
+## Critical Patterns - Always Follow
 
-Use this skill when:
+### 1. Interface-First Design
 
-- Building domain entities with EntityBase or ValidateBase classes
-- Implementing business rules and validation logic
-- Creating factory classes with [Factory] attribute
-- Setting up client-server communication with RemoteFactory
-- Working with aggregates and parent-child entity relationships
-- Implementing data mapping between domain and persistence entities
-- Building Blazor UI components with MudNeatoo
-- Configuring authorization for factory operations
-- Troubleshooting Neatoo source generator issues
+Every entity needs a public interface. The concrete class is `internal`.
 
-## Critical Rules
+```csharp
+// Public interface - this is your API
+public partial interface IPerson : IEntityBase
+{
+    string? Name { get; set; }
+}
 
-- **Await `WaitForTasks()` before checking `IsValid`** to wait for all rules to finish
-- When you add a property to a Neatoo `EntityBase<>`, it almost always should be a `partial` property
-- For a property to be serialized or trigger a rule, it **must** be a `partial` property on a `partial` class
-- Neatoo requires `EntityListBase<T>` for child entity collections (not `List<T>`)
-- See **properties.md** for details and **aggregates.md** for collection patterns
+// Internal implementation
+[Factory]
+internal partial class Person : EntityBase<Person>, IPerson
+{
+    public Person(IEntityBaseServices<Person> services) : base(services) { }
+    public partial string? Name { get; set; }
 
-## Reference Files
+    [Create]
+    public void Create() { }
+}
+```
 
-| File | Topics |
-|------|--------|
-| **best-practices.md** | Interface-first design, factory pattern, save patterns |
-| **entities.md** | EntityBase, ValidateBase, Value Objects, property patterns |
-| **aggregates.md** | Aggregate roots, entity graphs, parent-child, complete examples |
-| **rules.md** | Rules engine, data annotations, custom rules, async validation |
-| **factories.md** | Create/Fetch/Save operations, Commands & Queries |
-| **client-server.md** | RemoteFactory setup, server/client configuration |
-| **properties.md** | Meta-properties, INotifyPropertyChanged, dirty tracking |
-| **data-mapping.md** | MapFrom, MapTo, MapModifiedTo patterns |
-| **testing.md** | Unit testing patterns for rules |
-| **authorization.md** | [Authorize] attribute, role-based access |
-| **blazor-integration.md** | MudBlazor binding, validation display |
-| **source-generators.md** | What gets generated, troubleshooting |
-| **migration.md** | Version upgrade patterns |
-| **pitfalls.md** | Common mistakes and anti-patterns (see best-practices.md for correct patterns) |
+### 2. Always Reassign After Save
 
-## Repository References
+`Save()` returns a NEW instance. Always capture the return value.
 
-| Repository | Purpose |
-|------------|---------|
-| [NeatooDotNet/Neatoo](https://github.com/NeatooDotNet/Neatoo) | Core DDD framework |
-| [NeatooDotNet/RemoteFactory](https://github.com/NeatooDotNet/RemoteFactory) | Client-server communication |
+```csharp
+// WRONG - person is now stale
+await personFactory.Save(person);
+
+// CORRECT - person has updated state
+person = await personFactory.Save(person);
+```
+
+### 3. Partial Keyword Required
+
+Both class AND properties must be `partial` for source generation.
+
+```csharp
+[Factory]
+internal partial class Person : EntityBase<Person>, IPerson  // partial class
+{
+    public partial string? Name { get; set; }  // partial property
+}
+```
+
+### 4. Check IsSavable, Not Just IsValid
+
+`IsSavable` is the complete save-readiness check.
+
+```csharp
+// IsSavable = IsModified && IsValid && !IsBusy && !IsChild
+if (person.IsSavable)
+{
+    person = await personFactory.Save(person);
+}
+```
+
+### 5. Use [Remote] for Server Operations
+
+Methods that access the database need `[Remote]` to execute on the server.
+
+```csharp
+[Remote]  // Executes on server
+[Fetch]
+public async Task Fetch(Guid id, [Service] IDbContext db) { }
+
+[Create]  // No [Remote] - runs on client
+public void Create() { }
+```
+
+## Anti-Patterns - Never Do
+
+| Anti-Pattern | Why It's Wrong | Correct Approach |
+|--------------|----------------|------------------|
+| Casting to concrete type | Breaks serialization, bypasses interface contract | Add needed method to interface |
+| Injecting child factories in Blazor components | Bypasses aggregate consistency | Use parent's domain methods (e.g., `order.Lines.AddLine()`) |
+| Validation in `[Insert]`/`[Update]` methods | Users only see errors after clicking Save | Use rules that run immediately |
+| Non-partial class or properties | Source generator can't add implementations | Add `partial` keyword |
+| Ignoring Save() return value | Original object is stale after save | Always reassign: `x = await Save(x)` |
+
+## Minimum Viable Entity
+
+The smallest working Neatoo entity:
+
+```csharp
+public partial interface IProduct : IEntityBase { }
+
+[Factory]
+internal partial class Product : EntityBase<Product>, IProduct
+{
+    public Product(IEntityBaseServices<Product> services) : base(services) { }
+
+    public partial string? Name { get; set; }
+
+    [Create]
+    public void Create() { }
+}
+```
+
+This generates:
+- `IProductFactory` interface
+- `ProductFactory` implementation
+- Property backing fields with change tracking
+
+## File Index
+
+| File | Purpose |
+|------|---------|
+| [creating-entities.md](creating-entities.md) | Creating aggregates, entities, value objects |
+| [adding-validation.md](adding-validation.md) | Data annotations, custom rules, async validation |
+| [saving-data.md](saving-data.md) | Factory operations, MapFrom/MapTo patterns |
+| [parent-child.md](parent-child.md) | Collections, DeletedList, parent access |
+| [client-server.md](client-server.md) | RemoteFactory setup for Blazor WebAssembly |
+| [troubleshooting.md](troubleshooting.md) | Common errors and diagnostic steps |
+| [quick-reference.md](quick-reference.md) | One-page cheatsheet |

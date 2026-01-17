@@ -1,205 +1,440 @@
-# Neatoo Client-Server Architecture Reference
+# Client-Server Setup
 
-## Overview
+How to configure Neatoo with RemoteFactory for Blazor WebAssembly.
 
-Neatoo.RemoteFactory enables sharing domain models between Blazor WebAssembly clients and ASP.NET Core servers. A single HTTP endpoint handles all factory operations with automatic serialization.
-
-## Architecture
+## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Blazor WebAssembly Client                     │
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │ PersonFactory │    │ OrderFactory │    │ Other Factory│       │
-│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
-│         │                   │                   │                │
-│         └───────────────────┼───────────────────┘                │
-│                             │                                    │
-│                    ┌────────▼────────┐                           │
-│                    │ RemoteNeatoo    │                           │
-│                    │ Portal (Client) │                           │
-│                    └────────┬────────┘                           │
-└─────────────────────────────┼────────────────────────────────────┘
-                              │
-                        HTTP POST
-                      /api/neatoo
-                              │
-┌─────────────────────────────┼────────────────────────────────────┐
-│                    ASP.NET Core Server                           │
-│                             │                                    │
-│                    ┌────────▼────────┐                           │
-│                    │ NeatooJsonPortal│                           │
-│                    │    (Server)     │                           │
-│                    └────────┬────────┘                           │
-│                             │                                    │
-│         ┌───────────────────┼───────────────────┐                │
-│         │                   │                   │                │
-│  ┌──────▼───────┐    ┌──────▼───────┐    ┌──────▼───────┐       │
-│  │ PersonFactory │    │ OrderFactory │    │ Other Factory│       │
-│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
-│         │                   │                   │                │
-│  ┌──────▼───────┐    ┌──────▼───────┐    ┌──────▼───────┐       │
-│  │  DbContext   │    │  DbContext   │    │   Services   │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│         Blazor WebAssembly Client           │
+│                                             │
+│  ┌─────────────┐    ┌─────────────┐        │
+│  │ OrderFactory│    │PersonFactory│        │
+│  └──────┬──────┘    └──────┬──────┘        │
+│         └──────────┬───────┘               │
+│                    │                        │
+│         ┌──────────▼──────────┐            │
+│         │ RemoteNeatoo Portal │            │
+│         └──────────┬──────────┘            │
+└────────────────────┼────────────────────────┘
+                     │ HTTP POST /api/neatoo
+┌────────────────────┼────────────────────────┐
+│         ASP.NET Core Server                 │
+│                    │                        │
+│         ┌──────────▼──────────┐            │
+│         │ NeatooJsonPortal    │            │
+│         └──────────┬──────────┘            │
+│                    │                        │
+│  ┌─────────────┐   │   ┌─────────────┐     │
+│  │ OrderFactory│◄──┼──►│PersonFactory│     │
+│  └──────┬──────┘   │   └──────┬──────┘     │
+│         │          │          │            │
+│  ┌──────▼──────┐   │   ┌──────▼──────┐     │
+│  │  DbContext  │   │   │  Services   │     │
+│  └─────────────┘   │   └─────────────┘     │
+└────────────────────────────────────────────┘
 ```
+
+## NeatooFactory Modes
+
+| Mode | Use Case | Behavior |
+|------|----------|----------|
+| `NeatooFactory.Server` | ASP.NET Core server | Executes locally with full service access |
+| `NeatooFactory.Remote` | Blazor WebAssembly | Proxies to server via HTTP |
+| `NeatooFactory.Logical` | WPF, testing | Executes locally without server infrastructure |
+
+## Project Structure
+
+```
+Solution/
+├── MyApp.Shared/           # Shared interfaces and DTOs
+│   └── Interfaces/
+│       ├── IPerson.cs
+│       └── IOrder.cs
+│
+├── MyApp.Domain/           # Domain entities (NOT referenced by client)
+│   ├── Person.cs
+│   └── Order.cs
+│
+├── MyApp.Server/           # ASP.NET Core
+│   └── Program.cs
+│
+└── MyApp.Client/           # Blazor WebAssembly
+    └── Program.cs
+```
+
+**Key Principle:**
+- **Client** references **Shared** only (interfaces)
+- **Server** references **Domain** and **Shared**
+- Domain implementations are never in client bundle
 
 ## Server Setup
 
-### Server DI Configuration
+### 1. Add NuGet Packages
 
-<!-- snippet: server-di-setup -->
-```csharp
-builder.Services.AddNeatooServices(NeatooFactory.Server, typeof(IPerson).Assembly);
+```xml
+<PackageReference Include="Neatoo" Version="10.*" />
+<PackageReference Include="Neatoo.RemoteFactory.AspNetCore" Version="10.*" />
 ```
-<!-- /snippet -->
 
-### Server Endpoint Mapping
+### 2. Register Services (Program.cs)
 
-<!-- snippet: server-endpoint -->
 ```csharp
+// Register Neatoo services in Server mode
+builder.Services.AddNeatooServices(
+    NeatooFactory.Server,
+    typeof(IPerson).Assembly,    // Shared interfaces
+    typeof(Person).Assembly);    // Domain implementations
+
+// Register your own services
+builder.Services.AddDbContext<AppDbContext>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+```
+
+### 3. Map Endpoint (Program.cs)
+
+```csharp
+// Single endpoint handles all Neatoo operations
 app.MapPost("/api/neatoo", (HttpContext httpContext, RemoteRequestDto request, CancellationToken cancellationToken) =>
 {
     var handleRemoteDelegateRequest = httpContext.RequestServices.GetRequiredService<HandleRemoteDelegateRequest>();
     return handleRemoteDelegateRequest(request, cancellationToken);
 });
 ```
-<!-- /snippet -->
 
-### NeatooFactory Modes
+### Complete Server Program.cs
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `NeatooFactory.Server` | Executes operations locally with ASP.NET Core | Production server |
-| `NeatooFactory.Remote` | Proxies operations to remote server | Blazor WebAssembly client |
-| `NeatooFactory.Logical` | Executes operations locally without server infrastructure | Testing, WPF |
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services
+builder.Services.AddNeatooServices(
+    NeatooFactory.Server,
+    typeof(IPerson).Assembly,
+    typeof(Person).Assembly);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+// Add CORS for Blazor client
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins("https://localhost:5002")
+              .AllowAnyMethod()
+              .AllowAnyHeader());
+});
+
+var app = builder.Build();
+
+app.UseHttpsRedirection();
+app.UseCors();
+
+// Neatoo endpoint
+app.MapPost("/api/neatoo", (HttpContext ctx, RemoteRequestDto request, CancellationToken token) =>
+{
+    var handler = ctx.RequestServices.GetRequiredService<HandleRemoteDelegateRequest>();
+    return handler(request, token);
+});
+
+app.Run();
+```
 
 ## Client Setup (Blazor WebAssembly)
 
-### Client DI Configuration
+### 1. Add NuGet Packages
 
-<!-- snippet: client-di-setup -->
+```xml
+<PackageReference Include="Neatoo" Version="10.*" />
+<PackageReference Include="Neatoo.Blazor.MudNeatoo" Version="10.*" />  <!-- Optional: MudBlazor components -->
+```
+
+### 2. Register Services (Program.cs)
+
 ```csharp
-builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
+// Register Neatoo services in Remote mode
+builder.Services.AddNeatooServices(
+    NeatooFactory.Remote,
+    typeof(IPerson).Assembly);  // Shared interfaces only!
+
+// Configure HTTP client for RemoteFactory
 builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
     new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 ```
-<!-- /snippet -->
 
-## Project Structure
+### Complete Client Program.cs
 
-### Recommended Solution Layout
+```csharp
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
 
-```
-Solution/
-├── MyApp.Shared/           # Shared interfaces and contracts
-│   ├── Interfaces/
-│   │   ├── IPerson.cs
-│   │   └── IOrder.cs
-│   └── DTOs/
-│       └── CustomerResult.cs
-│
-├── MyApp.Domain/           # Domain entities and business logic
-│   ├── Entities/
-│   │   ├── Person.cs
-│   │   └── Order.cs
-│   ├── Rules/
-│   │   └── EmailValidationRule.cs
-│   └── Services/
-│       └── IEmailService.cs
-│
-├── MyApp.Server/           # ASP.NET Core server
-│   ├── Program.cs
-│   ├── Data/
-│   │   └── AppDbContext.cs
-│   └── Services/
-│       └── EmailService.cs
-│
-└── MyApp.Client/           # Blazor WebAssembly client
-    └── Program.cs
+// Register Neatoo services in Remote mode
+builder.Services.AddNeatooServices(
+    NeatooFactory.Remote,
+    typeof(IPerson).Assembly);
+
+// HTTP client for RemoteFactory
+builder.Services.AddKeyedScoped(RemoteFactoryServices.HttpClientKey, (sp, key) =>
+    new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+
+// MudBlazor (optional)
+builder.Services.AddMudServices();
+
+await builder.Build().RunAsync();
 ```
 
-### Assembly References
+## The [Remote] Attribute
 
-| Project | References |
-|---------|------------|
-| Shared | Neatoo (interfaces only) |
-| Domain | Shared, Neatoo |
-| Server | Domain, Shared, Neatoo.RemoteFactory |
-| Client | Shared, Neatoo.RemoteFactory |
+`[Remote]` marks methods that execute on the server:
 
-### Key Principle
+```csharp
+[Factory]
+internal partial class Person : EntityBase<Person>, IPerson
+{
+    // Runs on CLIENT - no [Remote]
+    [Create]
+    public void Create()
+    {
+        Id = Guid.NewGuid();
+    }
 
-- **Client** references interfaces (IPerson) from Shared
-- **Server** references implementations (Person) from Domain
-- **Both** can create/manipulate entities through factories
+    // Runs on SERVER - has [Remote]
+    [Remote]
+    [Fetch]
+    public async Task Fetch(Guid id, [Service] IDbContext db)
+    {
+        var entity = await db.Persons.FindAsync(id);
+        if (entity != null) MapFrom(entity);
+    }
 
-## [Remote] Attribute
+    // Runs on SERVER - has [Remote]
+    [Remote]
+    [Insert]
+    public async Task Insert([Service] IDbContext db)
+    {
+        var entity = new PersonEntity();
+        MapTo(entity);
+        db.Persons.Add(entity);
+        await db.SaveChangesAsync();
+    }
 
-The `[Remote]` attribute marks methods that execute on the server.
+    // Runs on SERVER - has [Remote]
+    [Remote]
+    [Update]
+    public async Task Update([Service] IDbContext db)
+    {
+        var entity = await db.Persons.FindAsync(Id);
+        MapModifiedTo(entity);
+        await db.SaveChangesAsync();
+    }
+}
+```
 
-### When Methods Run
+### When [Remote] Is Called
 
-| Scenario | [Create] | [Fetch]/[Insert]/[Update]/[Delete] |
-|----------|----------|-------------------------------------|
-| Client calls factory | Client | Server (via HTTP) |
-| Server calls factory | Server | Server (local) |
+| Method | Client Calls | Server Calls |
+|--------|--------------|--------------|
+| `[Create]` without `[Remote]` | Client | Server |
+| `[Create]` with `[Remote]` | Server via HTTP | Server |
+| `[Fetch]` with `[Remote]` | Server via HTTP | Server |
+| `[Insert]` with `[Remote]` | Server via HTTP | Server |
 
-## Serialization
+## Blazor Component Usage
 
-Neatoo uses System.Text.Json with custom converters for:
+```razor
+@page "/person/{Id:guid?}"
+@inject IPersonFactory PersonFactory
 
-- Entity graphs with circular references
-- Interface-based deserialization
-- Meta-property preservation
+<EditForm Model="@person">
+    <MudNeatooTextField T="string"
+        EntityProperty="@person[nameof(IPerson.FirstName)]" />
 
-### Ordinal Serialization (10.2.0+)
+    <MudNeatooTextField T="string"
+        EntityProperty="@person[nameof(IPerson.LastName)]" />
 
-Ordinal serialization reduces payload sizes by 40-50% by using numeric indices instead of property names.
+    <MudNeatooTextField T="string"
+        EntityProperty="@person[nameof(IPerson.Email)]" />
+</EditForm>
+
+<MudButton Disabled="@(!person.IsSavable)"
+           OnClick="@Save">
+    Save
+</MudButton>
+
+@if (person.IsBusy)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+
+<NeatooValidationSummary Entity="@person" />
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private IPerson person = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            person = await PersonFactory.Fetch(Id.Value);
+        }
+        else
+        {
+            person = PersonFactory.Create();
+        }
+    }
+
+    private async Task Save()
+    {
+        // Wait for async validation
+        await person.WaitForTasks();
+
+        if (!person.IsSavable) return;
+
+        // CRITICAL: Reassign after save!
+        person = await PersonFactory.Save(person);
+
+        // Navigate to edit page with new ID
+        if (Id == null && person.Id.HasValue)
+        {
+            NavigationManager.NavigateTo($"/person/{person.Id}");
+        }
+    }
+}
+```
+
+## Authentication/Authorization
+
+### Server-Side Setup
+
+```csharp
+// Add authentication
+builder.Services.AddAuthentication()
+    .AddJwtBearer();
+
+builder.Services.AddAuthorization();
+
+// Protect the Neatoo endpoint
+app.MapPost("/api/neatoo", ...)
+    .RequireAuthorization();  // Requires authentication
+```
+
+### Entity-Level Authorization
+
+```csharp
+// Authorization interface
+public interface IPersonAuth
+{
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    bool CanCreate();
+
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    bool CanFetch();
+
+    [AuthorizeFactory(AuthorizeFactoryOperation.Insert | AuthorizeFactoryOperation.Update)]
+    bool CanWrite();
+}
+
+// Apply to entity
+[Factory]
+[AuthorizeFactory<IPersonAuth>]
+internal partial class Person : EntityBase<Person>, IPerson { }
+```
 
 ## Error Handling
 
-### Factory Return Values
+### Client-Side
 
-| Method | Success | Failure |
-|--------|---------|---------|
-| `Create()` | Entity instance | null (if unauthorized) |
-| `Fetch()` | Entity instance | null (not found or unauthorized) |
-| `Save()` | Updated entity | null (if unauthorized) or throws |
-| `TrySave()` | `Authorized<T>` with value | `Authorized<T>` with message |
-| `Execute()` | Updated object | Throws on error |
+```csharp
+try
+{
+    person = await PersonFactory.Save(person);
+}
+catch (HttpRequestException ex)
+{
+    // Network or server error
+    Snackbar.Add("Unable to save. Please try again.", Severity.Error);
+}
+catch (Exception ex)
+{
+    // Business logic error
+    Snackbar.Add(ex.Message, Severity.Warning);
+}
+```
 
-## Performance Considerations
+### Server-Side
 
-### Minimize Round Trips
+Exceptions in `[Remote]` methods are serialized back to client:
 
-Fetch aggregates with children in one call instead of multiple separate fetches.
+```csharp
+[Remote]
+[Insert]
+public async Task Insert([Service] IDbContext db)
+{
+    if (await db.Persons.AnyAsync(p => p.Email == Email))
+    {
+        throw new InvalidOperationException("Email already exists");
+    }
+    // ...
+}
+```
 
-### Payload Size
+## Common Issues
 
-Only modified properties serialize for updates.
+### CORS Errors
 
-## WPF Applications
+```csharp
+// Server Program.cs
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins("https://localhost:5002")  // Client URL
+              .AllowAnyMethod()
+              .AllowAnyHeader());
+});
 
-For WPF apps, use `NeatooFactory.Logical` mode since there's no client-server split.
+app.UseCors();  // Before MapPost
+```
 
-## Cancellation Support
+### Missing Assembly Registration
 
-Cancellation flows from client to server via HTTP connection state. Both `HttpContext.RequestAborted` and `IHostApplicationLifetime.ApplicationStopping` trigger cancellation.
+```csharp
+// WRONG - missing domain assembly on server
+builder.Services.AddNeatooServices(
+    NeatooFactory.Server,
+    typeof(IPerson).Assembly);  // Only interfaces!
 
-### Best Practices
+// CORRECT - include domain assembly
+builder.Services.AddNeatooServices(
+    NeatooFactory.Server,
+    typeof(IPerson).Assembly,    // Interfaces
+    typeof(Person).Assembly);    // Implementations
+```
 
-1. **Pass CancellationToken to all async calls** - EF Core, HttpClient, file I/O
-2. **Check cancellation at safe points** - Before expensive operations
-3. **Use transactions for atomicity** - Cancellation between DB calls leaves partial state
-4. **Handle OperationCanceledException** - Don't let it crash your UI
+### Client Referencing Domain
 
-## Common Pitfalls
+```csharp
+// WRONG - client references domain (implementations in client bundle!)
+// Client.csproj:
+// <ProjectReference Include="..\Domain\Domain.csproj" />
 
-1. **Wrong NeatooFactory mode** - Server needs `Server`, Client needs `Remote`, Standalone (WPF/tests) needs `Logical`
-2. **Missing [Remote] attribute** - Server methods won't execute on server
-3. **Referencing Domain from Client** - Client should only reference Shared
-4. **Not configuring authentication** - Endpoint unprotected by default
-5. **Large payloads** - Include only needed data in responses
-6. **Ignoring CancellationToken** - Operations continue after client disconnects
+// CORRECT - client only references shared interfaces
+// Client.csproj:
+// <ProjectReference Include="..\Shared\Shared.csproj" />
+```
+
+## Best Practices
+
+1. **Separate interfaces from implementations** - Client references only interfaces
+2. **Use [Remote] for database operations** - Fetch, Insert, Update, Delete
+3. **Don't use [Remote] on [Create]** - Keep initialization on client
+4. **Protect the endpoint** - Use authentication middleware
+5. **Handle errors gracefully** - Catch and display user-friendly messages
+6. **Configure CORS properly** - Allow your client origin
+
+## Next Steps
+
+- [quick-reference.md](quick-reference.md) - Syntax reference
+- [troubleshooting.md](troubleshooting.md) - Debug connection issues
