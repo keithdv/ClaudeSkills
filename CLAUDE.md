@@ -7,8 +7,9 @@
 
 ##### Folder Structure
 - `docs/` - Documentation as markdown files
-- `docs/todos/` - Todo plans and work-in-progress as markdown files
+- `docs/todos/` - Directory of markdown files. Track identified future work and track progress. When I say 'todo' this is what I mean. Linked to plans to implement to work.
 - `docs/todos/completed` - Completed work-in-progress markdown files
+- `docs/plans` - Directory of markdown files. These are designs created to complete todos.
 - `docs/release-notes/` - Release Notes folder
 ---
 
