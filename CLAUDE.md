@@ -4,52 +4,12 @@
 - **STOP and ask** before reverting, undoing, or changing direction
 - **STOP and ask** before modifying out-of-scope tests
 - **STOP and ask** before using reflection
-- **Never commit** unless explicitly asked
-- **Broken code is OK** - leave it broken and review with me before fixing
-- **MARKDOWN FILES** always load the docs-snippet skill when working with any markdown files
 
 ##### Folder Structure
 - `docs/` - Documentation as markdown files
-- `docs/todos/` - Plans and work-in-progress as markdown files
+- `docs/todos/` - Todo plans and work-in-progress as markdown files
 - `docs/todos/completed` - Completed work-in-progress markdown files
 - `docs/release-notes/` - Release Notes folder
----
-
-#### When You Hit an Obstacle - STOP
-
-**Do NOT work around obstacles with solutions that defeat the original purpose.**
-
-When something doesn't work as expected (code isn't testable, API doesn't exist, pattern doesn't fit):
-1. **STOP** - Don't push through with a creative workaround
-2. **REPORT** - Explain what the obstacle is and why it blocks progress
-3. **ASK** - Let me decide how to proceed
-
-**Bad example:** Asked to test production code → code isn't testable → recreate code in test project → test the copy. *This completely defeats the purpose of testing.*
-
-**Good example:** Asked to test production code → code isn't testable → STOP and say: "This code can't be tested as-is because [specific reason]. Options: (1) refactor production code for testability, (2) integration test instead, (3) skip this test. Which approach?"
-
-**The goal is collaboration, not completion at any cost.**
-
----
-
-#### DO NOT REVERT OR REVERSE COURSE WITHOUT STOPPING TO REVIEW!!!!!
-
-**Never undo work, reverse direction, or roll back changes without explicit approval.**
-
-This applies to ALL reversals:
-- Git operations (`git checkout`, `git revert`, `git reset`)
-- Re-editing files to remove changes you just made
-- Deleting code you just wrote
-- Changing approach mid-task
-- "Fixing" something by undoing it
-
-When something isn't working or you think you need to change direction:
-1. **STOP** - Do not start undoing anything
-2. **REPORT** - Explain what's broken and what you're considering
-3. **ASK** - "Should I revert X, try Y, or take a different approach?"
-
-**Why this matters:** The user may prefer to leave code broken temporarily while fixing the root cause elsewhere. Undoing work without asking destroys progress and wastes time.
-
 ---
 
 #### Existing Tests Are Sacred - Never Gut Them
@@ -81,17 +41,6 @@ When working on a task, existing tests may start failing. Before modifying any t
 
 ---
 
-#### Git Commits - Only When Asked
-
-**Do NOT commit or push unless explicitly requested.**
-
-- Each "commit and push" request is a **one-time action**, not a mode change
-- After committing, return to normal behavior: make changes, let me review
-- Never auto-commit subsequent changes just because I asked for a commit earlier
-- Always give me a chance to review changes before they're committed
-
----
-
 #### No Reflection Without Approval
 
 **Do NOT use reflection in code without reviewing and getting approval first.**
@@ -105,16 +54,9 @@ Before writing any code that uses `System.Reflection`, `Type.GetMethod()`, `Meth
 
 ---
 
-#### Documentation Code Examples
-
-When working with `docs/` or Claude skills that contain code examples:
-
-1. **Always run `/docs-snippets`** to load the documentation sync skill
-
-
 #### DDD Documentation Guidelines
 
-For all Neatoo repositories:
+For all neatoodotnet/**/* repositories:
 
 - **Use DDD terminology freely.** Terms like aggregate root, entity, value object, domain event, repository, bounded context, etc. are Neatoo's vocabulary. Use them in comments and documentation.
 - **Do not explain or define DDD concepts.** Assume the reader is a DDD expert. Never include tutorial-style explanations of what DDD patterns mean.
@@ -130,72 +72,6 @@ For all Neatoo repositories:
 | Class comment | `/// Value object for phone numbers.` | `/// Value objects are immutable and compared by structural equality. This represents...` |
 | Inline comment | `// Owned: BusinessId` | `// Value objects should be configured as owned types in EF Core because...` |
 | Documentation | "The Employee aggregate validates BR-EMP-001" | "Aggregates maintain invariants. An invariant is a business rule that must always be true..."
-
----
-
-#### Project Conventions
-
-
-##### Todo Files
-
-Todo files in `docs/todos/` track significant work. Each file should contain enough context to resume work in a new session.
-
-**When to create a todo:**
-- Multi-step features
-- Breaking changes
-- Refactoring
-- Investigation work
-
-**Don't create todos for:** Simple bug fixes, trivial changes (just do them).
-
-**Required structure:**
-
-```markdown
-# [Title of Work]
-
-**Status:** In Progress | Complete | Blocked
-**Priority:** High | Medium | Low
-**Created:** YYYY-MM-DD
-
----
-
-## Problem
-
-[What problem are we solving?]
-
-## Solution
-
-[High-level approach]
-
----
-
-## Tasks
-
-- [ ] First task
-- [ ] Second task
-- [x] Completed task
-
----
-
-## Progress Log
-
-### YYYY-MM-DD
-- Did X
-- Discovered Y
-- Next: Z
-
----
-
-## Results / Conclusions
-
-[What was learned? What decisions were made?]
-```
-
-**Workflow:**
-1. Create `docs/todos/{descriptive-name}.md`
-2. Work through tasks, updating checkboxes
-3. Add to Progress Log as you go
-4. When complete: Change Status, move to `docs/todos/completed/`, reference in release notes
 
 ---
 
