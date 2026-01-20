@@ -178,6 +178,81 @@ Use the template from `references/plan-template.md`. Fill in:
 - **Dependencies**: Prerequisites or external factors
 - **Risks / Considerations**: Trade-offs and potential issues
 
+**New Template Sections (for workflow integration):**
+
+Plans created by knockoff-architect should include these additional sections:
+
+```markdown
+## Architectural Verification
+[Architect completes this checklist before handoff]
+
+**Three Patterns Analysis:**
+- Standalone: [How this applies or N/A]
+- Inline Interface: [How this applies or N/A]
+- Inline Class: [How this applies or N/A]
+
+**Breaking Changes:** Yes/No - [Explanation]
+
+**Pattern Consistency:** [How design follows existing patterns or intentional deviation]
+
+**Codebase Analysis:** [Files examined, patterns found]
+
+---
+
+## Developer Review
+[Developer adds concerns/questions here during review phase]
+
+**Status:** [Not Started / Under Review / Concerns Raised / Approved]
+
+**Concerns:** [List any issues found, or "None - ready for implementation"]
+
+---
+
+## Implementation Contract
+[Developer fills before starting implementation]
+
+**In Scope:**
+- [ ] File 1: Specific changes
+- [ ] File 2: Specific changes
+- [ ] Test cases to add
+
+**Out of Scope:**
+[Explicitly list what will NOT be changed]
+
+---
+
+## Implementation Progress
+
+**Phase 1:** [Name]
+- [ ] Step 1
+- [ ] Step 2
+- [ ] **Verification**: [Test results, evidence]
+
+[Continue for each phase]
+
+---
+
+## Completion Evidence
+[Required before marking complete]
+
+- **Tests Passing:** [Output or screenshot]
+- **Generated Code Sample:** [Snippet showing feature works]
+- **All Checklist Items:** [Confirmed 100% complete]
+```
+
+**Plan Status Values:**
+
+Use these status values to track workflow progress:
+- `Draft` - Initial plan creation (default)
+- `Draft (Architect)` - Architect working on design
+- `Under Review (Developer)` - Developer reviewing architect's design
+- `Concerns Raised` - Developer found issues, awaiting user decision
+- `Ready for Implementation` - Approved, implementation contract created
+- `In Progress` - Developer implementing
+- `Complete` - All evidence provided, moved to completed/
+
+**Status field location:** In the YAML-style header at the top of plan files.
+
 **File location**: `docs/plans/{filename}.md`
 
 ### Step 5: Link Plan to Todo
