@@ -441,3 +441,42 @@ Use these templates as the source of truth for file structure.
 - Use Write tool to create files, Edit tool to update them
 - No dates in filenames, only in YAML headers
 - Auto-generate filenames from titles using kebab-case
+
+---
+
+## For Architects (knockoff-architect agent)
+
+When creating or enhancing a plan, you must:
+
+1. **Complete the Architectural Verification Checklist** (see below)
+2. **Use project-todos skill for structure** - templates, file paths, linking
+3. **Apply your architectural expertise for content** - design decisions, trade-offs
+4. **Document codebase analysis** - which files you examined, patterns found
+
+### Architectural Verification Checklist
+
+Before handing off to developer, verify:
+- [ ] All three patterns analyzed (Standalone, Inline Interface, Inline Class)
+- [ ] Breaking changes assessment completed
+- [ ] Pattern consistency check (follows or intentionally deviates)
+- [ ] Diagnostic requirements identified
+- [ ] Test strategy defined
+- [ ] Edge cases documented
+- [ ] Codebase deep-dive completed (document files examined)
+
+## For Developers (knockoff-developer agent)
+
+When reviewing and implementing a plan, you must:
+
+1. **Review Phase**: Analyze architect's design for completeness
+2. **Concern Documentation**: If issues found, document in "Developer Review" section
+3. **Implementation Contract**: Before coding, list exactly what will be implemented
+4. **Checklist-Driven**: Every file change and test is a checklist item
+5. **Milestone Verification**: Run tests and verify after each phase
+6. **Evidence-Based Completion**: Provide proof (test output, code snippets)
+
+### When to STOP and Ask User
+
+- **ALWAYS STOP**: Out-of-scope test failures
+- **ALWAYS STOP**: Architectural discoveries that contradict the design
+- **Document and continue**: Minor implementation adjustments (note in progress log)
