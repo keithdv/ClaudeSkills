@@ -12,6 +12,11 @@
 !hooks/**
 hooks/__pycache__/
 
+!plugins/
+plugins/*
+!plugins/csharp-docs/
+!plugins/csharp-docs/**
+
 # And these files
 !.gitignore
 !README.md
