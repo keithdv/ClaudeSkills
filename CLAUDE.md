@@ -7,10 +7,9 @@
 
 ##### Folder Structure
 - `docs/` - Documentation as markdown files
-- `docs/todos/` - Directory of markdown files. Track identified future work and track progress. When I say 'todo' this is what I mean. Linked to plans to implement to work.
-- `docs/todos/completed` - Completed work-in-progress markdown files
-- `docs/plans` - Directory of markdown files. These are designs created to complete todos.
-- `docs/release-notes/` - Release Notes folder
+- `docs/todos/` - Project todos (use `/project-todos` skill)
+- `docs/plans/` - Design documents (use `/project-todos` skill)
+- `docs/release-notes/` - Release notes (see template below)
 ---
 
 #### Existing Tests Are Sacred - Never Gut Them
@@ -80,48 +79,7 @@ For all neatoodotnet/**/* repositories:
 
 Release notes live in `docs/release-notes/` with individual version files.
 
-**Structure:**
-```
-docs/release-notes/
-├── index.md          # Version index
-├── v10.6.0.md
-└── v10.5.0.md
-```
-
-**Version file template:**
-
-```markdown
-# {Project} {Version}
-
-**Release Date:** YYYY-MM-DD
-**Breaking Changes:** Yes | No
-
----
-
-## Summary
-
-[1-2 sentence overview]
-
----
-
-## What's New
-
-### [Feature Name]
-
-[Description with code example]
-
----
-
-## Migration Guide
-
-[Required if breaking changes - show Before/After code]
-
----
-
-## Related
-
-- [Completed Todo](../todos/completed/feature-name.md)
-```
+**Template:** Include release date, breaking changes flag, summary, what's new, migration guide (if breaking), and link to completed todo.
 
 **Version naming:**
 - Breaking changes → Major (10.x → 11.0)
