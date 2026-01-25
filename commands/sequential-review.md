@@ -10,7 +10,7 @@ Perform a comprehensive sequential review of all C# documentation files.
 ## Process Overview
 
 Review documentation files in this order:
-1. Find all documentation markdown files (README.md + docs/ + skills/)
+1. Recursively find all documentation markdown files in the repository
 2. Exclude historical/planning files (todos/, plans/, release-notes/)
 3. For each file sequentially:
    - Launch fresh docs-architect agent to review structure, content, and completeness
@@ -33,13 +33,27 @@ Create a sorted list of files to process.
 
 For each file in the list:
 
-**A. Launch docs-architect agent**
-- Use Task tool with subagent_type="docs-architect"
-- Provide clear prompt: "Review {filepath} for structure, completeness, and MarkdownSnippets placeholders. Check for: missing sections, unclear explanations, missing code sample placeholders, outdated content. Apply fixes directly."
+**A. Launch docs-code-samples agent (Sync Snippets)**
+- Use Task tool with subagent_type="docs-code-samples"
+- Provide clear prompt: "Run mdsnippets to sync code samples for {filepath}. Fix any errors or warnings that occur. Ensure all snippet placeholders can be resolved from #region markers in sample projects."
 - Wait for agent to complete
 - Note findings in running summary
 
-**B. Launch docs-code-samples agent**
+**B. Launch docs-architect agent (API Changes Pass)**
+- Use Task tool with subagent_type="docs-architect"
+- Provide clear prompt: "Review {filepath} for outdated content and new API changes. Check the REVIEWED date at the bottom of the document and focus on any API updates since that date. Apply fixes directly.
+
+Put an 'REVIEWED: date' tag at the bottom of the document to signify when this review was done."
+- Wait for agent to complete
+- Note findings in running summary
+
+**C. Launch docs-architect agent (Structure Pass - Fresh Context)**
+- Use Task tool with subagent_type="docs-architect"
+- Provide clear prompt: "Review {filepath} for structure, completeness, and MarkdownSnippets placeholders. Check for: missing sections, unclear explanations, missing code sample placeholders. Apply fixes directly."
+- Wait for agent to complete
+- Note findings in running summary
+
+**D. Launch docs-code-samples agent (Review & Update)**
 - Use Task tool with subagent_type="docs-code-samples"
 - Provide clear prompt: "Review and update code samples for {filepath}. Ensure all snippet placeholders have corresponding #region code in sample projects. Verify all samples compile and tests pass. Apply fixes directly.
 
