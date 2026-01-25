@@ -1,5 +1,5 @@
 ---
-name: C# Framework Documentation
+name: csharp-docs
 description: This skill should be used when the user asks to "create documentation", "write docs", "update documentation", "add code samples", "sync snippets", "create README", "document this framework", or mentions MarkdownSnippets, documentation samples, or keeping docs in sync with code. Provides comprehensive guidance for documenting C# open source frameworks.
 version: 0.1.0
 ---

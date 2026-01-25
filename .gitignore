@@ -12,10 +12,12 @@
 !hooks/**
 hooks/__pycache__/
 
+!commands/
+!commands/**
+
 !plugins/
-plugins/*
-!plugins/csharp-docs/
-!plugins/csharp-docs/**
+!plugins/**
+plugins/cache
 
 # And these files
 !.gitignore
