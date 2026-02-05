@@ -17,6 +17,8 @@ Brief tagline describing what the framework does.
 
 ## Quick Example
 
+The Employee aggregate demonstrates core framework concepts:
+
 <!-- snippet: readme-teaser -->
 <!-- endSnippet -->
 
@@ -49,16 +51,16 @@ Brief tagline describing what the framework does.
 
 ## Your First [Thing]
 
-Create a simple example:
+Create a domain entity using the framework:
 
-<!-- snippet: getting-started-first -->
+<!-- snippet: getting-started-domain -->
 <!-- endSnippet -->
 
-## Configuration
+## Registering Services
 
-Optional configuration options:
+Configure dependency injection in your ASP.NET Core application:
 
-<!-- snippet: getting-started-config -->
+<!-- snippet: getting-started-startup -->
 <!-- endSnippet -->
 
 ## Next Steps
@@ -77,7 +79,9 @@ Brief description of what this feature does.
 
 ## Basic Usage
 
-<!-- snippet: feature-basic -->
+The domain model demonstrates basic feature usage:
+
+<!-- snippet: feature-domain-basic -->
 <!-- endSnippet -->
 
 ## Configuration Options
@@ -91,19 +95,25 @@ Brief description of what this feature does.
 
 ### Pattern 1: [Name]
 
-<!-- snippet: feature-pattern-1 -->
+In the application layer, configure the pattern:
+
+<!-- snippet: feature-app-pattern-1 -->
 <!-- endSnippet -->
 
 ### Pattern 2: [Name]
 
-<!-- snippet: feature-pattern-2 -->
+The infrastructure implementation:
+
+<!-- snippet: feature-infra-pattern-2 -->
 <!-- endSnippet -->
 
 ## Advanced Usage
 
 ### [Advanced Topic]
 
-<!-- snippet: feature-advanced -->
+For complex scenarios, extend the server configuration:
+
+<!-- snippet: feature-server-advanced -->
 <!-- endSnippet -->
 
 ## Troubleshooting
@@ -185,24 +195,24 @@ Add [This Framework]:
 <!-- snippet: migration-install -->
 <!-- endSnippet -->
 
-### Step 2: [Specific Change]
+### Step 2: Update Domain Model
 
 **Before ([Other Library]):**
-<!-- snippet: migration-before-1 -->
+<!-- snippet: migration-before-domain -->
 <!-- endSnippet -->
 
 **After ([This Framework]):**
-<!-- snippet: migration-after-1 -->
+<!-- snippet: migration-after-domain -->
 <!-- endSnippet -->
 
-### Step 3: [Another Change]
+### Step 3: Update Service Registration
 
 **Before:**
-<!-- snippet: migration-before-2 -->
+<!-- snippet: migration-before-startup -->
 <!-- endSnippet -->
 
 **After:**
-<!-- snippet: migration-after-2 -->
+<!-- snippet: migration-after-startup -->
 <!-- endSnippet -->
 
 ## Common Migration Issues
@@ -212,25 +222,27 @@ Add [This Framework]:
 **Solution:** Description and example
 ```
 
-## Snippet Naming Conventions
+## Snippet Naming by Layer
 
-### Hierarchical Names
+Use layer-prefixed naming to clarify where code belongs:
 
-Use consistent, descriptive naming:
-
-| Document | Snippet Pattern | Example |
-|----------|-----------------|---------|
+| Layer | Pattern | Examples |
+|-------|---------|----------|
+| Domain | `{aggregate}-{concept}` | `employee-aggregate`, `employee-created-event`, `email-value-object` |
+| Application | `{feature}-service-{action}` | `employee-service-create`, `employee-service-update` |
+| Infrastructure | `{feature}-repository`, `ef-{config}` | `employee-repository`, `ef-employee-config` |
+| Server | `api-{feature}-{action}`, `startup-{config}` | `api-employees-get`, `startup-di` |
+| Client | `blazor-{component}`, `console-{feature}` | `blazor-employee-form`, `console-main` |
+| Tests | `test-{layer}-{feature}` | `test-domain-employee`, `test-api-integration` |
 | README | `readme-{section}` | `readme-teaser`, `readme-install` |
-| Getting Started | `getting-started-{topic}` | `getting-started-first`, `getting-started-config` |
-| Feature Guides | `{feature}-{topic}` | `methods-oncall`, `properties-value` |
-| API Reference | `api-{class}-{member}` | `api-service-create`, `api-options-configure` |
-| Migration | `migration-{before|after}-{n}` | `migration-before-1`, `migration-after-1` |
+| Getting Started | `getting-started-{topic}` | `getting-started-domain`, `getting-started-startup` |
+| Migration | `migration-{before\|after}-{layer}` | `migration-before-domain`, `migration-after-startup` |
 
 ### Naming Rules
 
 1. Use lowercase with hyphens
 2. Be descriptive but concise
-3. Group by document, then by section
+3. Include layer context in the name
 4. Number sequences when order matters
 
 ## Content Guidelines
@@ -240,7 +252,7 @@ Use consistent, descriptive naming:
 **Do:**
 - Jump straight to code
 - Use technical terminology
-- Show realistic examples
+- Show realistic examples from the reference application
 - Include edge cases
 
 **Don't:**
@@ -252,8 +264,9 @@ Use consistent, descriptive naming:
 ### Code Sample Quality
 
 Every snippet should:
+- Come from the reference application
 - Compile without errors
-- Run as a passing test
+- Run as verified by tests
 - Demonstrate one concept clearly
 - Use realistic (not toy) examples
 
@@ -264,15 +277,23 @@ Every snippet should:
 3. **Guides**: Complete feature coverage
 4. **Reference**: Every option and method
 
-## Placeholder Descriptions
+## Placeholder Context Requirements
 
-When docs-architect creates placeholders, include enough context for docs-code-samples:
+When docs-architect creates placeholders, include layer context for docs-code-samples:
 
 **Good placeholder context:**
 ```markdown
-Show how to configure method returns with a callback that receives the arguments:
+The Employee aggregate validates business rules during creation:
 
-<!-- snippet: methods-oncall-with-args -->
+<!-- snippet: employee-create -->
+<!-- endSnippet -->
+```
+
+**Better placeholder context (explicit layer):**
+```markdown
+In the domain layer, the Employee aggregate validates business rules during creation:
+
+<!-- snippet: employee-aggregate-create -->
 <!-- endSnippet -->
 ```
 
@@ -282,4 +303,7 @@ Show how to configure method returns with a callback that receives the arguments
 <!-- endSnippet -->
 ```
 
-The description above the snippet tells docs-code-samples exactly what to create.
+The description above the snippet tells docs-code-samples:
+1. Which layer of the reference application to implement the code
+2. What functionality the code should demonstrate
+3. What context to include in the snippet

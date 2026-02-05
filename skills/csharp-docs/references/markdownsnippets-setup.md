@@ -4,7 +4,7 @@ MarkdownSnippets is a tool by Simon Cropp that keeps code samples in documentati
 
 ## How It Works
 
-1. Code samples live in C# files with `#region snippet-name` markers
+1. Code samples live in the reference application with `#region snippet-name` markers
 2. Markdown files contain `<!-- snippet: snippet-name -->` placeholders
 3. MarkdownSnippets extracts code from regions and injects into markdown
 4. Running the tool keeps documentation in sync with code changes
@@ -24,7 +24,7 @@ mdsnippets
 
 ### Option 2: NuGet Package for Build Integration
 
-Add to your test/samples project:
+Add to your reference application's Server.WebApi project (or any project that builds):
 
 ```xml
 <ItemGroup>
@@ -78,77 +78,79 @@ Create `mdsnippets.json` in repository root:
 | `ExcludeDirectories` | Directories to skip for snippets | todos, plans, release-notes |
 | `ExcludeMarkdownDirectories` | Markdown dirs to skip | Same as above |
 
-## Sample Project Structure
+## Reference Application Structure
 
-Create `src/docs/samples/Samples.csproj`:
+The reference application is the source for all snippets:
 
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="xunit" Version="2.9.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
-  </ItemGroup>
-
-  <!-- Reference your framework project -->
-  <ItemGroup>
-    <ProjectReference Include="..\..\YourFramework\YourFramework.csproj" />
-  </ItemGroup>
-
-</Project>
+```
+src/docs/reference-app/
+├── ReferenceApp.sln
+├── Domain/                    # Domain layer snippets
+│   ├── Employees/
+│   │   └── Employee.cs        # #region employee-aggregate
+│   └── Shared/
+│       └── EmailAddress.cs    # #region email-value-object
+├── Application/               # Application layer snippets
+│   └── Employees/
+│       └── EmployeeService.cs # #region employee-service-create
+├── Infrastructure/            # Infrastructure layer snippets
+│   └── Persistence/
+│       └── Configurations/
+│           └── EmployeeConfiguration.cs  # #region ef-employee-config
+├── Server.WebApi/             # Server layer snippets
+│   ├── Program.cs             # #region startup-di
+│   └── Controllers/
+│       └── EmployeesController.cs  # #region api-employees-controller
+├── Client.Blazor/             # Blazor snippets (when needed)
+│   └── Pages/
+│       └── EmployeeForm.razor # #region blazor-employee-form
+└── Tests/                     # Test snippets (for testing docs)
+    └── Domain.Tests/
+        └── EmployeeTests.cs   # #region test-employee-aggregate
 ```
 
 ## Writing Snippets
 
-### In C# Sample Files
+### In Reference Application Code
+
+Wrap snippet code with `#region` markers:
 
 ```csharp
-public class GettingStartedSamples
+// Domain/Employees/Employee.cs
+
+public class Employee
 {
-    #region getting-started-basic
-    [Fact]
-    public void BasicUsage()
+    // Code before snippet...
+
+    #region employee-create-method
+    public static Employee Create(string firstName, string lastName, EmailAddress email)
     {
-        var service = new MyService();
-        var result = service.DoSomething();
-        Assert.NotNull(result);
+        var employee = new Employee
+        {
+            Id = EmployeeId.New(),
+            FirstName = firstName,
+            LastName = lastName,
+            Email = email,
+            Status = EmployeeStatus.Active
+        };
+
+        employee.AddDomainEvent(new EmployeeCreatedEvent(employee.Id));
+        return employee;
     }
     #endregion
 
-    #region getting-started-advanced
-    [Fact]
-    public void AdvancedUsage()
-    {
-        var service = new MyService(new Options
-        {
-            EnableFeature = true
-        });
-        var result = service.DoSomethingAdvanced();
-        Assert.Equal("expected", result);
-    }
-    #endregion
+    // Code after snippet...
 }
 ```
 
 ### In Markdown Documentation
 
 ```markdown
-## Basic Usage
+## Creating an Employee
 
-<!-- snippet: getting-started-basic -->
-<!-- endSnippet -->
+The Employee aggregate enforces business rules during creation:
 
-## Advanced Usage
-
-<!-- snippet: getting-started-advanced -->
+<!-- snippet: employee-create-method -->
 <!-- endSnippet -->
 ```
 
@@ -157,33 +159,25 @@ public class GettingStartedSamples
 The markdown file becomes:
 
 ```markdown
-## Basic Usage
+## Creating an Employee
 
-<!-- snippet: getting-started-basic -->
+The Employee aggregate enforces business rules during creation:
+
+<!-- snippet: employee-create-method -->
 ```cs
-[Fact]
-public void BasicUsage()
+public static Employee Create(string firstName, string lastName, EmailAddress email)
 {
-    var service = new MyService();
-    var result = service.DoSomething();
-    Assert.NotNull(result);
-}
-```
-<!-- endSnippet -->
-
-## Advanced Usage
-
-<!-- snippet: getting-started-advanced -->
-```cs
-[Fact]
-public void AdvancedUsage()
-{
-    var service = new MyService(new Options
+    var employee = new Employee
     {
-        EnableFeature = true
-    });
-    var result = service.DoSomethingAdvanced();
-    Assert.Equal("expected", result);
+        Id = EmployeeId.New(),
+        FirstName = firstName,
+        LastName = lastName,
+        Email = email,
+        Status = EmployeeStatus.Active
+    };
+
+    employee.AddDomainEvent(new EmployeeCreatedEvent(employee.Id));
+    return employee;
 }
 ```
 <!-- endSnippet -->
@@ -192,9 +186,9 @@ public void AdvancedUsage()
 ## Workflow
 
 1. **docs-architect** creates documentation with empty snippet placeholders
-2. **docs-code-samples** creates sample code with `#region` markers
+2. **docs-code-samples** implements code in the reference application with `#region` markers
 3. Run `mdsnippets` to sync code into documentation
-4. Commit both documentation and sample code changes
+4. Commit both documentation and reference application changes
 
 ## Troubleshooting
 
@@ -202,14 +196,14 @@ public void AdvancedUsage()
 
 Error: `Snippet 'name' not found`
 
-- Verify `#region name` exists in a C# file
+- Verify `#region name` exists in the reference application
 - Check spelling matches exactly (case-sensitive)
-- Ensure sample file is in a scanned directory
+- Ensure the file is in a scanned directory (not excluded)
 
 ### Snippet Not Updated
 
 - Run `mdsnippets` manually to force update
-- Check `ExcludeDirectories` doesn't exclude your samples
+- Check `ExcludeDirectories` doesn't exclude your source
 - Verify the snippet markers are formatted correctly
 
 ### Build Integration Not Running
@@ -217,3 +211,14 @@ Error: `Snippet 'name' not found`
 - Ensure `MarkdownSnippets.MsBuild` package is installed
 - Check it has `PrivateAssets="all"` attribute
 - Verify build output for MarkdownSnippets messages
+
+## Snippet Naming by Layer
+
+| Layer | Pattern | Examples |
+|-------|---------|----------|
+| Domain | `{aggregate}-{concept}` | `employee-aggregate`, `email-value-object` |
+| Application | `{feature}-service-{action}` | `employee-service-create`, `employee-service-update` |
+| Infrastructure | `{feature}-repository`, `ef-{config}` | `employee-repository`, `ef-employee-config` |
+| Server | `api-{feature}-{action}`, `startup-{config}` | `api-employees-get`, `startup-di` |
+| Client | `blazor-{component}`, `console-{feature}` | `blazor-employee-form`, `console-main` |
+| Tests | `test-{layer}-{feature}` | `test-domain-employee`, `test-api-integration` |

@@ -15,10 +15,6 @@ hooks/__pycache__/
 !commands/
 !commands/**
 
-!plugins/
-!plugins/**
-plugins/cache
-
 # And these files
 !.gitignore
 !README.md

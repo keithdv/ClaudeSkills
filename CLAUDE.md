@@ -145,9 +145,9 @@ env:
 
 #### Source-Generated Files
 
-**Include source-generated files in git** so changes can be tracked and compared.
+**Exclude source-generated files from git.** Generated files should not be tracked in version control.
 
 - Output generated files to a `Generated/` folder within each project
-- Do NOT gitignore these files—commit them to the repository
-- This allows reviewing generator output changes in diffs and PRs
-- If file paths become too long (Windows path limit issues), ask for guidance
+- Add `**/Generated/` to .gitignore to exclude these files
+- Tests verify that generator output is correct
+- PRs rely on tests rather than reviewing generated code diffs
