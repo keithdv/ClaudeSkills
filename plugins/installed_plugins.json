@@ -4,50 +4,50 @@
     "context7@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/context7/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/context7/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-24T23:55:34.017Z",
-        "lastUpdated": "2026-01-30T16:44:49.673Z",
+        "lastUpdated": "2026-02-05T22:27:20.239Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ],
     "feature-dev@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/feature-dev/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/feature-dev/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-24T23:55:34.017Z",
-        "lastUpdated": "2026-01-30T16:44:49.715Z",
+        "lastUpdated": "2026-02-05T22:27:20.259Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ],
     "commit-commands@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/commit-commands/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/commit-commands/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-24T23:55:34.017Z",
-        "lastUpdated": "2026-01-30T16:44:49.725Z",
+        "lastUpdated": "2026-02-05T22:27:20.249Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ],
     "agent-sdk-dev@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/agent-sdk-dev/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/agent-sdk-dev/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-24T23:55:34.218Z",
-        "lastUpdated": "2026-01-30T16:44:49.737Z",
+        "lastUpdated": "2026-02-05T22:27:20.301Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ],
     "plugin-dev@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/plugin-dev/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/plugin-dev/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-24T23:55:34.269Z",
-        "lastUpdated": "2026-01-30T16:44:49.771Z",
+        "lastUpdated": "2026-02-05T22:27:20.291Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ],
@@ -84,10 +84,10 @@
     "code-review@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/code-review/27d2b86d72da",
-        "version": "27d2b86d72da",
+        "installPath": "/home/keithvoels/.claude/plugins/cache/claude-plugins-official/code-review/236752ad9ab3",
+        "version": "236752ad9ab3",
         "installedAt": "2026-01-27T02:59:45.339Z",
-        "lastUpdated": "2026-01-30T16:44:49.782Z",
+        "lastUpdated": "2026-02-05T22:27:20.311Z",
         "gitCommitSha": "e30768372b4150ca1bc0839d93283e8edc30d60d"
       }
     ]
