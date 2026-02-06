@@ -1,11 +1,11 @@
 ---
 name: project-todos
-description: Use when the user asks to "create a todo", "add a plan", "track this work", "document this task", "complete a todo", or mentions managing project todos and plans. Provides the structured workflow for creating, managing, linking, and completing todo and plan markdown files in the docs/todos/ and docs/plans/ directories.
+description: Use when the user asks to "create a todo", "add a plan", "track this work", "document this task", "complete a todo", or mentions managing project todos and plans. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration (architect, developer, documentation) through the full lifecycle.
 ---
 
-# Project Todos and Plans Workflow
+# Project Todos, Plans, and Agent Workflow
 
-Manage significant project work using structured markdown files for todos and plans. This skill provides the complete workflow for creating, linking, and completing project documentation.
+Manage significant project work using structured markdown files and coordinate agent collaboration through the full design-review-implement-document lifecycle.
 
 ## When to Use This Workflow
 
@@ -17,8 +17,10 @@ Create a todo when:
 
 Do NOT create a todo for:
 - Trivial tasks or quick fixes
-- Work already tracked in session-level TodoWrite (the in-conversation task list)
+- Work already tracked in session-level task lists
 - Simple documentation updates
+
+---
 
 ## Directory Structure
 
@@ -34,524 +36,324 @@ docs/
         └── {plan-name}.md       # Completed plans
 ```
 
-**Important**: All paths in this skill are relative to the project root.
+All paths are relative to the project root.
+
+---
+
+## Agent Collaboration Workflow
+
+This is the full lifecycle for significant work. Each phase uses the appropriate agent.
+
+### Prerequisites
+
+Before starting the workflow, check for project-specific resources:
+
+1. **Architect agent** - Check `.claude/agents/` for a project-specific architect agent. Use it if found; otherwise use a general-purpose agent for design work.
+2. **Developer agent** - Check `.claude/agents/` for a project-specific developer agent. Use it if found; otherwise use a general-purpose agent for review and implementation.
+3. **Documentation agent** - Check `.claude/agents/` for a documentation-specific agent.
+4. **Domain skill** - Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
+5. **Design projects** - Check if the project has design/stub projects (e.g., `src/Design/`) used for compilation verification. The architect agent should use these to verify scope claims.
+6. **Documentation samples** - Check if the project has documentation sample projects. The documentation agent should use these when updating docs.
+
+### Phase 1: Create Todo
+
+1. Gather information from the user (title, priority, problem, solution)
+2. Create the todo file in `docs/todos/` using the todo template
+3. Set status to "In Progress"
+
+### Phase 2: Architect Review & Plan Creation
+
+Invoke the **architect agent** with:
+- The todo file path
+- Any domain skill references found in prerequisites
+- Instruction: "Review this todo, ask clarifying questions if needed, then create an implementation plan"
+
+The architect agent should:
+1. Read the todo to understand the problem and solution
+2. Explore the codebase to understand current architecture
+3. Ask the user clarifying questions about requirements or approach
+4. Create a plan in `docs/plans/` using the plan template
+5. **If design projects exist**: verify scope claims by writing compilable code. Leave failing code as acceptance criteria for features that need implementation.
+6. Link the plan to the todo (update both files)
+7. Set plan status to "Draft (Architect)"
+8. Hand off to developer review
+
+### Phase 3: Developer Review
+
+Invoke the **developer agent** with:
+- The plan file path
+- The todo file path
+- Instruction: "Review this plan for completeness, correctness, and implementability. Raise concerns or approve."
+
+The developer agent should:
+1. Read and understand the plan
+2. Investigate the codebase to verify plan claims
+3. **If the architect provided design project verification**: confirm the evidence exists and makes sense
+4. **If the architect did NOT provide design project verification** (and design projects exist): reject the plan back to the architect
+5. Check for gaps, ambiguities, edge cases, and risks
+6. Render a verdict: **Concerns Raised** or **Approved**
+
+### Phase 4: Clarification Loop
+
+If the developer raises concerns:
+1. Present concerns to the user
+2. Ask the user: "Would you like to clarify these yourself, or should the architect agent address them?"
+3. Based on user's choice:
+   - **User clarifies**: Update the plan with user's answers, return to Phase 3
+   - **Architect clarifies**: Invoke architect agent with the concerns, then return to Phase 3
+4. Repeat until the developer approves
+
+When the developer approves:
+- Developer creates an **Implementation Contract** in the plan (scope, out-of-scope, verification gates)
+- If design projects have failing acceptance criteria code, list them in the contract
+- Set plan status to "Ready for Implementation"
+
+### Phase 5: Implementation
+
+Invoke the **developer agent** for implementation with:
+- The plan file path (with implementation contract)
+- Instruction: "Implement the approved plan following the implementation contract"
+
+**Fresh agent strategy**: Evaluate which implementation phases would benefit from fresh agents. Consider using fresh agents for phases that are:
+- Independent of prior implementation context
+- Parallelizable with other phases
+- Large enough to benefit from a clean context window
+- Focused on a single, well-defined deliverable
+
+The developer agent should:
+1. Work through the implementation contract checklist
+2. Run tests at each verification gate
+3. **STOP and report** if out-of-scope tests fail or architectural contradictions are discovered
+4. Collect evidence (test output, generated code samples)
+
+### Phase 6: Documentation
+
+Invoke the **documentation agent** (if one exists) for documentation phases:
+- Updated documentation files
+- Documentation samples
+- Skill updates (if the project has domain skills)
+
+If no documentation agent exists, the developer agent handles documentation.
+
+### Phase 7: Completion
+
+1. Verify all implementation contract items are checked
+2. Verify all tests pass
+3. If design projects exist, verify they compile
+4. Update todo status to "Complete"
+5. Fill in the Results/Conclusions section
+6. Move todo and associated plans to `completed/` directories
+7. Update plan statuses to "Complete"
+
+---
 
 ## Creating a Todo
 
-### Step 1: Gather Information
+### Filename Convention
 
-When the user requests a todo, gather:
-- **Title**: Clear, concise description of the work
-- **Priority**: High, Medium, or Low
-- **Problem**: What problem are we solving?
-- **Solution**: High-level approach (can be refined later)
-
-You can ask the user directly or interpret from their description.
-
-### Step 2: Generate Filename
-
-Create a filename from the title:
-- Convert to lowercase
+- Convert title to lowercase
 - Replace spaces with hyphens
 - Remove special characters
-- Keep it concise (2-5 words)
+- Keep concise (2-5 words)
 - **No dates** in filename
 
-**Examples:**
-- "Fix Authentication Bug" → `fix-authentication.md`
-- "Add Dark Mode Support" → `add-dark-mode.md`
-- "Refactor API Layer" → `refactor-api-layer.md`
+Examples: `fix-authentication.md`, `add-dark-mode.md`, `refactor-api-layer.md`
 
-### Step 3: Create Directory if Needed
-
-Before creating the todo, ensure the directory exists:
-
-```bash
-mkdir -p docs/todos
-```
-
-### Step 4: Write the Todo File
+### Write the Todo File
 
 Use the template from `references/todo-template.md`. Fill in:
 
 - **Title**: The work title
-- **Status**: "In Progress" (default for new todos)
+- **Status**: "In Progress" (default)
 - **Priority**: High, Medium, or Low
 - **Created**: Today's date (YYYY-MM-DD)
-- **Last Updated**: Same as Created initially
+- **Last Updated**: Same as Created
 - **Problem**: The problem statement
-- **Solution**: The high-level approach
-- **Plans**: Leave empty initially (will be populated when plans are created)
-- **Tasks**: Initial task list if known, or placeholder
-- **Progress Log**: Empty initially
-- **Results / Conclusions**: Empty initially
+- **Solution**: High-level approach
+- **Plans**: Leave empty (populated when plans are created)
+- **Tasks**: Initial task list if known
+- **Progress Log**: Empty
+- **Results / Conclusions**: Empty
 
-**File location**: `docs/todos/{filename}.md`
-
-### Example
-
-```markdown
-# Fix Authentication Bug
-
-**Status:** In Progress
-**Priority:** High
-**Created:** 2026-01-18
-**Last Updated:** 2026-01-18
+File location: `docs/todos/{filename}.md`
 
 ---
-
-## Problem
-
-Users are being logged out randomly during active sessions. Session tokens appear to expire prematurely.
-
-## Solution
-
-Investigate session management logic, verify token expiration settings, and implement proper token refresh mechanism.
-
----
-
-## Plans
-
----
-
-## Tasks
-
-- [ ] Reproduce the issue
-- [ ] Review session management code
-- [ ] Check token expiration configuration
-- [ ] Implement token refresh
-- [ ] Test fix
-
----
-
-## Progress Log
-
----
-
-## Results / Conclusions
-```
 
 ## Creating a Plan
 
-Plans are created when working on a todo requires design or detailed implementation planning. This typically happens when using skills like `/brainstorm` or `/write-plan`, or when starting complex implementation work.
+### Filename Convention
 
-### Step 1: Determine Plan Purpose
+Same rules as todos. Be descriptive of the plan's purpose.
 
-Identify what the plan will cover:
-- Design document (architecture, approach, trade-offs)
-- Implementation plan (steps, file changes, testing strategy)
-- Investigation findings (root cause analysis, research results)
+Examples: `authentication-fix-design.md`, `dark-mode-implementation.md`
 
-### Step 2: Generate Filename
-
-Create a filename that describes the plan:
-- Convert to lowercase
-- Replace spaces with hyphens
-- Be descriptive but concise
-- **No dates** in filename
-
-**Examples:**
-- "Authentication Fix Design" → `authentication-fix-design.md`
-- "Dark Mode Implementation Plan" → `dark-mode-implementation.md`
-- "API Refactoring Strategy" → `api-refactoring-strategy.md`
-
-### Step 3: Create Directory if Needed
-
-```bash
-mkdir -p docs/plans
-```
-
-### Step 4: Write the Plan File
+### Write the Plan File
 
 Use the template from `references/plan-template.md`. Fill in:
 
 - **Title**: Descriptive plan title
-- **Date**: Today's date (YYYY-MM-DD)
-- **Related Todo**: Relative link to the parent todo file
-- **Status**: "Draft" (default for new plans)
-- **Last Updated**: Same as Date initially
-- **Overview**: Brief description
-- **Approach**: High-level strategy
-- **Design**: Detailed design (architecture, patterns, etc.)
-- **Implementation Steps**: Specific steps to execute
-- **Acceptance Criteria**: How to know when it's complete
-- **Dependencies**: Prerequisites or external factors
-- **Risks / Considerations**: Trade-offs and potential issues
+- **Date**: Today's date
+- **Related Todo**: Relative link to parent todo
+- **Status**: "Draft" (default)
+- **Last Updated**: Same as Date
+- Core sections: Overview, Approach, Design, Implementation Steps, Acceptance Criteria, Dependencies, Risks
 
-**New Template Sections (for workflow integration):**
+### Plan Workflow Sections
 
-Plans created by knockoff-architect should include these additional sections:
+Plans that go through the agent collaboration workflow should include these additional sections:
 
 ```markdown
-## Architectural Verification
-[Architect completes this checklist before handoff]
+---
 
-**Three Patterns Analysis:**
-- Standalone: [How this applies or N/A]
-- Inline Interface: [How this applies or N/A]
-- Inline Class: [How this applies or N/A]
+## Architectural Verification
+
+[Architect completes before handoff]
+
+**Scope Table:** [Pattern/feature matrix showing what's affected]
+
+**Design Project Verification:** [If design projects exist]
+- [Feature/Pattern]: Verified | Needs Implementation
+  - Evidence: [file path or compiler error]
 
 **Breaking Changes:** Yes/No - [Explanation]
-
-**Pattern Consistency:** [How design follows existing patterns or intentional deviation]
 
 **Codebase Analysis:** [Files examined, patterns found]
 
 ---
 
 ## Developer Review
-[Developer adds concerns/questions here during review phase]
 
-**Status:** [Not Started / Under Review / Concerns Raised / Approved]
+**Status:** Not Started | Under Review | Concerns Raised | Approved
+**Reviewed:** [date]
 
-**Concerns:** [List any issues found, or "None - ready for implementation"]
+**Concerns:** [List issues, or "None - ready for implementation"]
 
 ---
 
 ## Implementation Contract
-[Developer fills before starting implementation]
 
-**In Scope:**
-- [ ] File 1: Specific changes
-- [ ] File 2: Specific changes
-- [ ] Test cases to add
+**Created:** [date]
+**Approved by:** [developer agent]
 
-**Out of Scope:**
-[Explicitly list what will NOT be changed]
+### Acceptance Criteria
+
+[If design projects have failing code, list them here as acceptance criteria]
+
+### In Scope
+
+- [ ] Specific change 1
+- [ ] Specific change 2
+- [ ] Test to add
+- [ ] Checkpoint: Run tests after X
+
+### Out of Scope
+
+- [Feature X - reason]
+
+### Verification Gates
+
+1. After Phase 1: [What must be true]
+2. Final: All tests pass, design projects compile
+
+### Stop Conditions
+
+If any occur, STOP and report:
+- Out-of-scope test fails
+- Architectural contradiction discovered
 
 ---
 
 ## Implementation Progress
 
+**Started:** [date]
+
 **Phase 1:** [Name]
 - [ ] Step 1
 - [ ] Step 2
-- [ ] **Verification**: [Test results, evidence]
-
-[Continue for each phase]
+- [ ] **Verification**: [results]
 
 ---
 
 ## Completion Evidence
-[Required before marking complete]
 
-- **Tests Passing:** [Output or screenshot]
-- **Generated Code Sample:** [Snippet showing feature works]
-- **All Checklist Items:** [Confirmed 100% complete]
+- **Tests Passing:** [Output or summary]
+- **Design Projects Compile:** [Yes/No/N/A]
+- **All Contract Items:** [Confirmed complete]
 ```
 
-**Plan Status Values:**
+### Plan Status Values
 
-Use these status values to track workflow progress:
-- `Draft` - Initial plan creation (default)
+- `Draft` - Initial creation
 - `Draft (Architect)` - Architect working on design
-- `Under Review (Developer)` - Developer reviewing architect's design
-- `Concerns Raised` - Developer found issues, awaiting user decision
-- `Ready for Implementation` - Approved, implementation contract created
-- `In Progress` - Developer implementing
-- `Complete` - All evidence provided, moved to completed/
+- `Under Review (Developer)` - Developer reviewing
+- `Concerns Raised` - Developer found issues
+- `Ready for Implementation` - Approved, contract created
+- `In Progress` - Implementation underway
+- `Complete` - Done, moved to completed/
 
-**Status field location:** In the YAML-style header at the top of plan files.
+### Link Plan to Todo
 
-**File location**: `docs/plans/{filename}.md`
+**Critical**: Update BOTH files:
 
-### Step 5: Link Plan to Todo
+1. In the plan: `**Related Todo:** [Title](../todos/{todo-filename}.md)`
+2. In the todo: Add plan link to "Plans" section: `- [Plan Title](../plans/{plan-filename}.md)`
+3. Update todo's Last Updated date
 
-**Critical**: When creating a plan, you must update BOTH files:
-
-1. **In the plan file**: Add relative link to todo in "Related Todo" field
-   ```markdown
-   **Related Todo:** [Fix Authentication Bug](../todos/fix-authentication.md)
-   ```
-
-2. **In the todo file**: Add plan link to "Plans" section
-   ```markdown
-   ## Plans
-
-   - [Authentication Fix Design](../plans/authentication-fix-design.md)
-   ```
-
-3. **Update todo's Last Updated date** to today
-
-### Link Format
-
-**Always use relative paths:**
-- From plan to todo: `../todos/{todo-filename}.md`
-- From todo to plan: `../plans/{plan-filename}.md`
-
-**Never use:**
-- Absolute paths
-- URLs
-- Full file system paths
-
-### Example Plan
-
-```markdown
-# Authentication Fix Design
-
-**Date:** 2026-01-18
-**Related Todo:** [Fix Authentication Bug](../todos/fix-authentication.md)
-**Status:** Draft
-**Last Updated:** 2026-01-18
+Always use relative paths (`../todos/`, `../plans/`).
 
 ---
-
-## Overview
-
-Design for fixing premature session expiration by implementing JWT token refresh mechanism.
-
----
-
-## Approach
-
-Implement sliding expiration with short-lived access tokens and longer-lived refresh tokens. Client automatically refreshes tokens before expiration.
-
----
-
-## Design
-
-**Token Structure:**
-- Access token: 15 minutes expiration
-- Refresh token: 7 days expiration
-- Both stored as httpOnly cookies
-
-**Refresh Flow:**
-1. Client detects access token near expiration
-2. Sends refresh request with refresh token
-3. Server validates refresh token
-4. Issues new access token and refresh token pair
-5. Client continues with new tokens
-
-**File Changes:**
-- `auth/tokens.js`: Add refresh token generation
-- `middleware/auth.js`: Add token validation with refresh check
-- `api/auth/refresh.js`: New endpoint for token refresh
-
----
-
-## Implementation Steps
-
-1. Create refresh token model and database schema
-2. Update login endpoint to issue both tokens
-3. Implement /auth/refresh endpoint
-4. Add client-side token expiration detection
-5. Add automatic refresh logic to API client
-6. Update logout to clear both tokens
-7. Add tests for refresh flow
-
----
-
-## Acceptance Criteria
-
-- [ ] Users stay logged in during active sessions
-- [ ] Tokens refresh automatically before expiration
-- [ ] Logout clears all tokens
-- [ ] All tests pass
-
----
-
-## Dependencies
-
-- JWT library (already installed)
-- Database migration for refresh_tokens table
-
----
-
-## Risks / Considerations
-
-- Refresh token storage security (using httpOnly cookies)
-- Token rotation to prevent replay attacks
-- Handling clock skew between client and server
-```
-
-## Updating Last Updated Dates
-
-**Always update the Last Updated field when:**
-- Modifying any content in a todo or plan
-- Adding a new plan link to a todo
-- Updating status
-- Adding progress log entries
-
-**How to update:**
-1. Find the "Last Updated" field in the YAML header
-2. Replace with today's date (YYYY-MM-DD)
-
-**Example:**
-```markdown
-**Last Updated:** 2026-01-18
-```
 
 ## Completing Todos
 
-When work on a todo is complete:
+1. Update todo status to "Complete" and Last Updated date
+2. Fill Results/Conclusions section
+3. Find associated plans: search `docs/plans/` for links to this todo
+4. Move todo to `docs/todos/completed/`
+5. Move each associated plan to `docs/plans/completed/`
+6. Update each plan's status to "Complete" and Last Updated date
 
-### Step 1: Update Todo Status
-
-Change the todo's status to "Complete" and update Last Updated date.
-
-### Step 2: Fill Results Section
-
-Complete the "Results / Conclusions" section with:
-- What was accomplished
-- Key decisions made
-- Lessons learned
-- Final outcomes
-
-### Step 3: Find Associated Plans
-
-Search all plan files in `docs/plans/` for links to this todo. Look for the todo filename in the "Related Todo" field.
-
-**How to find plans:**
-```bash
-grep -l "todos/{todo-filename}.md" docs/plans/*.md
-```
-
-### Step 4: Move Todo to Completed
-
-```bash
-mkdir -p docs/todos/completed
-mv docs/todos/{todo-filename}.md docs/todos/completed/
-```
-
-### Step 5: Move Plans to Completed
-
-For each associated plan:
-```bash
-mkdir -p docs/plans/completed
-mv docs/plans/{plan-filename}.md docs/plans/completed/
-```
-
-### Step 6: Update Plan Statuses
-
-Update each moved plan's status to "Complete" and Last Updated date.
-
-**Important**: When you move files to completed/, the relative links still work because both todos and plans move the same depth level.
+---
 
 ## Common Workflows
 
-### Creating a Todo Only
+### Todo Only
 
-User says: "Create a todo to fix the authentication bug"
+1. Create todo file with template
+2. Inform user of file location
 
-1. Gather information (or interpret from description)
-2. Generate filename: `fix-authentication.md`
-3. Create `docs/todos/` if needed
-4. Write todo file with template
-5. Inform user: "Created todo at docs/todos/fix-authentication.md"
+### Todo with Full Agent Workflow
 
-### Creating a Todo with Initial Plan
-
-User says: "Create a todo and plan for adding dark mode"
-
-1. Create the todo first (as above)
-2. Generate plan filename: `dark-mode-implementation.md`
-3. Create `docs/plans/` if needed
-4. Write plan file with template
-5. Link plan to todo (update both files)
-6. Update todo's Last Updated date
-7. Inform user: "Created todo and plan at docs/todos/add-dark-mode.md and docs/plans/dark-mode-implementation.md"
+1. Create todo (Phase 1)
+2. Invoke architect agent (Phase 2)
+3. Developer reviews (Phase 3)
+4. Clarification loop if needed (Phase 4)
+5. Implementation (Phase 5)
+6. Documentation (Phase 6)
+7. Completion (Phase 7)
 
 ### Adding a Plan to Existing Todo
 
-User is working on a todo and creates a plan (e.g., via `/write-plan`):
+1. Read existing todo for context
+2. Write plan file with template
+3. Link plan to todo (both files)
+4. Continue with Phase 3 (developer review)
 
-1. Read the existing todo file to get context
-2. Generate plan filename from plan purpose
-3. Write plan file with template
-4. Add relative link to todo in plan's "Related Todo" field
-5. Add plan link to todo's "Plans" section
-6. Update todo's Last Updated date
-7. Inform user of both file locations
-
-### Completing a Todo
-
-User says: "Complete the fix-authentication todo"
-
-1. Read the todo file
-2. Update Status to "Complete"
-3. Update Last Updated date
-4. Ask user for Results/Conclusions (or summarize from progress log)
-5. Search for associated plans by grepping for the todo filename
-6. Move todo to `docs/todos/completed/`
-7. Move each associated plan to `docs/plans/completed/`
-8. Update each plan's Status to "Complete" and Last Updated date
-9. Inform user of completion and what was moved
+---
 
 ## Best Practices
 
-1. **File naming**: Keep filenames concise and descriptive. No dates.
-
-2. **Status accuracy**: Update status fields promptly:
-   - "In Progress" for active work
-   - "Blocked" when waiting on external factors
-   - "Complete" when fully done
-
-3. **Progress logging**: Update progress log as work happens, not just at the end. Helps resume context in new sessions.
-
-4. **Link maintenance**: Always update both files when creating links. Check that relative paths are correct.
-
-5. **One todo per file**: Don't combine multiple todos in one file.
-
-6. **Multiple plans OK**: A todo can have multiple plans (design, implementation, investigation, etc.)
-
-7. **Plan evolution**: It's normal to update plans as work progresses. Keep the Last Updated field current.
-
-8. **Completed directory**: Only move to completed/ when truly done. In-progress work stays in the main directory.
+1. **File naming**: Concise and descriptive. No dates in filenames.
+2. **Status accuracy**: Update status fields promptly as workflow progresses.
+3. **Progress logging**: Update progress log as work happens, not just at the end.
+4. **Link maintenance**: Always update both files when creating links.
+5. **One todo per file**: Don't combine multiple todos.
+6. **Multiple plans OK**: A todo can have multiple plans.
+7. **Last Updated**: Always update when modifying any content.
+8. **Agent handoffs**: Each agent transition should reference the file paths being handed off.
+9. **Design project verification**: When the project has design/stub projects, the compiler is the source of truth for scope claims. Grepping code is secondary.
+10. **Fresh agents**: Evaluate at implementation time whether phases benefit from fresh agent context. Don't force it; let the orchestrator decide based on phase independence and context size.
 
 ## Reference Files
 
 - Todo template: `references/todo-template.md`
 - Plan template: `references/plan-template.md`
-
-Use these templates as the source of truth for file structure.
-
-## Summary
-
-**Key points:**
-- Todos track significant work in `docs/todos/`
-- Plans provide detailed designs in `docs/plans/`
-- Link plans to todos using relative paths (update both files)
-- Update "Last Updated" dates when modifying files
-- Move completed work to `/completed` subdirectories
-- Use Write tool to create files, Edit tool to update them
-- No dates in filenames, only in YAML headers
-- Auto-generate filenames from titles using kebab-case
-
----
-
-## For Architects (knockoff-architect agent)
-
-When creating or enhancing a plan, you must:
-
-1. **Complete the Architectural Verification Checklist** (see below)
-2. **Use project-todos skill for structure** - templates, file paths, linking
-3. **Apply your architectural expertise for content** - design decisions, trade-offs
-4. **Document codebase analysis** - which files you examined, patterns found
-
-### Architectural Verification Checklist
-
-Before handing off to developer, verify:
-- [ ] All three patterns analyzed (Standalone, Inline Interface, Inline Class)
-- [ ] Breaking changes assessment completed
-- [ ] Pattern consistency check (follows or intentionally deviates)
-- [ ] Diagnostic requirements identified
-- [ ] Test strategy defined
-- [ ] Edge cases documented
-- [ ] Codebase deep-dive completed (document files examined)
-
-## For Developers (knockoff-developer agent)
-
-When reviewing and implementing a plan, you must:
-
-1. **Review Phase**: Analyze architect's design for completeness
-2. **Concern Documentation**: If issues found, document in "Developer Review" section
-3. **Implementation Contract**: Before coding, list exactly what will be implemented
-4. **Checklist-Driven**: Every file change and test is a checklist item
-5. **Milestone Verification**: Run tests and verify after each phase
-6. **Evidence-Based Completion**: Provide proof (test output, code snippets)
-
-### When to STOP and Ask User
-
-- **ALWAYS STOP**: Out-of-scope test failures
-- **ALWAYS STOP**: Architectural discoveries that contradict the design
-- **Document and continue**: Minor implementation adjustments (note in progress log)

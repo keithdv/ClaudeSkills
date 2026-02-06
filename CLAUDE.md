@@ -5,11 +5,6 @@
 - **STOP and ask** before modifying out-of-scope tests
 - **STOP and ask** before using reflection
 
-##### Folder Structure
-- `docs/` - Documentation as markdown files
-- `docs/todos/` - Project todos (use `/project-todos` skill)
-- `docs/plans/` - Design documents (use `/project-todos` skill)
-- `docs/release-notes/` - Release notes (see template below)
 ---
 
 #### Existing Tests Are Sacred - Never Gut Them
@@ -141,13 +136,3 @@ env:
 - `NuGetAudit`: true (security scanning)
 - `LangVersion`: preview
 
----
-
-#### Source-Generated Files
-
-**Exclude source-generated files from git.** Generated files should not be tracked in version control.
-
-- Output generated files to a `Generated/` folder within each project
-- Add `**/Generated/` to .gitignore to exclude these files
-- Tests verify that generator output is correct
-- PRs rely on tests rather than reviewing generated code diffs
