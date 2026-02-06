@@ -2,7 +2,7 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Complete
+**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Complete
 **Last Updated:** YYYY-MM-DD
 
 ---
@@ -139,9 +139,31 @@ If any occur, STOP and report:
 
 ## Completion Evidence
 
-**Completed:** [date]
+[Developer fills this section, then sets status to "Awaiting Verification" and STOPS.]
 
-- **Tests Passing:** [Output or summary]
+**Reported:** [date]
+
+- **Tests Passing:** [Output or summary — report ALL failures, do not classify any as "pre-existing"]
 - **Design Projects Compile:** [Yes/No/N/A]
 - **All Contract Items:** [Confirmed 100% complete]
 - **Documentation Updated:** [Yes/No/N/A]
+
+---
+
+## Architect Verification
+
+[Architect fills this section after independently verifying the developer's work.]
+
+**Verified:** [date]
+**Verdict:** VERIFIED | SENT BACK
+
+**Independent test results:**
+- Design.Stubs: [Build result]
+- Design.Tests: [X passed, Y failed]
+- Production code: [Build result]
+- Documentation.Samples: [Build result]
+- All tests: [X passed, Y failed]
+
+**Design match:** [Does the implementation match the original plan?]
+
+**Issues found:** [List any issues, or "None"]

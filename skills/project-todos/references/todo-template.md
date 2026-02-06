@@ -40,6 +40,19 @@
 
 ---
 
+## Completion Verification
+
+Before marking this todo as Complete, verify:
+
+- [ ] Design project builds successfully
+- [ ] Design project tests pass
+
+**Verification results:**
+- Design build: [Pending]
+- Design tests: [Pending]
+
+---
+
 ## Results / Conclusions
 
 [What was learned? What decisions were made?]

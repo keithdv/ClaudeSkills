@@ -125,8 +125,30 @@ The developer agent should:
 2. Run tests at each verification gate
 3. **STOP and report** if out-of-scope tests fail or architectural contradictions are discovered
 4. Collect evidence (test output, generated code samples)
+5. **When finished**: Write "Implementation Progress" and "Completion Evidence" sections in the plan, set plan status to "Awaiting Verification", then **STOP**. Do NOT mark the todo or plan as Complete.
 
-### Phase 6: Documentation
+### Phase 6: Architect Verification (Mandatory)
+
+**The developer may NOT mark work as Complete. A different agent must verify.**
+
+Invoke the **architect agent** with:
+- The plan file path
+- The todo file path
+- Instruction: "Perform post-implementation verification of the completed work. The developer reports it is done. Independently verify."
+
+The architect agent should:
+1. Read the plan's "Completion Evidence" section to understand what the developer claims
+2. **Independently run all builds and tests** — do NOT trust the developer's reported results
+3. **Check EVERY test result** — zero failures allowed. If any test fails, the work is NOT complete, even if the developer classified failures as "pre-existing"
+4. Verify the implementation matches the original design (compare generated code against the plan's expected patterns)
+5. If design projects exist, verify they compile
+6. Render a verdict:
+   - **VERIFIED**: All builds pass, all tests pass, implementation matches design → proceed to Phase 8
+   - **SENT BACK**: Failures found → document issues in "Architect Verification" section, set plan status to "In Progress", report to orchestrator for developer to fix
+
+**Critical rule**: Any test failure — even one the developer classified as "pre-existing" — must be reported. Only the user can decide whether a failure is acceptable.
+
+### Phase 7: Documentation
 
 Invoke the **documentation agent** (if one exists) for documentation phases:
 - Updated documentation files
@@ -135,15 +157,15 @@ Invoke the **documentation agent** (if one exists) for documentation phases:
 
 If no documentation agent exists, the developer agent handles documentation.
 
-### Phase 7: Completion
+### Phase 8: Completion
 
-1. Verify all implementation contract items are checked
-2. Verify all tests pass
-3. If design projects exist, verify they compile
-4. Update todo status to "Complete"
-5. Fill in the Results/Conclusions section
-6. Move todo and associated plans to `completed/` directories
-7. Update plan statuses to "Complete"
+**Only after the architect has VERIFIED the work in Phase 6.**
+
+1. Verify architect verification verdict is "VERIFIED"
+2. Update todo status to "Complete" and Last Updated date
+3. Fill in the Results/Conclusions section
+4. Move todo and associated plans to `completed/` directories
+5. Update plan statuses to "Complete"
 
 ---
 
@@ -289,7 +311,9 @@ If any occur, STOP and report:
 - `Concerns Raised` - Developer found issues
 - `Ready for Implementation` - Approved, contract created
 - `In Progress` - Implementation underway
-- `Complete` - Done, moved to completed/
+- `Awaiting Verification` - Developer reports done, architect must verify
+- `Sent Back` - Architect verification failed, developer must fix
+- `Complete` - Architect verified, moved to completed/
 
 ### Link Plan to Todo
 
@@ -328,8 +352,9 @@ Always use relative paths (`../todos/`, `../plans/`).
 3. Developer reviews (Phase 3)
 4. Clarification loop if needed (Phase 4)
 5. Implementation (Phase 5)
-6. Documentation (Phase 6)
-7. Completion (Phase 7)
+6. Architect verification (Phase 6) — developer may NOT self-certify
+7. Documentation (Phase 7)
+8. Completion (Phase 8) — only after architect verification passes
 
 ### Adding a Plan to Existing Todo
 
