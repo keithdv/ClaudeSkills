@@ -36,6 +36,27 @@ When working on a task, existing tests may start failing. Before modifying any t
 
 ---
 
+#### Never Work Around Production Bugs in Tests
+
+**Tests must expose bugs, not hide them.**
+
+When you discover a bug in the production code (generator, library, etc.) while writing tests:
+
+1. **Write the test the natural way** - Use the API as a user would. If the natural usage triggers a bug, that's the test doing its job.
+2. **Do NOT rewrite the test to avoid the broken code path** - If `Return("value").ThenReturn("value")` is the natural API but it throws, the test should demonstrate that failure.
+3. **REPORT** - "This test exposes a bug in [component]: [description]."
+4. **ASK** - "Should I (1) mark it as a known-bug regression test, (2) fix the bug now, or (3) file a todo?"
+
+**What counts as "working around" (NEVER do this):**
+- Using a different API overload because the natural one is broken
+- Adding extra setup steps that users wouldn't need if the bug were fixed
+- Avoiding a feature combination because it has a known issue
+- Using callback form when value form is the natural choice, just because value form has a bug
+
+**Why this matters:** Working around bugs in tests means the bug has zero test coverage. When someone later tries to fix the bug, there's no failing test to verify the fix. The bug stays invisible.
+
+---
+
 #### No Reflection Without Approval
 
 **Do NOT use reflection in code without reviewing and getting approval first.**
@@ -50,6 +71,8 @@ Before writing any code that uses `System.Reflection`, `Type.GetMethod()`, `Meth
 ---
 
 #### DDD Documentation Guidelines
+
+> **Scope: neatoodotnet repos only.** Skip for application repositories.
 
 For all neatoodotnet/**/* repositories:
 
@@ -84,6 +107,8 @@ Release notes live in `docs/release-notes/` with individual version files.
 ---
 
 #### CI/CD Standards (.NET Libraries)
+
+> **Scope: neatoodotnet library repos only.** Not applicable to application repositories like zTreatment.
 
 ##### Workflow Structure
 - Single workflow file: `.github/workflows/build.yml`
