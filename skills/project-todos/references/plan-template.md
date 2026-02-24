@@ -2,7 +2,7 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Complete
+**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
 **Last Updated:** YYYY-MM-DD
 
 ---
@@ -79,7 +79,7 @@
 **Reviewed:** [date]
 
 **Concerns:**
-[Developer adds concerns/questions here during review phase]
+[Developer adds concerns/questions here during review]
 
 ---
 
@@ -101,7 +101,7 @@
 - [ ] File 1: Specific changes
 - [ ] File 2: Specific changes
 - [ ] Test cases to add
-- [ ] Checkpoint: Run tests after [phase]
+- [ ] Checkpoint: Run tests after [milestone]
 
 ### Out of Scope
 
@@ -109,9 +109,8 @@
 
 ### Verification Gates
 
-1. After Phase 1: [What must be true]
-2. After Phase 2: [What must be true]
-3. Final: All tests pass, design projects compile (if applicable)
+1. After [milestone]: [What must be true]
+2. Final: All tests pass, design projects compile (if applicable)
 
 ### Stop Conditions
 
@@ -126,12 +125,12 @@ If any occur, STOP and report:
 **Started:** [date]
 **Developer:** [agent name]
 
-**Phase 1:** [Name]
+**[Milestone 1]:** [Name]
 - [ ] Step 1
 - [ ] Step 2
 - [ ] **Verification**: [test results, evidence]
 
-**Phase 2:** [Name]
+**[Milestone 2]:** [Name]
 - [ ] Step 1
 - [ ] **Verification**: [test results, evidence]
 
@@ -146,7 +145,28 @@ If any occur, STOP and report:
 - **Tests Passing:** [Output or summary — report ALL failures, do not classify any as "pre-existing"]
 - **Design Projects Compile:** [Yes/No/N/A]
 - **All Contract Items:** [Confirmed 100% complete]
-- **Documentation Updated:** [Yes/No/N/A]
+
+---
+
+## Documentation
+
+**Agent:** [documentation agent name, or "developer" if no documentation agent]
+**Completed:** [date]
+
+### Expected Deliverables
+
+[Architect or developer lists what documentation should be updated — filled during planning or implementation]
+
+- [ ] [File or area 1]
+- [ ] [File or area 2]
+- [ ] Skill updates: [Yes/No/N/A]
+- [ ] Sample updates: [Yes/No/N/A]
+
+### Files Updated
+
+[Documentation agent fills this after completing work]
+
+- [file path]: [what was changed]
 
 ---
 

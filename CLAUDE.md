@@ -4,6 +4,7 @@
 - **STOP and ask** before reverting, undoing, or changing direction
 - **STOP and ask** before modifying out-of-scope tests
 - **STOP and ask** before using reflection
+- **STOP and ask** when a required agent (e.g., `crm-architect`) is not available as a Task subagent — do NOT substitute a general-purpose agent or work around it
 
 ---
 
@@ -160,4 +161,3 @@ env:
 - `ManagePackageVersionsCentrally`: true (Directory.Packages.props)
 - `NuGetAudit`: true (security scanning)
 - `LangVersion`: preview
-

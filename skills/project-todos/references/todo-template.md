@@ -44,12 +44,14 @@
 
 Before marking this todo as Complete, verify:
 
-- [ ] Design project builds successfully
-- [ ] Design project tests pass
+- [ ] All builds pass
+- [ ] All tests pass
+- [ ] Design project builds successfully [Remove if no design projects]
+- [ ] Design project tests pass [Remove if no design projects]
 
 **Verification results:**
-- Design build: [Pending]
-- Design tests: [Pending]
+- Build: [Pending]
+- Tests: [Pending]
 
 ---
 
