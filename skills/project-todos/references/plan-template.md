@@ -73,6 +73,21 @@
 
 ---
 
+## Agent Phasing
+
+[Architect identifies which implementation phases benefit from fresh agents. Each phase is a unit of work that can be handed to an agent with clear inputs and expected outputs.]
+
+| Phase | Agent Type | Fresh Agent? | Rationale | Dependencies |
+|-------|-----------|-------------|-----------|--------------|
+| [Phase 1 name] | [developer/UI/specialized] | [Yes/No] | [Why fresh or continuing] | [Prior phases needed] |
+| [Phase 2 name] | [developer/UI/specialized] | [Yes/No] | [Why fresh or continuing] | [Prior phases needed] |
+
+**Parallelizable phases:** [List phases that can run concurrently, if any]
+
+**Notes:** [Any special coordination needed between phases]
+
+---
+
 ## Developer Review
 
 **Status:** Not Started
@@ -94,7 +109,7 @@
 
 [If design projects have failing code left by the architect, list them here. Implementation is done when they all compile.]
 
-- [ ] `path/to/file.cs:line` - [Description]: [Compiler error] -> Must compile after implementation
+- [ ] `path/to/file:line` - [Description]: [Compiler error] -> Must compile after implementation
 
 ### In Scope
 
@@ -178,10 +193,8 @@ If any occur, STOP and report:
 **Verdict:** VERIFIED | SENT BACK
 
 **Independent test results:**
-- Design.Stubs: [Build result]
-- Design.Tests: [X passed, Y failed]
-- Production code: [Build result]
-- Documentation.Samples: [Build result]
+- [Project/module 1]: [Build result]
+- [Project/module 2]: [Build result]
 - All tests: [X passed, Y failed]
 
 **Design match:** [Does the implementation match the original plan?]

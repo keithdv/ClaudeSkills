@@ -8,7 +8,7 @@ Documentation is required when the implementation:
 - Adds or changes public API surface
 - Introduces new patterns or conventions
 - Changes existing behavior that other developers rely on
-- Affects domain skills (Neatoo, KnockOff, RemoteFactory, etc.)
+- Affects domain skills or framework-specific knowledge bases
 
 Documentation may be skipped (mark N/A) for:
 - Internal refactoring with no behavior change
