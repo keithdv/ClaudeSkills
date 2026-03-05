@@ -5,11 +5,46 @@
 **Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
 **Last Updated:** YYYY-MM-DD
 
+### Plan Status Values
+
+- `Draft` - Initial creation
+- `Draft (Architect)` - Architect working on design
+- `Under Review (Developer)` - Developer reviewing
+- `Concerns Raised` - Developer found issues
+- `Ready for Implementation` - Approved, contract created
+- `In Progress` - Implementation underway
+- `Awaiting Verification` - Developer reports done, architect must verify
+- `Sent Back` - Architect verification failed, developer must fix
+- `Documentation Complete` - Documentation step finished
+- `Complete` - Architect verified, moved to completed/
+
 ---
 
 ## Overview
 
 [Brief description of what this plan addresses]
+
+---
+
+## Business Rules (Testable Assertions)
+
+[Extract ALL business rules as numbered, crisp, unambiguous assertions BEFORE designing the approach. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
+
+[Format each rule using WHEN/THEN to eliminate ambiguity about what the expected value applies to.]
+
+1. WHEN [conditions], THEN [property/method] RETURNS [expected value]
+2. WHEN [conditions], THEN [observable behavior]. Expected: [value]
+3. ...
+
+### Test Scenarios
+
+[For each business rule above, provide at least one concrete scenario showing inputs and expected result. These scenarios become acceptance tests.]
+
+| # | Scenario | Inputs / State | Rule(s) | Expected Result |
+|---|----------|---------------|---------|-----------------|
+| 1 | [Descriptive name] | [Concrete values] | Rule 1 | [Expected value — with brief explanation] |
+| 2 | [Descriptive name] | [Concrete values] | Rule 2 | [Expected value — with brief explanation] |
+| 3 | ... | ... | ... | ... |
 
 ---
 
@@ -93,8 +128,18 @@
 **Status:** Not Started
 **Reviewed:** [date]
 
-**Concerns:**
-[Developer adds concerns/questions here during review]
+### Assertion Trace Verification
+
+[For EACH business rule assertion in the "Business Rules" section above, trace through the proposed implementation and verify the expected result matches. This is NOT optional — every assertion must have a trace entry. Each Implementation Path entry must cite a specific method name and condition expression. Entries that say "handled correctly" or "matches design" without specifics are insufficient — send back to the architect for detail.]
+
+| Rule # | Implementation Path (method/condition) | Expected Result | Matches Rule? | Notes |
+|--------|---------------------------------------|-----------------|---------------|-------|
+| 1 | [e.g., `CanAdvanceStep()` line 42: checks `HasSigns && IsConsultation`] | [value] | [YES/NO] | |
+| 2 | ... | ... | ... | |
+
+### Concerns
+
+[Developer adds concerns/questions here during review — but ONLY after completing the assertion trace above]
 
 ---
 
@@ -111,11 +156,20 @@
 
 - [ ] `path/to/file:line` - [Description]: [Compiler error] -> Must compile after implementation
 
+### Test Scenario Mapping
+
+[Map each scenario from the Business Rules section to a test method. Every scenario must have a corresponding test.]
+
+| Scenario # | Test Method | Notes |
+|------------|-------------|-------|
+| 1 | [e.g., `OrderTests.IsSavable_WhenChildEntity_ReturnsFalse()`] | |
+| 2 | ... | |
+
 ### In Scope
 
 - [ ] File 1: Specific changes
 - [ ] File 2: Specific changes
-- [ ] Test cases to add
+- [ ] Test cases to add (see Test Scenario Mapping above)
 - [ ] Checkpoint: Run tests after [milestone]
 
 ### Out of Scope

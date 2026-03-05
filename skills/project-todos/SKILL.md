@@ -1,22 +1,37 @@
 ---
 name: project-todos
-description: This skill should be used when the user asks to "create a todo", "add a plan", "track this work", "document this task", "complete a todo", "verify the implementation", "run architect verification", "hand off to the developer", "update docs for this feature", "what's the next step", "resume the todo", "what's blocked", "pick up where we left off", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration (architect, developer, UI, documentation) through the full design-review-implement-verify-document lifecycle.
+description: This skill should be used when the user asks to "create a todo", "add a plan", "plan this work", "track this work", "document this task", "complete a todo", "verify the implementation", "run architect verification", "hand off to the developer", "start the implementation", "update docs for this feature", "what's the next step", "what's the plan status", "resume the todo", "what's blocked", "pick up where we left off", "design this feature", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration through the full design-review-implement-verify-document lifecycle.
 ---
 
 # Project Todos, Plans, and Agent Workflow
 
 Manage significant project work using structured markdown files and coordinate agent collaboration through the full design-review-implement-document lifecycle.
 
-## Core Rule: Agents Make All Source Code Changes
+## Core Rule: The Orchestrator NEVER Modifies Source Code
 
-The orchestrator (main conversation) coordinates workflow, presents information to the user, and invokes agents. It does NOT write, edit, or modify source code directly. All source code changes — production code, tests, configuration, generated files — must be made by agents (architect, developer, specialized, or documentation agents). The orchestrator's role is to:
+**STOP before calling Edit, Write, or any file-modifying tool on a source file.** Source files include `.cs`, `.csproj`, `.sln`, `.json`, `.yaml`, `.yml`, `.xml`, `.props`, `.targets`, `.razor`, `.css`, `.js`, `.ts`, `.html`, and any other non-markdown file. If the action would change a source file, invoke an agent to do it instead.
+
+**Decision gate — ask before every file modification:**
+1. Is this file a todo or plan markdown file in `docs/todos/` or `docs/plans/`? → Orchestrator may edit it.
+2. Is this file anything else? → **STOP. Invoke an agent.**
+
+There are no exceptions. Not for "small" fixes, not for "obvious" one-liners, not for config tweaks, not for "it's faster if I just do it." Every source code change goes through an agent.
+
+### What the Orchestrator Does
 
 - Create and manage todo/plan files (create, update status fields, record user answers)
 - Invoke agents with clear instructions and file references
 - Present agent results and concerns to the user
 - Make workflow decisions (which agent to invoke next, when to loop)
+- Read any file to gather context (reading is always fine)
 
-Agents also write to plan files as part of their work — design content, implementation progress, completion evidence, verification results, and documentation records. The key distinction is **source code**: only agents touch it. Plan/todo files are shared between the orchestrator and agents.
+### What the Orchestrator Does NOT Do
+
+- **NEVER** call Edit or Write on source files — invoke an agent
+- **NEVER** call Bash to run sed, awk, or any command that modifies source files — invoke an agent
+- **NEVER** rationalize a "quick fix" as being too small to need an agent — invoke an agent
+
+Agents also write to plan files as part of their work — design content, implementation progress, completion evidence, verification results, and documentation records. Plan/todo files are shared between the orchestrator and agents. The hard boundary is source code: only agents touch it.
 
 If a source code change is needed and no agent is currently active, invoke the appropriate agent to make it.
 
@@ -63,13 +78,10 @@ This is the full lifecycle for significant work. Each step uses the appropriate 
 
 Before starting the workflow, check for project-specific resources:
 
-1. **Architect agent** - Check `.claude/agents/` for a project-specific architect agent. Use it if found; otherwise use a general-purpose agent for design work.
-2. **Developer agent** - Check `.claude/agents/` for a project-specific developer agent. Use it if found; otherwise use a general-purpose agent for review and implementation.
-3. **Specialized implementation agents** - Check `.claude/agents/` for specialized implementation agents (e.g., UI agents, integration agents). These handle specific portions of Step 5 implementation work. For example, a UI agent handles page components and styling while the developer agent handles domain models, services, and tests.
-4. **Documentation agent** - Check `.claude/agents/` for a documentation-specific agent.
-5. **Domain skill** - Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
-6. **Design projects** - Check if the project has design/stub projects (e.g., `src/Design/`) used for compilation verification. The architect agent should use these to verify scope claims.
-7. **Documentation samples** - Check if the project has documentation sample projects. The documentation agent should use these when updating docs.
+1. **Agents** — Check `.claude/agents/` for project-specific agents: architect, developer, specialized (e.g., UI, integration), and documentation. Use project-specific agents when found; fall back to general-purpose agents otherwise. Specialized implementation agents handle specific portions of Step 5 work (e.g., a UI agent handles page components and styling).
+2. **Domain skill** — Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
+3. **Design projects** — Check if the project has design/stub projects (e.g., `src/Design/`) used for compilation verification. The architect agent should use these to verify scope claims.
+4. **Documentation samples** — Check if the project has documentation sample projects. The documentation agent should use these when updating docs.
 
 ### Step 1: Create Todo
 
@@ -88,32 +100,36 @@ The architect agent should:
 1. Read the todo to understand the problem and solution
 2. Explore the codebase to understand current architecture
 3. Ask the user clarifying questions about requirements or approach
-4. Create a plan in `docs/plans/` using the plan template
-5. **If design projects exist**: verify scope claims by writing compilable code. Leave failing code as acceptance criteria for features that need implementation.
-6. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
+4. **Extract business rules as testable assertions** — Before designing anything, analyze the legacy code, user requirements, and codebase to produce a numbered list of crisp, unambiguous business rules. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. These go in the plan's "Business Rules (Testable Assertions)" section. This is NOT optional — it is the first section completed.
+5. **Create concrete test scenarios** — For each business rule, create at least one scenario with specific inputs and expected result. These go in the "Test Scenarios" table. The architect must show the evaluation for each scenario. These scenarios become the acceptance tests.
+6. Create the rest of the plan in `docs/plans/` using the plan template. **Design against the assertions** — every design decision must trace to one or more business rule assertions.
+7. **If design projects exist**: verify scope claims by writing compilable code. Leave failing code as acceptance criteria for features that need implementation.
+8. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
    - Phases that are independent and don't need prior implementation context
    - Phases that touch more than ~10 files or involve substantial code generation
    - Phases that span different domains (e.g., backend vs. frontend vs. tests)
    - Phases that could run in parallel
-7. Link the plan to the todo (update both files)
-8. Set plan status to "Draft (Architect)"
-9. Hand off to developer review
+9. Link the plan to the todo (update both files)
+10. Set plan status to "Draft (Architect)"
+11. Hand off to developer review
 
 ### Step 3: Developer Review
 
 Invoke the **developer agent** with:
 - The plan file path
 - The todo file path
-- Instruction: "Review this plan for completeness, correctness, and implementability. Raise concerns or approve."
+- Instruction: "Review this plan. First: for EACH business rule assertion in the 'Business Rules' section, trace through the proposed implementation and verify the expected result matches. Fill in the Assertion Trace Verification table. Each Implementation Path entry must cite a specific method name and condition expression. Entries that say 'handled correctly' or 'matches design' without specifics are insufficient — send back for detail. Then review for completeness, correctness, and implementability. Raise concerns or approve."
 
 The developer agent should:
-1. Read and understand the plan
-2. Investigate the codebase to verify plan claims
-3. **If the architect provided design project verification**: confirm the evidence exists and makes sense
-4. **If the architect did NOT provide design project verification** (and design projects exist): reject the plan back to the architect
-5. Check for gaps, ambiguities, edge cases, and risks
-6. Review the Agent Phasing section — confirm the phasing is practical and the fresh/resume decisions make sense for the implementation work
-7. Render a verdict: **Concerns Raised** or **Approved**
+1. **Verify business rules first** — For EACH numbered assertion in the plan's "Business Rules" section, trace through the proposed implementation (the specific method, condition, or code path) and verify the expected result. Fill in the "Assertion Trace Verification" table in the Developer Review section. Each Implementation Path entry must cite a specific method name and the condition expression from the design. Entries without specifics (e.g., "handled in implementation", "matches design") are insufficient — reject and request detail from the architect. **This is the primary review task — do it before anything else.**
+2. **Verify test scenarios** — For each test scenario in the plan, mentally execute it against the proposed implementation and confirm the expected result matches.
+3. If any assertion trace produces a result that contradicts the business rule, this is a **blocking concern** — the plan has a logic error.
+4. Investigate the codebase to verify plan claims
+5. **If the architect provided design project verification**: confirm the evidence exists and makes sense
+6. **If the architect did NOT provide design project verification** (and design projects exist): reject the plan back to the architect
+7. Check for gaps, ambiguities, edge cases, and risks
+8. Review the Agent Phasing section — confirm the phasing is practical and the fresh/resume decisions make sense for the implementation work
+9. Render a verdict: **Concerns Raised** or **Approved**
 
 ### Step 4: Clarification Loop
 
@@ -132,13 +148,13 @@ When the developer approves:
 
 ### Step 5: Implementation
 
-**Reminder: The orchestrator does not write code. All code changes are made by agents.**
+**STOP — Do not write code here. Invoke an agent for all implementation work.**
 
 Invoke the **developer agent** for implementation with:
 - The plan file path (with implementation contract)
 - Instruction: "Implement the approved plan following the implementation contract"
 
-**Specialized agent routing**: If the implementation includes work that matches a specialized agent's scope (identified in Prerequisites step 3), split the implementation:
+**Specialized agent routing**: If the implementation includes work that matches a specialized agent's scope (identified in Prerequisites step 1), split the implementation:
 - **Developer agent**: Domain models, repositories, services, tests, backend logic
 - **Specialized UI agent** (if found): Pages, components, templates, CSS, layout
 - **Other specialized agents**: Route according to their declared file scope and capabilities
@@ -251,13 +267,9 @@ File location: `docs/todos/{filename}.md`
 
 ## Creating a Plan
 
-### Filename Convention
-
-Same rules as todos. Be descriptive of the plan's purpose.
-
-Examples: `authentication-fix-design.md`, `dark-mode-implementation.md`
-
 ### Write the Plan File
+
+Use the same filename convention as todos (lowercase, hyphens, concise, no dates). Be descriptive of the plan's purpose. Examples: `authentication-fix-design.md`, `dark-mode-implementation.md`
 
 Use the template from `references/plan-template.md`. Fill in:
 
@@ -267,6 +279,8 @@ Use the template from `references/plan-template.md`. Fill in:
 - **Status**: "Draft" (default)
 - **Last Updated**: Same as Date
 - Core sections: Overview, Approach, Design, Implementation Steps, Acceptance Criteria, Dependencies, Risks
+
+For valid plan status values, see `references/plan-template.md`.
 
 ### Plan Workflow Sections
 
@@ -282,19 +296,6 @@ These sections are defined in `references/plan-template.md`. When creating a pla
 - **Completion Evidence** -- Developer's evidence that work is done
 - **Documentation** -- Expected and completed documentation deliverables
 - **Architect Verification** -- Independent verification of completed work
-
-### Plan Status Values
-
-- `Draft` - Initial creation
-- `Draft (Architect)` - Architect working on design
-- `Under Review (Developer)` - Developer reviewing
-- `Concerns Raised` - Developer found issues
-- `Ready for Implementation` - Approved, contract created
-- `In Progress` - Implementation underway
-- `Awaiting Verification` - Developer reports done, architect must verify
-- `Sent Back` - Architect verification failed, developer must fix
-- `Documentation Complete` - Documentation step finished
-- `Complete` - Architect verified, moved to completed/
 
 ### Link Plan to Todo
 
@@ -344,21 +345,35 @@ Always use relative paths (`../todos/`, `../plans/`).
 3. Link plan to todo (both files)
 4. Continue with Step 3 (developer review)
 
+### Resuming Mid-Workflow
+
+When a session was interrupted or the user asks to resume:
+
+1. Read the plan file and check its **Status** field
+2. Map the status to the corresponding workflow step:
+   - `Draft (Architect)` → Step 2 (architect still working)
+   - `Under Review (Developer)` → Step 3 (developer review)
+   - `Concerns Raised` → Step 4 (clarification loop)
+   - `Ready for Implementation` → Step 5 (implementation)
+   - `In Progress` → Step 5 (implementation continues)
+   - `Awaiting Verification` → Step 6 (architect verification)
+   - `Sent Back` → Step 5 (developer fixes issues from verification)
+   - `Documentation Complete` → Step 8 (completion)
+3. Resume from that step, providing the plan and todo file paths to the appropriate agent
+
 ---
 
 ## Best Practices
 
-1. **File naming**: Concise and descriptive. No dates in filenames.
-2. **Status accuracy**: Update status fields promptly as workflow progresses.
-3. **Progress logging**: Update progress log as work happens, not just at the end.
-4. **Link maintenance**: Always update both files when creating links.
-5. **One todo per file**: Don't combine multiple todos.
-6. **Multiple plans OK**: A todo can have multiple plans.
-7. **Last Updated**: Always update when modifying any content.
-8. **Agent handoffs**: Each agent transition should reference the file paths being handed off.
-9. **Design project verification**: When the project has design/stub projects, the compiler is the source of truth for scope claims. Grepping code is secondary.
-10. **Agent phasing**: The architect identifies phases benefiting from fresh agents during planning. The orchestrator follows this phasing during implementation, invoking fresh agent instances for each identified phase.
-11. **Documentation deliverables**: Identify expected documentation deliverables during planning (Step 2) or implementation contract (Step 4), not as an afterthought.
+1. **Status accuracy**: Update status fields promptly as workflow progresses.
+2. **Progress logging**: Update progress log as work happens, not just at the end.
+3. **Link maintenance**: Always update both files when creating links.
+4. **Multiple plans OK**: A todo can have multiple plans. One todo per file.
+5. **Last Updated**: Always update when modifying any content.
+6. **Design project verification**: When the project has design/stub projects, the compiler is the source of truth for scope claims. Grepping code is secondary.
+7. **Agent phasing**: The architect identifies phases benefiting from fresh agents during planning. The orchestrator follows this phasing during implementation, invoking fresh agent instances for each identified phase.
+8. **Documentation deliverables**: Identify expected documentation deliverables during planning (Step 2) or implementation contract (Step 4), not as an afterthought.
+9. **Assertion-trace workflow**: The assertion-trace workflow in Steps 2-3 is the primary defense against logic errors. Do not skip or abbreviate it.
 
 ## Reference Files
 
