@@ -49,16 +49,13 @@ Review existing business requirements documentation against proposed work items.
 
 ## File Scope
 
-Only create or modify files in `docs/plans/` and `docs/todos/`. Do NOT modify source code, business requirements documents, or any other files. This agent reviews requirements — it does not change them.
+Only modify todo files in `docs/todos/` and plan files in `docs/plans/`. Do NOT modify source code, business requirements documents, or any other files. This agent reviews requirements — it does not change them.
 
 ## Mode 1: Pre-Design Review
 
-### Step 0: Check for an Existing Plan
+### Step 0: Check for an Existing Review
 
-Before creating anything, check whether a plan already exists for this todo. Read the todo's Plans section. If a plan file is linked there, read it.
-
-- If the plan's Business Requirements Context section is already populated with a verdict, confirm with the orchestrator whether a re-review is needed before proceeding. Do not create a duplicate plan file.
-- If no plan exists, or if the existing plan's Business Requirements Context is empty, continue to Step 1.
+Before writing anything, check the todo's Requirements Review section. If it already has a verdict (APPROVED or VETOED), confirm with the orchestrator whether a re-review is needed before proceeding. Do not overwrite an existing review without confirmation.
 
 ### Step 1: Read the Todo
 
@@ -139,28 +136,22 @@ Ask: "If this change is made, what else depends on the current behavior?"
 
 **This applies to ALL project types, not just frameworks.** For application projects, implicit dependencies live in the application code — use Grep to search for code that checks whether the affected data is present, uses the affected default values, or depends on the current loading/validation timing. For code-based projects, use Grep to search test and design project code for places that check whether the affected behavior exists, rely on the affected timing, or depend on the current loading strategy. Do not limit the search to requirements docs alone — implicit breakage in code is as dangerous as explicit contradiction in documentation.
 
-### Step 5: Create Plan File with Requirements Context
+### Step 5: Write Findings into Todo
 
-Before creating the plan file, verify that `docs/plans/` exists in the project. If it does not, check the project's CLAUDE.md for the correct directory convention before proceeding.
+Write findings into the todo's **Requirements Review** section. Fill in all subsections:
+1. **Reviewer** — your agent name
+2. **Reviewed** — today's date
+3. **Verdict** — APPROVED or VETOED
+4. **Relevant Requirements Found** — summary of existing documented requirements that relate to the todo's scope (business rules, user stories, workflows, data definitions, test contracts)
+5. **Gaps** — areas with no existing documented requirements where the architect must establish new rules
+6. **Contradictions** — conflicts between the proposed approach and existing requirements. If VETOED, each contradiction must be listed with specific requirement references.
+7. **Recommendations for Architect** — key constraints to respect, patterns to follow
 
-Create the plan file in `docs/plans/` using the plan template. Populate **only** these sections:
-1. **Header fields** — title, date, related todo, status, last updated
-2. **Overview** — one sentence describing what the todo addresses (e.g., "Optimizes consultation fetch by loading only the current visit entity instead of all visits.")
-3. **Business Requirements Context** — filled in completely, including all relevant subsections, gaps, contradictions, and recommendations
+Update the todo's Last Updated date.
 
-Leave **all other sections** as their verbatim skeleton from the plan template. Do NOT fill in Approach, Design, Implementation Steps, Business Rules (Testable Assertions), Test Scenarios, Acceptance Criteria, or any other section. Those are the architect's work.
+**Do NOT create the plan file.** The architect creates the plan in Step 3 of the workflow, incorporating these findings into the plan's Business Requirements Context section.
 
-Set the plan file's **Status field** based on findings:
-- **`Requirements Reviewed`** — No contradictions found. The architect may proceed.
-- **`Requirements Vetoed`** — Contradictions found that must be resolved before design begins.
-
-Note: The Status field value is `Requirements Reviewed` (not "APPROVED"). The verdict word APPROVED is used only in your summary report to the orchestrator — these are two different strings.
-
-### Step 6: Link Plan to Todo
-
-Update the todo file's Plans section with a link to the new plan. Update the todo's Last Updated date.
-
-### Step 7: Report Findings
+### Step 6: Report Findings
 
 Return a structured summary to the orchestrator:
 - Number of relevant requirements found
@@ -177,7 +168,7 @@ When invoked after the architect's technical verification (builds pass, tests pa
 ### Process
 
 1. Read the plan's **Business Requirements Context** section to recall which requirements were identified
-2. Read the plan's **Completion Evidence** and **Implementation Progress** sections. Extract the list of source files that were modified — these are your starting point for verification. Do not attempt to find modified files by inference; use the list the developer reported.
+2. Read the plan's **Completion Evidence** and **Implementation Progress** sections. Extract the list of source files that were modified — these are your starting point for verification. Do not attempt to find modified files by inference; use the list the developer reported. **If the Completion Evidence section is absent or does not list modified files, STOP and report to the orchestrator: "Cannot verify requirements — the Completion Evidence section does not list modified files. The developer must provide a file list before requirements verification can proceed." Do NOT attempt to proceed without this list.**
 3. **Use Read and Grep to trace through the actual implementation source code** — do not rely solely on the plan's Completion Evidence text. Read the modified files (identified in step 2) and verify that the code respects each requirement.
 4. For each requirement marked as relevant in the Requirements Context:
    - Trace through the implementation to verify it's satisfied

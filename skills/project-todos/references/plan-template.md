@@ -2,22 +2,21 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Requirements Reviewed | Requirements Vetoed | Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
+**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Requirements Documented | Documentation Complete | Complete
 **Last Updated:** YYYY-MM-DD
 
 ### Plan Status Values
 
-- `Requirements Reviewed` - Reviewer approved, ready for architect
-- `Requirements Vetoed` - Reviewer found contradictions, must resolve before design
-- `Draft` - Initial creation
-- `Draft (Architect)` - Architect working on design
+- `Draft` - Initial creation (standalone plans outside the agent workflow)
+- `Draft (Architect)` - Architect created the plan and is working on design (first status in the agent workflow)
 - `Under Review (Developer)` - Developer reviewing
 - `Concerns Raised` - Developer found issues
 - `Ready for Implementation` - Approved, contract created
 - `In Progress` - Implementation underway
 - `Awaiting Verification` - Developer reports done, architect must verify
 - `Sent Back` - Architect verification or requirements verification failed, developer must fix
-- `Documentation Complete` - Documentation step finished
+- `Requirements Documented` - Business requirements documentation updated (Step 8 Part A complete)
+- `Documentation Complete` - All documentation finished (Step 8 complete)
 - `Complete` - Both verifications passed, documentation complete, moved to completed/
 
 ---
@@ -30,11 +29,9 @@
 
 ## Business Requirements Context
 
-[Business requirements reviewer completes this section before the architect begins design (Step 2).]
+[Architect populates this section from the todo's Requirements Review when creating the plan (Step 3). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
 
-**Reviewer:** [agent name]
-**Reviewed:** [date]
-**Verdict:** APPROVED | VETOED
+**Source:** [Link to todo's Requirements Review section]
 
 ### Relevant Existing Requirements
 

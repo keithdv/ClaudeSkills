@@ -78,7 +78,7 @@ This is the full lifecycle for significant work. Each step uses the appropriate 
 
 Before starting the workflow, check for project-specific resources:
 
-1. **Agents** — Check `.claude/agents/` for project-specific agents: architect, developer, specialized (e.g., UI, integration), documentation, and **business-requirements-reviewer**. Also check `~/.claude/agents/` for general agents. **Project-specific agents always take priority over user-level agents of the same role.** Fall back to general-purpose agents only when no project-specific agent exists for that role. Specialized implementation agents handle specific portions of Step 6 work (e.g., a UI agent handles page components and styling).
+1. **Agents** — Check `.claude/agents/` for project-specific agents: architect, developer, specialized (e.g., UI, integration), documentation, **business-requirements-reviewer**, and **business-requirements-documenter**. Also check `~/.claude/agents/` for general agents. **Project-specific agents always take priority over user-level agents of the same role.** Fall back to general-purpose agents only when no project-specific agent exists for that role. Specialized implementation agents handle specific portions of Step 6 work (e.g., a UI agent handles page components and styling).
 2. **Business requirements** — Check the project's CLAUDE.md for where business requirements documentation lives (business rules, user stories, workflows, data dictionaries). **If CLAUDE.md does not clearly indicate where business requirements are documented, STOP and ask the user before proceeding.** This information is required for Step 2.
 3. **Domain skill** — Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
 4. **Design projects** — Check if the project has design/stub projects (e.g., `src/Design/`) used for compilation verification. The architect agent should use these to verify scope claims.
@@ -90,14 +90,16 @@ Before starting the workflow, check for project-specific resources:
 2. Create the todo file in `docs/todos/` using the todo template
 3. Set status to "In Progress"
 
+**IMPORTANT: Do NOT create the plan file.** The architect creates the plan in Step 3. Proceed directly to Step 2 (requirements review) after creating the todo.
+
 ### Step 2: Business Requirements Review
 
-**Purpose:** Ensure the proposed work respects existing documented business requirements before design begins. This step catches contradictions that would otherwise become bugs — especially implicit dependencies where changing one behavior breaks assumptions in other parts of the system.
+**Purpose:** Compare the proposed work against the project's EXISTING DOCUMENTED business requirements (business rules, user stories, workflows, data definitions already in the codebase) before design begins. This is NOT the same as gathering the user's problem and solution in Step 1 — this step searches the project's requirements documentation for contradictions with the proposed work. This step catches contradictions that would otherwise become bugs — especially implicit dependencies where changing one behavior breaks assumptions in other parts of the system.
 
 Invoke the **business-requirements-reviewer** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The todo file path
 - The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Review this todo against the project's existing business requirements. Create the plan file with the Business Requirements Context section populated. VETO if contradictions are found."
+- Instruction: "Review this todo against the project's existing business requirements. Write your findings into the todo's Requirements Review section. VETO if contradictions are found."
 
 The reviewer agent should:
 1. Read the todo to understand the problem and proposed solution
@@ -105,11 +107,12 @@ The reviewer agent should:
 3. Search requirements docs for rules, user stories, workflows, and data definitions related to the todo's scope
 4. Identify relevant requirements, gaps, and contradictions
 5. Pay special attention to **implicit dependencies** — changes that technically work but alter behavior governed by other business rules (e.g., changing when data is loaded affects when it's considered "part of" a record)
-6. Create the plan file in `docs/plans/` with the Business Requirements Context section populated and all other sections as skeleton
-7. Link the plan to the todo (update both files)
-8. Render a verdict:
-   - **APPROVED** (status: "Requirements Reviewed") — No contradictions. Proceed to architect.
-   - **VETOED** (status: "Requirements Vetoed") — Contradictions found. Must be resolved before design.
+6. Write findings into the todo's **Requirements Review** section (Relevant Requirements Found, Gaps, Contradictions, Recommendations for Architect)
+7. Set the verdict in the todo's Requirements Review section:
+   - **APPROVED** — No contradictions. Proceed to Step 3 (architect creates the plan).
+   - **VETOED** — Contradictions found. Must be resolved before design.
+
+**The reviewer does NOT create the plan file.** The plan is created by the architect in Step 3.
 
 **If VETOED:**
 1. Present the contradictions to the user
@@ -117,30 +120,30 @@ The reviewer agent should:
 3. Based on the user's choice, update the todo and/or requirements, then re-invoke the reviewer
 4. Repeat until APPROVED
 
-### Step 3: Architect Review & Plan Creation
+### Step 3: Architect Plan Creation & Design
 
 Invoke the **architect agent** with:
-- The plan file path (already created by the reviewer in Step 2, with Business Requirements Context populated)
-- The todo file path
+- The todo file path (with Requirements Review section populated by the reviewer in Step 2)
 - Any domain skill references found in prerequisites
-- Instruction: "Review this todo and the plan's Business Requirements Context. Design the implementation, building on the documented requirements. Create business rules as testable assertions that trace to the existing requirements where they exist."
+- Instruction: "Create the plan file for this todo. Read the todo's Requirements Review section first — incorporate those findings into the plan's Business Requirements Context. Then design the implementation, building on the documented requirements. Create business rules as testable assertions that trace to the existing requirements where they exist."
 
 The architect agent should:
-1. Read the todo to understand the problem and solution
-2. **Read the plan's Business Requirements Context section** — understand which existing requirements apply before designing anything. The architect MUST NOT invent business rules that contradict the documented requirements identified by the reviewer.
-3. Explore the codebase to understand current architecture
-4. Ask the user clarifying questions about requirements or approach
-5. **Extract business rules as testable assertions** — Before designing anything, analyze the legacy code, user requirements, and codebase to produce a numbered list of crisp, unambiguous business rules. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. **Trace each assertion to an existing documented requirement where one exists.** New assertions (for gaps identified by the reviewer) must be clearly marked as new. These go in the plan's "Business Rules (Testable Assertions)" section. This is NOT optional — it is the first section completed.
-6. **Create concrete test scenarios** — For each business rule, create at least one scenario with specific inputs and expected result. These go in the "Test Scenarios" table. The architect must show the evaluation for each scenario. These scenarios become the acceptance tests.
-7. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions.
-8. **If design projects exist**: verify scope claims by writing compilable code. Leave failing code as acceptance criteria for features that need implementation.
-9. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
-   - Phases that are independent and don't need prior implementation context
-   - Phases that touch more than ~10 files or involve substantial code generation
-   - Phases that span different domains (e.g., backend vs. frontend vs. tests)
-   - Phases that could run in parallel
-10. Update plan status to "Draft (Architect)"
-11. Hand off to developer review
+1. Read the todo to understand the problem, solution, and **the Requirements Review section** written by the reviewer
+2. **Create the plan file** in `docs/plans/` using the plan template. Populate the Business Requirements Context section from the reviewer's findings in the todo. Link the plan to the todo (update both files).
+3. The architect MUST NOT invent business rules that contradict the documented requirements identified by the reviewer.
+4. Explore the codebase to understand current architecture
+5. Ask the user clarifying questions about requirements or approach
+6. **Extract business rules as testable assertions** — Before designing anything, analyze the legacy code, user requirements, and codebase to produce a numbered list of crisp, unambiguous business rules. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. **Trace each assertion to an existing documented requirement where one exists.** New assertions (for gaps identified by the reviewer) must be clearly marked as new. These go in the plan's "Business Rules (Testable Assertions)" section. This is NOT optional — it is the first section completed.
+7. **Create concrete test scenarios** — For each business rule, create at least one scenario with specific inputs and expected result. These go in the "Test Scenarios" table. The architect must show the evaluation for each scenario. These scenarios become the acceptance tests.
+8. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions.
+9. **If design projects exist**: verify scope claims by writing compilable code. Leave failing code as acceptance criteria for features that need implementation.
+10. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
+    - Phases that are independent and don't need prior implementation context
+    - Phases that touch more than ~10 files or involve substantial code generation
+    - Phases that span different domains (e.g., backend vs. frontend vs. tests)
+    - Phases that could run in parallel
+11. Update plan status to "Draft (Architect)"
+12. Hand off to developer review
 
 ### Step 4: Developer Review
 
@@ -245,27 +248,43 @@ The reviewer agent should:
    - **REQUIREMENTS SATISFIED**: Implementation respects all documented requirements → proceed to Step 8
    - **REQUIREMENTS VIOLATION**: Implementation violates documented requirements → document violations, set plan status to "Sent Back", report to orchestrator
 
-### Step 8: Documentation
+### Step 8: Requirements Documentation
 
-Invoke the **documentation agent** (if one exists) with:
+**Purpose:** Update the project's business requirements documentation to reflect what was actually implemented — new rules, changed rules, resolved gaps. This closes the loop: the reviewer identified the requirements landscape in Step 2, and now the documenter updates it to stay current.
+
+#### Part A: Business Requirements Documentation
+
+Invoke the **business-requirements-documenter** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The plan file path
 - The todo file path
-- Instruction: "Review the completed implementation and update all affected documentation. See the Documentation section of the plan for expected deliverables."
+- The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
+- Instruction: "Update the project's business requirements documentation to reflect the completed implementation. Read the plan's Business Requirements Context, Business Rules, and Completion Evidence sections. Update requirements docs with new rules, changed rules, and resolved gaps."
 
-If no documentation agent exists, the developer agent handles documentation.
+The documenter agent should:
+1. Read the plan's Business Requirements Context section to understand the pre-implementation requirements landscape
+2. Read the plan's Business Rules (Testable Assertions) section to understand what rules were established
+3. Read the plan's Completion Evidence and Implementation Progress to understand what was actually built
+4. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
+5. Update the project's business requirements documentation:
+   - Add new business rules with references to the implementation
+   - Update existing rules that were modified
+   - Fill in gaps that were identified by the reviewer and addressed by the implementation
+   - Update workflows, data definitions, or user stories as affected
+6. Record work in the plan's Documentation section — list each requirements file created or updated
+7. Set plan status to "Requirements Documented"
 
-The documentation agent should:
-1. Read the plan to understand what was implemented
-2. Review the plan's Documentation section for expected deliverables
-3. Update affected files:
-   - API or architecture documentation
-   - Domain skill reference files (in `.claude/skills/`)
-   - Documentation samples (if the project has sample projects)
-   - README or getting-started guides (if affected)
-4. Record work in the plan's Documentation section — list each file created or updated
-5. Set plan status to "Documentation Complete"
+**Critical rule**: Document what was *implemented*, not what was *planned*. If the implementation diverged from the plan, the documentation must match the implementation.
 
-**Quality criteria**: Documentation must match implemented behavior (not the plan's original design). New patterns need at least one example. Changed behavior notes what changed and why.
+#### Part B: General Documentation (if applicable)
+
+If the project has a **documentation agent** and the plan identifies non-requirements documentation deliverables (API docs, skill updates, README changes, documentation samples), invoke it separately:
+- The plan file path
+- The todo file path
+- Instruction: "Update non-requirements documentation affected by this implementation. See the Documentation section of the plan for expected deliverables."
+
+If no documentation agent exists and general documentation is needed, the developer agent handles it.
+
+After both parts complete, set plan status to "Documentation Complete."
 
 See `references/documentation-step-guide.md` for detailed guidance.
 
@@ -319,6 +338,8 @@ File location: `docs/todos/{filename}.md`
 
 ## Creating a Plan
 
+> **Agent Workflow Note:** In the full Agent Collaboration Workflow (Steps 1-9), the architect agent creates the plan file in Step 3. Neither the orchestrator nor the reviewer creates the plan. This section is only for standalone plan creation outside the agent workflow.
+
 ### Write the Plan File
 
 Use the same filename convention as todos (lowercase, hyphens, concise, no dates). Be descriptive of the plan's purpose. Examples: `authentication-fix-design.md`, `dark-mode-implementation.md`
@@ -328,9 +349,9 @@ Use the template from `references/plan-template.md`. Fill in:
 - **Title**: Descriptive plan title
 - **Date**: Today's date
 - **Related Todo**: Relative link to parent todo
-- **Status**: "Draft" (default), or "Requirements Reviewed" if created by the business requirements reviewer
+- **Status**: "Draft" for standalone plans; "Draft (Architect)" when created by the architect in the agent workflow (Step 3)
 - **Last Updated**: Same as Date
-- Core sections: Overview, Business Requirements Context (filled by reviewer), Business Rules, Approach, Design, Implementation Steps, Acceptance Criteria, Dependencies, Risks
+- Core sections: Overview, Business Requirements Context (populated by architect from todo's Requirements Review), Business Rules, Approach, Design, Implementation Steps, Acceptance Criteria, Dependencies, Risks
 
 For valid plan status values, see `references/plan-template.md`.
 
@@ -340,7 +361,7 @@ Plans that go through the agent collaboration workflow include additional sectio
 
 These sections are defined in `references/plan-template.md`. When creating a plan for the full agent workflow, use the complete template. The key sections and their purposes:
 
-- **Business Requirements Context** -- Reviewer's analysis of existing requirements (filled in Step 2)
+- **Business Requirements Context** -- Architect populates from the todo's Requirements Review (filled in Step 3)
 - **Architectural Verification** -- Architect's scope analysis and design project evidence
 - **Agent Phasing** -- Which implementation phases benefit from fresh vs resumed agents
 - **Developer Review** -- Developer's verdict on the plan
@@ -384,8 +405,8 @@ Always use relative paths (`../todos/`, `../plans/`).
 ### Todo with Full Agent Workflow
 
 1. Create todo (Step 1)
-2. Business requirements review (Step 2) — reviewer creates plan, checks for contradictions
-3. Invoke architect agent (Step 3) — architect fills in plan design
+2. Business requirements review (Step 2) — reviewer writes findings into todo, checks for contradictions
+3. Architect creates plan and designs (Step 3) — architect creates plan file, incorporates reviewer findings, designs implementation
 4. Developer reviews (Step 4)
 5. Clarification loop if needed (Step 5)
 6. Implementation (Step 6) — route to developer and/or specialized agents
@@ -396,17 +417,19 @@ Always use relative paths (`../todos/`, `../plans/`).
 ### Adding a Plan to Existing Todo
 
 1. Read existing todo for context
-2. Invoke business-requirements-reviewer to create plan with Requirements Context (Step 2)
-3. Continue with Step 3 (architect review)
+2. Invoke business-requirements-reviewer to write findings into todo's Requirements Review section (Step 2)
+3. Invoke architect to create plan and design (Step 3)
 
 ### Resuming Mid-Workflow
 
 When a session was interrupted or the user asks to resume:
 
-1. Read the plan file and check its **Status** field
-2. Map the status to the corresponding workflow step:
-   - `Requirements Reviewed` → Step 3 (architect design)
-   - `Requirements Vetoed` → Step 2 (resolve contradictions with user)
+1. Read the todo file. Check if a plan file exists (look in the todo's Plans section for a link).
+2. **If no plan exists**, check the todo's **Requirements Review** section:
+   - No review yet (Verdict: Pending) → Step 2 (run the reviewer)
+   - Verdict: APPROVED → Step 3 (architect creates the plan)
+   - Verdict: VETOED → Step 2 (resolve contradictions with user)
+3. **If a plan exists**, read it and check its **Status** field:
    - `Draft (Architect)` → Step 3 (architect still working)
    - `Under Review (Developer)` → Step 4 (developer review)
    - `Concerns Raised` → Step 5 (clarification loop)
@@ -414,8 +437,9 @@ When a session was interrupted or the user asks to resume:
    - `In Progress` → Step 6 (implementation continues)
    - `Awaiting Verification` → Step 7 (verification)
    - `Sent Back` → Step 6 (developer fixes issues). Read both the Architect Verification and Requirements Verification sections of the plan to determine which verification failed and what the developer needs to fix.
+   - `Requirements Documented` → Step 8 Part B (general documentation, if applicable) or Step 9 (completion)
    - `Documentation Complete` → Step 9 (completion)
-3. Resume from that step, providing the plan and todo file paths to the appropriate agent
+4. Resume from that step, providing the todo and plan file paths (if plan exists) to the appropriate agent
 
 ---
 
