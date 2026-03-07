@@ -115,9 +115,9 @@ The reviewer agent should:
 **The reviewer does NOT create the plan file.** The plan is created by the architect in Step 3.
 
 **If VETOED:**
-1. Present the contradictions to the user
-2. Ask: "Should we (1) modify the todo's approach to respect the existing requirements, (2) update the requirements because they're outdated, or (3) override — the contradiction is acceptable?"
-3. Based on the user's choice, update the todo and/or requirements, then re-invoke the reviewer
+1. Present the specific contradictions to the product owner (the user), including exact requirement references, file paths, and why they conflict with the proposed work
+2. **STOP.** Do not proceed with the workflow. The product owner decides how to resolve the contradiction — whether to modify the approach, update outdated requirements, override, or take a different path entirely
+3. After the product owner provides direction, follow it. If requirements need updating, invoke the appropriate agent (developer agent for `.cs` files, documenter agent for markdown). Then re-invoke the reviewer to confirm the contradiction is resolved
 4. Repeat until APPROVED
 
 ### Step 3: Architect Plan Creation & Design
@@ -250,41 +250,54 @@ The reviewer agent should:
 
 ### Step 8: Requirements Documentation
 
-**Purpose:** Update the project's business requirements documentation to reflect what was actually implemented — new rules, changed rules, resolved gaps. This closes the loop: the reviewer identified the requirements landscape in Step 2, and now the documenter updates it to stay current.
+**Purpose:** Update the project's business requirements documentation to reflect what was actually implemented — new rules, changed rules, resolved gaps. This closes the loop: the reviewer identified the requirements landscape in Step 2, and now the documentation sources are updated to stay current.
 
-#### Part A: Business Requirements Documentation
+#### Part A: Markdown Requirements Documentation
 
 Invoke the **business-requirements-documenter** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The plan file path
 - The todo file path
 - The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Update the project's business requirements documentation to reflect the completed implementation. Read the plan's Business Requirements Context, Business Rules, and Completion Evidence sections. Update requirements docs with new rules, changed rules, and resolved gaps."
+- Instruction: "Update markdown-based business requirements documentation to reflect the completed implementation. Update docs/ and skill behavioral contract reference files. Identify any .cs file changes needed (Design projects, code comments, samples) and report them as Developer Deliverables in the plan's Documentation section — do NOT modify .cs files."
 
 The documenter agent should:
-1. Read the plan's Business Requirements Context section to understand the pre-implementation requirements landscape
-2. Read the plan's Business Rules (Testable Assertions) section to understand what rules were established
-3. Read the plan's Completion Evidence and Implementation Progress to understand what was actually built
-4. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
-5. Update the project's business requirements documentation:
-   - Add new business rules with references to the implementation
-   - Update existing rules that were modified
-   - Fill in gaps that were identified by the reviewer and addressed by the implementation
-   - Update workflows, data definitions, or user stories as affected
-6. Record work in the plan's Documentation section — list each requirements file created or updated
-7. Set plan status to "Requirements Documented"
+1. Read the plan's Business Requirements Context, Business Rules (Testable Assertions), Completion Evidence, and Implementation Progress sections
+2. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
+3. Update **markdown** requirements sources:
+   - User-facing documentation (`docs/`) — new rules, changed rules, filled gaps, affected workflows
+   - Skill behavioral contract reference files — reference files encoding what the framework does (e.g., `entities.md`, `collections.md`, `validation.md`, `properties.md`)
+4. Identify `.cs` deliverables — Design project tests/examples, framework source code comments, or documentation samples (`src/samples/`) that need creating or updating — and list them in the plan's Documentation section as **Developer Deliverables** with specific descriptions of what each file should contain
+5. Record all markdown work in the plan's Documentation section
+6. Set plan status to "Requirements Documented"
 
 **Critical rule**: Document what was *implemented*, not what was *planned*. If the implementation diverged from the plan, the documentation must match the implementation.
 
-#### Part B: General Documentation (if applicable)
+#### Part B: Source Code Requirements Documentation
 
-If the project has a **documentation agent** and the plan identifies non-requirements documentation deliverables (API docs, skill updates, README changes, documentation samples), invoke it separately:
+**Only if the documenter identified Developer Deliverables in Part A.**
+
+Invoke the **developer agent** with:
+- The plan file path
+- Instruction: "Complete the .cs requirements documentation deliverables listed in the Documentation section's Developer Deliverables. This includes Design project tests/examples, framework code comments, and/or documentation samples. Build and test after changes."
+
+The developer agent should:
+1. Read the Documentation section's Developer Deliverables list
+2. Make the identified `.cs` changes (Design.Tests, Design.Domain, framework code comments, `src/samples/`)
+3. Run `dotnet build` and `dotnet test` to verify changes compile and pass
+4. Mark each Developer Deliverable as completed in the Documentation section
+
+#### Part C: General Documentation (if applicable)
+
+If the plan identifies non-requirements documentation deliverables (API docs, README changes, migration guides, getting-started updates, instructional skill references like `testing.md` or `pitfalls.md`), invoke the **documentation agent** (or developer agent if no documentation agent exists) with:
 - The plan file path
 - The todo file path
 - Instruction: "Update non-requirements documentation affected by this implementation. See the Documentation section of the plan for expected deliverables."
 
-If no documentation agent exists and general documentation is needed, the developer agent handles it.
+**Skill file boundary:**
+- **Part A** (documenter): Skill reference files encoding **behavioral contracts** — what the framework does, how state properties behave, what factory operations produce, entity lifecycle rules
+- **Part C** (docs agent): Skill reference files that are **instructional** — how to test, common pitfalls, integration guides, tutorials
 
-After both parts complete, set plan status to "Documentation Complete."
+After all applicable parts complete, set plan status to "Documentation Complete."
 
 See `references/documentation-step-guide.md` for detailed guidance.
 
@@ -411,7 +424,7 @@ Always use relative paths (`../todos/`, `../plans/`).
 5. Clarification loop if needed (Step 5)
 6. Implementation (Step 6) — route to developer and/or specialized agents
 7. Verification (Step 7) — architect verifies builds/tests, then reviewer verifies requirements compliance
-8. Documentation (Step 8) — documentation agent updates docs, or developer if no documentation agent
+8. Documentation (Step 8) — documenter updates markdown requirements, developer handles .cs deliverables, docs agent handles general docs
 9. Completion (Step 9) — only after both verifications pass
 
 ### Adding a Plan to Existing Todo
@@ -437,7 +450,7 @@ When a session was interrupted or the user asks to resume:
    - `In Progress` → Step 6 (implementation continues)
    - `Awaiting Verification` → Step 7 (verification)
    - `Sent Back` → Step 6 (developer fixes issues). Read both the Architect Verification and Requirements Verification sections of the plan to determine which verification failed and what the developer needs to fix.
-   - `Requirements Documented` → Step 8 Part B (general documentation, if applicable) or Step 9 (completion)
+   - `Requirements Documented` → Check Documentation section for pending Developer Deliverables (Part B). If none, proceed to Part C (general documentation, if applicable) or Step 9 (completion)
    - `Documentation Complete` → Step 9 (completion)
 4. Resume from that step, providing the todo and plan file paths (if plan exists) to the appropriate agent
 
