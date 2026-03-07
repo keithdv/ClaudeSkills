@@ -1,6 +1,6 @@
 # Documentation Step Guide
 
-Detailed guidance for Step 7 (Documentation) of the agent collaboration workflow.
+Detailed guidance for Step 8 (Documentation) of the agent collaboration workflow.
 
 ## When Documentation Is Required
 
@@ -49,4 +49,4 @@ If no documentation agent exists, invoke the **developer agent** with the same i
 
 ## Documentation Does Not Require Separate Verification
 
-Documentation quality is checked during the Completion step (Step 8), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.
+Documentation quality is checked during the Completion step (Step 9), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.

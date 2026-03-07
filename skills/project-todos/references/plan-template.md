@@ -2,11 +2,13 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
+**Status:** Requirements Reviewed | Requirements Vetoed | Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
 **Last Updated:** YYYY-MM-DD
 
 ### Plan Status Values
 
+- `Requirements Reviewed` - Reviewer approved, ready for architect
+- `Requirements Vetoed` - Reviewer found contradictions, must resolve before design
 - `Draft` - Initial creation
 - `Draft (Architect)` - Architect working on design
 - `Under Review (Developer)` - Developer reviewing
@@ -14,9 +16,9 @@
 - `Ready for Implementation` - Approved, contract created
 - `In Progress` - Implementation underway
 - `Awaiting Verification` - Developer reports done, architect must verify
-- `Sent Back` - Architect verification failed, developer must fix
+- `Sent Back` - Architect verification or requirements verification failed, developer must fix
 - `Documentation Complete` - Documentation step finished
-- `Complete` - Architect verified, moved to completed/
+- `Complete` - Both verifications passed, documentation complete, moved to completed/
 
 ---
 
@@ -26,14 +28,70 @@
 
 ---
 
+## Business Requirements Context
+
+[Business requirements reviewer completes this section before the architect begins design (Step 2).]
+
+**Reviewer:** [agent name]
+**Reviewed:** [date]
+**Verdict:** APPROVED | VETOED
+
+### Relevant Existing Requirements
+
+[Use whichever sections apply. Application projects typically have documentation-based requirements. Framework/library projects typically have code-based requirements. Some projects have both.]
+
+#### Business Rules (documentation-based)
+
+- [Rule reference/location]: [Summary] — Relevance: [How it relates to this todo]
+
+#### User Stories (documentation-based)
+
+- [Story ID/location]: [Summary] — Relevance: [How it relates]
+
+#### Workflows (documentation-based)
+
+- [Workflow reference/location]: [Summary] — Relevance: [How it relates]
+
+#### Data Definitions (documentation-based)
+
+- [Definition reference/location]: [Summary] — Relevance: [How it relates]
+
+#### Design Project Contracts (code-based)
+
+[For framework/library projects where design projects and tests define the requirements]
+
+- [Test/pattern location]: [What behavior it defines] — Relevance: [How it relates]
+
+#### Behavioral Contracts from Tests (code-based)
+
+[Tests that pass today and define expected behavior for the affected area]
+
+- [Test location]: [What contract it enforces] — Relevance: [How the proposed change affects it]
+
+### Gaps
+
+[Areas where the todo's scope has no existing documented requirements — the architect must establish new rules for these areas]
+
+### Contradictions
+
+[Any conflicts between the todo's proposed approach and existing documented requirements. If VETOED, each contradiction must be listed here with specific requirement references.]
+
+### Recommendations for Architect
+
+[Guidance for the architect based on existing requirements — key constraints to respect, patterns to follow]
+
+---
+
 ## Business Rules (Testable Assertions)
 
 [Extract ALL business rules as numbered, crisp, unambiguous assertions BEFORE designing the approach. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
 
 [Format each rule using WHEN/THEN to eliminate ambiguity about what the expected value applies to.]
 
-1. WHEN [conditions], THEN [property/method] RETURNS [expected value]
-2. WHEN [conditions], THEN [observable behavior]. Expected: [value]
+[For rules that trace to an existing documented requirement (from the Business Requirements Context section), include the reference. For new rules covering gaps, mark them as NEW.]
+
+1. WHEN [conditions], THEN [property/method] RETURNS [expected value] — Source: [requirement reference or NEW]
+2. WHEN [conditions], THEN [observable behavior]. Expected: [value] — Source: [requirement reference or NEW]
 3. ...
 
 ### Test Scenarios
@@ -254,3 +312,27 @@ If any occur, STOP and report:
 **Design match:** [Does the implementation match the original plan?]
 
 **Issues found:** [List any issues, or "None"]
+
+---
+
+## Requirements Verification
+
+[Business requirements reviewer fills this section after architect verification passes (Step 7, Part B).]
+
+**Reviewer:** [agent name]
+**Verified:** [date]
+**Verdict:** REQUIREMENTS SATISFIED | REQUIREMENTS VIOLATION
+
+### Requirements Compliance
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| [Requirement from Business Requirements Context] | [Satisfied/Violated] | [How verified — specific code path or test] |
+
+### Unintended Side Effects
+
+[Any changes that alter behavior governed by other business rules not directly in scope. "None" if none found.]
+
+### Issues Found
+
+[List any violations or concerns, or "None"]

@@ -5,6 +5,7 @@
 - **STOP and ask** before modifying out-of-scope tests
 - **STOP and ask** before using reflection
 - **STOP and ask** when a required agent (e.g., `crm-architect`) is not available as a Task subagent — do NOT substitute a general-purpose agent or work around it
+- **NEVER take over for an agent.** If an agent appears stuck, slow, or unresponsive — STOP and ask for direction. Do NOT kill the agent and do the work yourself. Do NOT read source files "to take over." The orchestrator never modifies source code. Always wait for the user, even if they are away.
 
 ---
 
