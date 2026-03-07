@@ -654,7 +654,6 @@ public async Task UpdateAsync([Service] IAssessmentRepository repository,
 
 ## Related
 
-- [Factory](factory.md) - Factory attributes and patterns
 - [Collections](collections.md) - Child entity collections
 - [Validation](validation.md) - IsValid and validation rules
-- [Authorization](authorization.md) - CanSave, CanDelete
+- [Domain Logic Placement](domain-logic-placement.md) - Where business logic belongs

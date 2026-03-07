@@ -1,14 +1,16 @@
 # Documentation Step Guide
 
-Detailed guidance for Step 8 (Documentation) of the agent collaboration workflow.
+Every project organizes documentation differently. The documenter agent and the project's CLAUDE.md provide the project-specific knowledge of where requirements live and how they're structured. This guide defines the workflow steps and agent responsibilities, not the project details.
+
+Detailed guidance for Step 9 (Documentation) of the agent collaboration workflow.
 
 ## When Documentation Is Required
 
 Documentation is required when the implementation:
-- Adds or changes public API surface
-- Introduces new patterns or conventions
-- Changes existing behavior that other developers rely on
-- Affects domain skills or framework-specific knowledge bases
+- Adds or changes behavior governed by documented business rules
+- Introduces new domain concepts or entities
+- Changes existing workflows or business processes
+- Affects user-facing functionality covered by requirements docs
 
 Documentation may be skipped (mark N/A) for:
 - Internal refactoring with no behavior change
@@ -24,36 +26,26 @@ Invoke the **documentation agent** with:
 
 If no documentation agent exists, invoke the **developer agent** with the same instruction.
 
-## Step 8 Part Structure
+## Step 9 Part Structure
 
-Step 8 has three parts with distinct responsibilities:
+Step 9 has two parts with distinct responsibilities:
 
-### Part A: Markdown Requirements Documentation (Documenter Agent)
+### Part A: Requirements Documentation (Documenter Agent)
 
-The business-requirements-documenter handles markdown files only:
-- User-facing documentation (`docs/`)
-- Skill behavioral contract reference files — files encoding what the framework does (e.g., `entities.md`, `collections.md`, `validation.md`, `properties.md`)
+The documenter agent updates the project's business requirements documentation:
+- Reads the plan's Business Requirements Context, Business Rules, and Completion Evidence
+- Adds new rules, updates changed rules, resolves gaps
+- If the documenter identifies source code changes needed (e.g., code comments, samples, verification tests), it lists them as **Developer Deliverables** in the plan — but does NOT modify source code
 
-The documenter also **identifies** `.cs` changes needed (Design project tests/examples, code comments, samples) and lists them as **Developer Deliverables** in the plan — but does NOT modify `.cs` files.
+The orchestrator routes any Developer Deliverables to the developer agent as needed.
 
-### Part B: Source Code Requirements Documentation (Developer Agent)
+The documenter records work in the plan's Documentation section and sets plan status to "Requirements Documented."
 
-Only if Part A identified Developer Deliverables. The developer agent handles:
-- Design project tests and examples (`src/Design/`)
-- Framework source code comments (`src/Neatoo/`)
-- Documentation samples (`src/samples/`)
-- Build and test verification after changes
+### Part B: General Documentation (Docs Agent or Developer)
 
-### Part C: General Documentation (Docs Agent or Developer)
+Non-requirements documentation — README, architecture docs, migration guides, API docs, getting-started guides.
 
-Non-requirements documentation — API docs, README, migration guides, getting-started updates. Also handles **instructional** skill reference files (e.g., `testing.md`, `pitfalls.md`, `blazor.md`) — files that teach how to use the framework rather than encoding behavioral contracts.
-
-### Skill File Boundary
-
-- **Part A** (documenter): Skill reference files encoding **behavioral contracts** — what the framework does, how state properties behave, what factory operations produce, entity lifecycle rules
-- **Part C** (docs agent): Skill reference files that are **instructional** — how to test, common pitfalls, integration guides, tutorials
-
-## What the Documentation/Docs Agent Should Do (Part C)
+Only needed if the plan identifies non-requirements documentation deliverables.
 
 1. **Read the plan** to understand what was implemented
 2. **Identify documentation deliverables** from the plan's Documentation section
@@ -61,21 +53,18 @@ Non-requirements documentation — API docs, README, migration guides, getting-s
    - README or getting-started guides
    - API documentation
    - Architecture documentation
-   - Instructional skill reference files (`testing.md`, `pitfalls.md`, `blazor.md`)
-4. **Update documentation samples** if needed (coordinate with developer if `.cs` samples are involved)
-5. **Record work** in the plan's Documentation section:
+   - Migration guides
+4. **Record work** in the plan's Documentation section:
    - List each file created or updated
    - Note any documentation deliverables that were N/A and why
-6. **Set plan status** to "Documentation Complete"
+5. **Set plan status** to "Documentation Complete"
 
 ## Quality Criteria
 
 - Documentation matches the implemented behavior (not the plan's design — the actual result)
-- New patterns are documented with at least one example
+- New domain concepts or rules are documented with context
 - Changed behavior notes what changed and why
-- Behavioral contract skill refs (Part A) encode what the framework does
-- Instructional skill refs (Part C) teach how to use the framework
 
 ## Documentation Does Not Require Separate Verification
 
-Documentation quality is checked during the Completion step (Step 9), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.
+Documentation quality is checked during the Completion step (Step 10), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.

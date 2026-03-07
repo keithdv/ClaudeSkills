@@ -15,8 +15,8 @@
 - `In Progress` - Implementation underway
 - `Awaiting Verification` - Developer reports done, architect must verify
 - `Sent Back` - Architect verification or requirements verification failed, developer must fix
-- `Requirements Documented` - Business requirements documentation updated (Step 8 Part A complete)
-- `Documentation Complete` - All documentation finished (Step 8 complete)
+- `Requirements Documented` - Business requirements documentation updated (Step 9 Part A complete)
+- `Documentation Complete` - All documentation finished (Step 9 complete)
 - `Complete` - Both verifications passed, documentation complete, moved to completed/
 
 ---
@@ -29,41 +29,35 @@
 
 ## Business Requirements Context
 
-[Architect populates this section from the todo's Requirements Review when creating the plan (Step 3). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
+[Architect populates this section from the todo's Requirements Review when creating the plan (Step 4). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
 
 **Source:** [Link to todo's Requirements Review section]
 
 ### Relevant Existing Requirements
 
-[Use whichever sections apply. Application projects typically have documentation-based requirements. Framework/library projects typically have code-based requirements. Some projects have both.]
+[Every project organizes requirements differently. List requirements from whatever sources the project uses — documentation, tests, legacy code, etc. Use whichever sections below apply and remove the rest.]
 
-#### Business Rules (documentation-based)
+#### Business Rules
 
 - [Rule reference/location]: [Summary] — Relevance: [How it relates to this todo]
 
-#### User Stories (documentation-based)
+#### User Stories
 
 - [Story ID/location]: [Summary] — Relevance: [How it relates]
 
-#### Workflows (documentation-based)
+#### Workflows
 
 - [Workflow reference/location]: [Summary] — Relevance: [How it relates]
 
-#### Data Definitions (documentation-based)
+#### Data Definitions
 
 - [Definition reference/location]: [Summary] — Relevance: [How it relates]
 
-#### Design Project Contracts (code-based)
-
-[For framework/library projects where design projects and tests define the requirements]
-
-- [Test/pattern location]: [What behavior it defines] — Relevance: [How it relates]
-
-#### Behavioral Contracts from Tests (code-based)
+#### Existing Tests
 
 [Tests that pass today and define expected behavior for the affected area]
 
-- [Test location]: [What contract it enforces] — Relevance: [How the proposed change affects it]
+- [Test location]: [What behavior it verifies] — Relevance: [How the proposed change affects it]
 
 ### Gaps
 
@@ -150,11 +144,11 @@
 **Scope Table:**
 [Pattern/feature matrix showing what is affected and current support status]
 
-**Design Project Verification:**
-[If the project has design/stub projects, list verification results here]
+**Verification Evidence:**
+[If the project has verification resources (design projects, sample projects, integration suites), list results here]
 
 - [Feature/Pattern]: Verified | Needs Implementation
-  - Evidence: [file path and line, or compiler error]
+  - Evidence: [file path and line, or test/compiler output]
 
 **Breaking Changes:** Yes/No - [Explanation]
 
@@ -205,11 +199,11 @@
 **Created:** [date]
 **Approved by:** [developer agent name]
 
-### Design Project Acceptance Criteria
+### Verification Acceptance Criteria
 
-[If design projects have failing code left by the architect, list them here. Implementation is done when they all compile.]
+[If verification resources have failing tests or code left by the architect, list them here. Implementation is done when they all pass.]
 
-- [ ] `path/to/file:line` - [Description]: [Compiler error] -> Must compile after implementation
+- [ ] `path/to/file:line` - [Description]: [Failure] -> Must pass after implementation
 
 ### Test Scenario Mapping
 
@@ -234,7 +228,7 @@
 ### Verification Gates
 
 1. After [milestone]: [What must be true]
-2. Final: All tests pass, design projects compile (if applicable)
+2. Final: All tests pass, verification resources pass (if applicable)
 
 ### Stop Conditions
 
@@ -267,7 +261,7 @@ If any occur, STOP and report:
 **Reported:** [date]
 
 - **Tests Passing:** [Output or summary — report ALL failures, do not classify any as "pre-existing"]
-- **Design Projects Compile:** [Yes/No/N/A]
+- **Verification Resources Pass:** [Yes/No/N/A]
 - **All Contract Items:** [Confirmed 100% complete]
 
 ---
@@ -314,7 +308,7 @@ If any occur, STOP and report:
 
 ## Requirements Verification
 
-[Business requirements reviewer fills this section after architect verification passes (Step 7, Part B).]
+[Business requirements reviewer fills this section after architect verification passes (Step 8, Part B).]
 
 **Reviewer:** [agent name]
 **Verified:** [date]

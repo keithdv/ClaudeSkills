@@ -43,6 +43,12 @@
 
 ---
 
+## Clarifications
+
+[Architect comprehension check Q&A from Step 3. The orchestrator records the architect's questions and the user's answers here before the architect proceeds to plan creation.]
+
+---
+
 ## Plans
 
 [Plan(s) created to design and implement the solution]
@@ -72,8 +78,6 @@ Before marking this todo as Complete, verify:
 
 - [ ] All builds pass
 - [ ] All tests pass
-- [ ] Design project builds successfully [Remove if no design projects]
-- [ ] Design project tests pass [Remove if no design projects]
 
 **Verification results:**
 - Build: [Pending]
