@@ -130,7 +130,7 @@ This is the full lifecycle for significant work. Each step uses the appropriate 
 Before starting the workflow, check for project-specific resources:
 
 1. **Agents** — Check `.claude/agents/` for project-specific agents: architect, developer, specialized (e.g., UI, integration), documentation, **business-requirements-reviewer**, and **business-requirements-documenter**. Also check `~/.claude/agents/` for general agents. **Project-specific agents always take priority over user-level agents of the same role.** Fall back to general-purpose agents only when no project-specific agent exists for that role. Specialized implementation agents handle specific portions of Step 6 work (e.g., a UI agent handles page components and styling).
-2. **Business requirements** — Check the project's CLAUDE.md for where business requirements documentation lives (business rules, user stories, workflows, data dictionaries). **If CLAUDE.md does not clearly indicate where business requirements are documented, STOP and ask the user before proceeding.** This information is required for Step 2.
+2. **Business requirements** — Check the project's CLAUDE.md for where business requirements documentation lives (business rules, user stories, workflows, data dictionaries). **If CLAUDE.md does not clearly indicate where business requirements are documented, STOP and ask the user before proceeding.** This information is required for Step 3.
 3. **Domain skill** — Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
 4. **Verification resources** — Check if the project has additional verification resources (e.g., sample projects, integration test suites) that the architect should use to verify scope claims.
 
@@ -159,47 +159,19 @@ Before starting the workflow, check for project-specific resources:
 - Test coverage gap analysis (beyond existence facts)
 - Design recommendations or solution approaches not stated by the user
 
-**IMPORTANT: Do NOT create the plan file.** The architect creates the plan in Step 4. Proceed directly to Step 2 (requirements review) after creating the todo.
+**IMPORTANT: Do NOT create the plan file.** The architect creates the plan in Step 4. Proceed directly to Step 2 (architect comprehension check) after creating the todo.
 
-### Step 2: Business Requirements Review
+### Step 2: Architect Comprehension Check
 
-**Purpose:** Compare the proposed work against the project's EXISTING DOCUMENTED business requirements (business rules, user stories, workflows, data definitions already in the codebase) before design begins. This is NOT the same as gathering the user's problem and solution in Step 1 — this step searches the project's requirements documentation for contradictions with the proposed work. This step catches contradictions that would otherwise become bugs — especially implicit dependencies where changing one behavior breaks assumptions in other parts of the system.
-
-Invoke the **business-requirements-reviewer** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
-- The todo file path
-- The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Review this todo against the project's existing business requirements. Write your findings into the todo's Requirements Review section. VETO if contradictions are found."
-
-The reviewer agent should:
-1. Read the todo to understand the problem and proposed solution
-2. Discover business requirements documentation paths from CLAUDE.md. **If paths are unclear, STOP and return questions for the user — do NOT guess.**
-3. Search requirements docs for rules, user stories, workflows, and data definitions related to the todo's scope
-4. Identify relevant requirements, gaps, and contradictions
-5. Pay special attention to **implicit dependencies** — changes that technically work but alter behavior governed by other business rules (e.g., changing when data is loaded affects when it's considered "part of" a record)
-6. Write findings into the todo's **Requirements Review** section (Relevant Requirements Found, Gaps, Contradictions, Recommendations for Architect)
-7. Set the verdict in the todo's Requirements Review section:
-   - **APPROVED** — No contradictions. Proceed to Step 3 (architect comprehension check).
-   - **VETOED** — Contradictions found. Must be resolved before design.
-
-**The reviewer does NOT create the plan file.** The plan is created by the architect in Step 4.
-
-**If VETOED:**
-1. Present the specific contradictions to the product owner (the user), including exact requirement references, file paths, and why they conflict with the proposed work
-2. **STOP.** Do not proceed with the workflow. The product owner decides how to resolve the contradiction — whether to modify the approach, update outdated requirements, override, or take a different path entirely
-3. After the product owner provides direction, follow it. If requirements need updating, invoke the appropriate agent (developer agent for `.cs` files, documenter agent for markdown). Then re-invoke the reviewer to confirm the contradiction is resolved
-4. Repeat until APPROVED
-
-### Step 3: Architect Comprehension Check
-
-**Purpose:** Before the architect invests in full design work, confirm they understand the problem and proposed solution. This is a lightweight pass — just questions, not design.
+**Purpose:** Before investing in requirements review and full design work, confirm the architect understands the problem and proposed solution. This is a lightweight pass — just questions, not design. A clear, well-scoped todo ensures the requirements reviewer (Step 3) evaluates against the actual intent.
 
 Invoke the **architect agent** with:
-- The todo file path (with Requirements Review section populated by the reviewer in Step 2)
+- The todo file path
 - Any domain skill references found in prerequisites
-- Instruction: "Read this todo and its Requirements Review section. Before designing anything, confirm you understand the problem and proposed solution. Return any clarifying questions you have. If the request is clear, state that you're ready to proceed with design."
+- Instruction: "Read this todo. Before designing anything, confirm you understand the problem and proposed solution. Return any clarifying questions you have. If the request is clear, state that you're ready to proceed."
 
 The architect agent should:
-1. Read the todo to understand the problem, solution, and the Requirements Review section
+1. Read the todo to understand the problem and proposed solution
 2. Assess whether the problem statement is clear and unambiguous
 3. Return one of:
    - **Questions** — A numbered list of specific clarifying questions
@@ -211,7 +183,35 @@ The architect agent should:
 3. Re-invoke the architect with the updated todo to confirm understanding or ask follow-up questions
 4. Repeat until the architect confirms "Ready"
 
-**When the architect confirms "Ready":** Proceed to Step 4 (Plan Creation & Design).
+**When the architect confirms "Ready":** Proceed to Step 3 (Business Requirements Review).
+
+### Step 3: Business Requirements Review
+
+**Purpose:** Compare the proposed work against the project's EXISTING DOCUMENTED business requirements (business rules, user stories, workflows, data definitions already in the codebase) before design begins. This is NOT the same as gathering the user's problem and solution in Step 1 — this step searches the project's requirements documentation for contradictions with the proposed work. This step catches contradictions that would otherwise become bugs — especially implicit dependencies where changing one behavior breaks assumptions in other parts of the system.
+
+Invoke the **business-requirements-reviewer** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
+- The todo file path (with Clarifications section populated from Step 2)
+- The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
+- Instruction: "Review this todo against the project's existing business requirements. Read the Clarifications section for additional context from the architect's comprehension check. Write your findings into the todo's Requirements Review section. VETO if contradictions are found."
+
+The reviewer agent should:
+1. Read the todo to understand the problem, proposed solution, and any Clarifications from Step 2
+2. Discover business requirements documentation paths from CLAUDE.md. **If paths are unclear, STOP and return questions for the user — do NOT guess.**
+3. Search requirements docs for rules, user stories, workflows, and data definitions related to the todo's scope
+4. Identify relevant requirements, gaps, and contradictions
+5. Pay special attention to **implicit dependencies** — changes that technically work but alter behavior governed by other business rules (e.g., changing when data is loaded affects when it's considered "part of" a record)
+6. Write findings into the todo's **Requirements Review** section (Relevant Requirements Found, Gaps, Contradictions, Recommendations for Architect)
+7. Set the verdict in the todo's Requirements Review section:
+   - **APPROVED** — No contradictions. Proceed to Step 4 (Architect Plan Creation & Design).
+   - **VETOED** — Contradictions found. Must be resolved before design.
+
+**The reviewer does NOT create the plan file.** The plan is created by the architect in Step 4.
+
+**If VETOED:**
+1. Present the specific contradictions to the product owner (the user), including exact requirement references, file paths, and why they conflict with the proposed work
+2. **STOP.** Do not proceed with the workflow. The product owner decides how to resolve the contradiction — whether to modify the approach, update outdated requirements, override, or take a different path entirely
+3. After the product owner provides direction, follow it. If requirements need updating, invoke the appropriate agent (developer agent for `.cs` files, documenter agent for markdown). Then re-invoke the reviewer to confirm the contradiction is resolved
+4. Repeat until APPROVED
 
 ### Step 4: Architect Plan Creation & Design
 
@@ -221,7 +221,7 @@ Invoke the **architect agent** with:
 - Instruction: "Create the plan file for this todo. Read the todo's Requirements Review and Clarifications sections first — incorporate those findings into the plan's Business Requirements Context. Then design the implementation, building on the documented requirements. Create business rules as testable assertions that trace to the existing requirements where they exist."
 
 The architect agent should:
-1. Read the todo to understand the problem, solution, **the Requirements Review section** written by the reviewer, and **the Clarifications** from Step 3
+1. Read the todo to understand the problem, solution, **the Requirements Review section** written by the reviewer, and **the Clarifications** from Step 2
 2. **Create the plan file** in `docs/plans/` using the plan template. Populate the Business Requirements Context section from the reviewer's findings in the todo. Link the plan to the todo (update both files).
 3. The architect MUST NOT invent business rules that contradict the documented requirements identified by the reviewer.
 4. Explore the codebase to understand current architecture
@@ -327,7 +327,7 @@ The architect agent should:
 
 **Only if Part A passes (VERIFIED).**
 
-Invoke the **business-requirements-reviewer** agent (same agent resolution as Step 2 — project-specific first, user-level fallback) with:
+Invoke the **business-requirements-reviewer** agent (same agent resolution as Step 3 — project-specific first, user-level fallback) with:
 - The plan file path
 - Instruction: "Perform post-implementation requirements verification. Confirm the implementation satisfies the documented business requirements identified in the Business Requirements Context section. Check for unintended side effects on other business rules."
 
@@ -342,7 +342,7 @@ The reviewer agent should:
 
 ### Step 9: Requirements Documentation
 
-**Purpose:** Update the project's business requirements documentation to reflect what was actually implemented — new rules, changed rules, resolved gaps. This closes the loop: the reviewer identified the requirements landscape in Step 2, and now the documentation sources are updated to stay current.
+**Purpose:** Update the project's business requirements documentation to reflect what was actually implemented — new rules, changed rules, resolved gaps. This closes the loop: the reviewer identified the requirements landscape in Step 3, and now the documentation sources are updated to stay current.
 
 Every project organizes documentation differently. The documenter agent and the project's CLAUDE.md provide the project-specific knowledge of where requirements live and how they're structured. This step defines the workflow, not the project details.
 
@@ -496,8 +496,8 @@ Always use relative paths (`../todos/`, `../plans/`).
 ### Todo with Full Agent Workflow
 
 1. Create todo (Step 1)
-2. Business requirements review (Step 2) — reviewer writes findings into todo, checks for contradictions
-3. Architect comprehension check (Step 3) — architect reads todo and asks clarifying questions before designing
+2. Architect comprehension check (Step 2) — architect reads todo and asks clarifying questions before reviewing
+3. Business requirements review (Step 3) — reviewer writes findings into todo, checks for contradictions
 4. Architect creates plan and designs (Step 4) — architect creates plan file, incorporates reviewer findings, designs implementation
 5. Developer reviews (Step 5)
 6. Clarification loop if needed (Step 6)
@@ -509,8 +509,8 @@ Always use relative paths (`../todos/`, `../plans/`).
 ### Adding a Plan to Existing Todo
 
 1. Read existing todo for context
-2. Invoke business-requirements-reviewer to write findings into todo's Requirements Review section (Step 2)
-3. Architect comprehension check (Step 3)
+2. Architect comprehension check (Step 2)
+3. Invoke business-requirements-reviewer to write findings into todo's Requirements Review section (Step 3)
 4. Invoke architect to create plan and design (Step 4)
 
 ### Resuming Mid-Workflow
@@ -518,12 +518,12 @@ Always use relative paths (`../todos/`, `../plans/`).
 When a session was interrupted or the user asks to resume:
 
 1. Read the todo file. Check if a plan file exists (look in the todo's Plans section for a link).
-2. **If no plan exists**, check the todo's **Requirements Review** section:
-   - No review yet (Verdict: Pending) → Step 2 (run the reviewer)
-   - Verdict: APPROVED → Check the todo's **Clarifications** section:
-     - Empty, not present, or contains unanswered questions → Step 3 (architect comprehension check)
-     - Contains answered Q&A and architect confirmed "Ready" → Step 4 (architect creates the plan)
-   - Verdict: VETOED → Step 2 (resolve contradictions with user)
+2. **If no plan exists**, check the todo's **Clarifications** section:
+   - Empty or not present → Step 2 (architect comprehension check)
+   - Contains answered Q&A and architect confirmed "Ready" → Check the todo's **Requirements Review** section:
+     - No review yet (Verdict: Pending) → Step 3 (run the reviewer)
+     - Verdict: APPROVED → Step 4 (architect creates the plan)
+     - Verdict: VETOED → Step 3 (resolve contradictions with user)
 3. **If a plan exists**, read it and check its **Status** field:
    - `Draft (Architect)` → Step 4 (architect still working)
    - `Under Review (Developer)` → Step 5 (developer review)
@@ -545,8 +545,8 @@ When a session was interrupted or the user asks to resume:
 3. **Link maintenance**: Always update both files when creating links.
 4. **Multiple plans OK**: A todo can have multiple plans. One todo per file.
 5. **Last Updated**: Always update when modifying any content.
-6. **Requirements review first**: Never skip the business requirements review (Step 2). The most expensive bugs come from contradicting existing requirements — especially implicit dependencies.
-7. **Comprehension check saves rework**: The architect comprehension check (Step 3) catches misunderstandings before full design work begins. Do not skip it — misunderstood requirements lead to plan rewrites.
+6. **Comprehension check first**: The architect comprehension check (Step 2) catches misunderstandings before requirements review and design. Do not skip it — a vague todo leads to unreliable requirements review and plan rewrites.
+7. **Requirements review before design**: Never skip the business requirements review (Step 3). The most expensive bugs come from contradicting existing requirements — especially implicit dependencies.
 8. **Verification resources**: When the project has verification resources (design projects, sample projects, integration suites), use them. Compilation and test results are the source of truth for scope claims.
 9. **Agent phasing**: The architect identifies phases benefiting from fresh agents during planning. The orchestrator follows this phasing during implementation, invoking fresh agent instances for each identified phase.
 10. **Documentation deliverables**: Identify expected documentation deliverables during planning (Step 4) or implementation contract (Step 6), not as an afterthought.

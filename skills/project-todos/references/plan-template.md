@@ -103,6 +103,52 @@
 
 ---
 
+## Domain Model Behavioral Design
+
+[The domain model is the ViewModel for Blazor pages. Every behavioral property the UI needs must be designed here — Razor pages bind to these properties and NEVER implement business logic themselves. If this section is empty, the architect must justify why no behavioral properties are needed.]
+
+### Computed Properties
+
+[Values derived from other properties. The domain framework skill documents implementation patterns.]
+
+| Property | Type | Computes | Triggered By |
+|----------|------|----------|-------------|
+| [e.g., FullName] | [string] | [FirstName + " " + LastName] | [FirstName, LastName] |
+
+### Visibility / Conditional Flags
+
+[Booleans that control what the UI shows or hides. Razor binds to these — never writes its own @if conditions on business state.]
+
+| Property | Condition | Depends On |
+|----------|-----------|------------|
+| [e.g., ShowDeclineReason] | [CareStatus == ConsultationDeclined] | [CareStatus] |
+
+### Reactive Rules
+
+[When property A changes, update property B — within an entity or across parent-child boundaries in the aggregate graph.]
+
+| Rule | Trigger | Affected Property | Behavior |
+|------|---------|-------------------|----------|
+| [e.g., Auto-set consultation date] | [CareStatus → Consultation] | [ConsultationDate] | [Set to today if null] |
+
+### Classification Properties
+
+[Properties that classify or categorize for display purposes.]
+
+| Property | Type | Logic |
+|----------|------|-------|
+| [e.g., IsPatient] | [bool] | [CareStatus >= InitialCare] |
+
+### Validation Rules
+
+[Business constraints enforced in the domain model.]
+
+| Rule | Trigger Properties | Error Message |
+|------|-------------------|---------------|
+| [e.g., DeclineReason required] | [CareStatus, DeclineReason] | [Decline reason is required when consultation is declined] |
+
+---
+
 ## Design
 
 [Detailed design - architecture, file structure, data flow, etc.]
