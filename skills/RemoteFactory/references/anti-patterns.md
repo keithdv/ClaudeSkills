@@ -286,6 +286,35 @@ internal partial class OrderLine : IOrderLine
 
 ---
 
+## 12. Optional Parameters in Factory Methods
+
+**Problem**: Default values are silently dropped — generated factory methods require all arguments.
+
+```csharp
+// WRONG - default value is lost in generated code
+[Factory]
+public partial class EmployeeSearch
+{
+    [Remote, Create]
+    public void Create(string? searchQuery = null) { }  // = null is stripped!
+}
+
+// Generated factory method becomes:
+// Task<EmployeeSearch> Create(string? searchQuery)  -- no default, caller must pass argument
+
+// RIGHT - don't use optional parameters; pass explicitly
+[Factory]
+public partial class EmployeeSearch
+{
+    [Remote, Create]
+    public void Create(string? searchQuery) { }  // Caller always passes value (or null)
+}
+```
+
+**Why**: The source generator captures parameter name and type but discards default values. The generated factory interface and implementation will not include `= null`, `= ""`, `= 0`, or any other defaults. Callers will get a compile error if they omit the argument.
+
+---
+
 ## Summary Table
 
 | Anti-Pattern | Problem | Solution |
@@ -301,3 +330,4 @@ internal partial class OrderLine : IOrderLine
 | [Event] missing CancellationToken | Can't cancel | Add as final parameter |
 | Class [Execute] wrong return type | Won't compile | Must return containing type |
 | [Remote] on internal methods | NF0105 diagnostic | Remove [Remote] or make method public |
+| Optional parameters | Defaults silently dropped | Don't use defaults; pass all args explicitly |
