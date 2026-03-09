@@ -31,6 +31,7 @@ RemoteFactory + Neatoo together provide the complete DDD framework. For domain m
 | Question | Answer |
 |----------|--------|
 | Should this method be [Remote]? | Only aggregate root entry points |
+| Must [Remote] methods be `internal`? | Yes - `[Remote] public` is error NF0105; `[Remote] internal` promotes to `public` on factory interface |
 | Can I use private setters? | No - breaks serialization |
 | Should interface methods have attributes? | No - interface IS the boundary |
 | Do I need `partial` keyword? | Yes, always |
@@ -40,7 +41,7 @@ RemoteFactory + Neatoo together provide the complete DDD framework. For domain m
 | Can [Execute] go on a class factory? | Yes, if `public static` and returns containing type |
 | Do [Event] methods need CancellationToken? | Yes, as final parameter |
 | Where does business logic go? | In the entity, not the factory |
-| How do I reduce Blazor WASM bundle size? | IL trimming (simplest) or RemoteOnly mode |
+| How do I reduce Blazor WASM bundle size? | Enable IL trimming (strongly recommended) |
 
 ## Reference Files
 
@@ -58,7 +59,7 @@ Consult these files for detailed patterns and examples:
 
 ### Advanced Topics
 - **`references/advanced-patterns.md`** - Authorization, correlation context, complex aggregates, testing
-- **`references/trimming.md`** - IL trimming for Blazor WASM bundle size reduction
+- **`references/trimming.md`** - IL trimming setup (removes server code from deployed client)
 
 ---
 

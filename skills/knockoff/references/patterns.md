@@ -17,6 +17,8 @@ KnockOff supports nine distinct patterns for creating test stubs, organized into
 8. **Open Generic Interface** - `[KnockOff(typeof(IService<>))]` - Nested generic stub from open generic interface
 9. **Open Generic Class** - `[KnockOff(typeof(ServiceBase<>))]` - Nested generic stub from open generic class
 
+**Internal types are fully supported.** When the target interface, class, or delegate is `internal`, the generated stub class uses `internal` accessibility automatically. For standalone patterns (1-4), declare the stub class as `internal partial class` and the generated Base class will match. For inline patterns (5-9), the generator matches the target type's accessibility. This works across all four pipelines (FlatRenderer, StandaloneClassRenderer, InlineRenderer, ClassRenderer).
+
 ## Pattern Relationships
 
 ```
@@ -816,4 +818,4 @@ ServiceBaseGeneric<Order> service = serviceStub.Object;  // .Object required for
 
 ---
 
-**UPDATED:** 2026-02-08 (Nine patterns including Standalone Class stubs; class stub CallBase behavior)
+**UPDATED:** 2026-03-07 (Internal type accessibility support across all patterns and pipelines)

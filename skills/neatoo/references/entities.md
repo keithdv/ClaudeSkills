@@ -142,6 +142,35 @@ public async Task UnDelete_ReversesDeleteBeforeSave()
 <sup><a href='/src/samples/EntitiesSamples.cs#L479-L500' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-undelete' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## FactoryComplete Lifecycle Hook
+
+Override `FactoryComplete` to run logic after any factory operation completes. This hook fires after `[Create]`, `[Fetch]`, `[Insert]`, `[Update]`, or `[Delete]`:
+
+<!-- snippet: skill-factory-complete -->
+<a id='snippet-skill-factory-complete'></a>
+```cs
+public override void FactoryComplete(FactoryOperation operation)
+{
+    base.FactoryComplete(operation); // ALWAYS call base first
+
+    if (operation == FactoryOperation.Create)
+    {
+        // Logic after Create — e.g., set defaults
+        Status = "Draft";
+    }
+    else if (operation == FactoryOperation.Fetch)
+    {
+        // Logic after Fetch — e.g., compute derived state from loaded data
+    }
+}
+```
+<sup><a href='/src/samples/SkillGapSamples.cs#L120-L135' title='Snippet source file'>snippet source</a> | <a href='#snippet-skill-factory-complete' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+**Always call `base.FactoryComplete()`** — it resumes paused actions (rules were suppressed during the factory operation) and subscribes lazy-load properties. Skipping `base` breaks rule execution and lazy loading.
+
+`FactoryOperation` values: `Create`, `Fetch`, `Insert`, `Update`, `Delete`.
+
 ## Change Tracking
 
 ### IsModified and IsSelfModified
@@ -291,7 +320,7 @@ Parent entities reflect child state:
 <a id='snippet-entities-child-state'></a>
 ```cs
 [Fact]
-public async Task ChildEntity_CannotSaveDirectly()
+public void ChildEntity_CannotSaveDirectly()
 {
     var orderFactory = GetRequiredService<IEntitiesOrderFactory>();
     var itemFactory = GetRequiredService<IEntitiesOrderItemFactory>();
@@ -310,15 +339,13 @@ public async Task ChildEntity_CannotSaveDirectly()
     // Child entity state
     Assert.True(item.IsChild);
     Assert.Same(order, item.Root);
-    Assert.False(item.IsSavable); // Children can't save independently
 
-    // Attempting to save throws
-    var exception = await Assert.ThrowsAsync<SaveOperationException>(
-        () => item.Save());
-    Assert.Equal(SaveFailureReason.IsChildObject, exception.Reason);
+    // Child interfaces (IEntityBase) don't expose IsSavable or Save().
+    // Only IEntityRoot exposes those members.
+    // This is enforced at the type level — no runtime check needed.
 }
 ```
-<sup><a href='/src/samples/EntitiesSamples.cs#L656-L684' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-child-state' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/samples/EntitiesSamples.cs#L656-L682' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-child-state' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Factory Services
@@ -343,7 +370,7 @@ public void Factory_SetThroughDependencyInjection()
     // The factory calls Insert, Update, or Delete based on entity state
 }
 ```
-<sup><a href='/src/samples/EntitiesSamples.cs#L686-L701' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-factory-services' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/samples/EntitiesSamples.cs#L684-L699' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-factory-services' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Save Cancellation
@@ -373,7 +400,7 @@ public async Task Save_SupportsCancellation()
     Assert.True(order.IsModified);
 }
 ```
-<sup><a href='/src/samples/EntitiesSamples.cs#L703-L723' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-save-cancellation' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/samples/EntitiesSamples.cs#L701-L721' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-save-cancellation' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Parent Property
@@ -553,7 +580,7 @@ public async Task CascadeSave_OnlyRootSavedExternally()
     Assert.False(saved.IsNew);
 }
 ```
-<sup><a href='/src/samples/EntitiesSamples.cs#L798-L819' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-cascade-correct-external' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/samples/EntitiesSamples.cs#L796-L817' title='Snippet source file'>snippet source</a> | <a href='#snippet-entities-cascade-correct-external' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ### Rules
@@ -652,8 +679,74 @@ public async Task UpdateAsync([Service] IAssessmentRepository repository,
 - Conditional persistence decisions (e.g., skip empty children) get tangled into the parent
 - The parent grows large and complex as the child's schema evolves
 
+## Child Entity Factory Method Visibility
+
+Child entity persistence methods (`[Insert]`, `[Update]`, `[Delete]`, `[Fetch]`) should be `internal` on pure child entities. `[Create]` stays `public` because client code needs to create objects before adding them to collections.
+
+This formalizes the existing design decision that child entity persistence is server-only (child entities do not have `[Remote]` on persistence methods). Making the methods `internal` adds language-level enforcement and enables IL trimming via `IsServerRuntime` guards.
+
+### Visibility Rules
+
+| Method | Visibility | Rationale |
+|--------|-----------|-----------|
+| `[Create]` | `public` | Client code calls `itemFactory.Create()` before `order.Items.Add(item)` |
+| `[Fetch]` | `internal` | Called only by parent/list factory methods on the server |
+| `[Insert]` | `internal` | Called only via `childFactory.SaveAsync()` in parent's `[Insert]`/`[Update]` |
+| `[Update]` | `internal` | Called only via `childFactory.SaveAsync()` in parent's `[Insert]`/`[Update]` |
+| `[Delete]` | `internal` | Called only via `childFactory.SaveAsync()` in parent's `[Update]` (deleted list) |
+
+### Generated Factory Interface Effects
+
+The generated factory interface visibility depends on the mix of method visibilities:
+
+- **Mixed visibility** (public `[Create]` + internal persistence): Factory interface stays `public`. Only `Create` appears on the public interface. `Fetch`, `Save`, and persistence methods are available as internal members within the assembly.
+- **All-internal** (entity list with only `[Fetch]` + `[Update]`, no `[Create]`): Factory interface becomes `internal`. Only usable within the assembly.
+
+Internal methods get `IsServerRuntime` guards in the generated factory implementation, making them trimmable on the client. See [Trimming](trimming.md) for consumer project setup and verified size reductions.
+
+### Example: Pure Child Entity
+
+```csharp
+[Factory]
+internal partial class OrderItem : EntityBase<OrderItem>, IOrderItem
+{
+    public OrderItem(IEntityBaseServices<OrderItem> services) : base(services) { }
+
+    public partial string ProductName { get; set; }
+    public partial decimal Price { get; set; }
+
+    // Public — client creates items before adding to collection
+    [Create]
+    public void Create(string productName, decimal price) { ... }
+
+    // Internal — called by parent's [Insert]/[Update] via childFactory.SaveAsync()
+    [Fetch]
+    internal void Fetch(int id, string productName, decimal price) { ... }
+
+    [Insert]
+    internal async Task Insert(int orderId, [Service] IOrderItemRepository repo) { ... }
+
+    [Update]
+    internal async Task Update([Service] IOrderItemRepository repo) { ... }
+
+    [Delete]
+    internal async Task Delete([Service] IOrderItemRepository repo) { ... }
+}
+// Generated: public IOrderItemFactory — Create() is public, Save/Fetch are internal members
+```
+
+### Exceptions: Dual-Use Entities
+
+Entities that can serve as both aggregate roots and children (entity duality pattern) must keep all factory methods `public` with `[Remote]` to support the root usage path. Do NOT make these `internal`.
+
+### Constraints
+
+- **No `[Remote]` on internal methods.** `[Remote]` + `internal` triggers NF0105 diagnostic error. Remove `[Remote]` before making a method `internal`.
+- **CS0051 applies only to public classes.** An `internal` factory interface can be injected as a `[Service]` parameter into another `internal` class without CS0051, because the method's effective accessibility is capped by the class. If the consuming class is `public`, the child factory interface must also be `public` (ensured by keeping `[Create]` public on the child).
+
 ## Related
 
 - [Collections](collections.md) - Child entity collections
 - [Validation](validation.md) - IsValid and validation rules
 - [Domain Logic Placement](domain-logic-placement.md) - Where business logic belongs
+- [Trimming](trimming.md) - IL trimming annotations and consumer project setup
