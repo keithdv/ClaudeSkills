@@ -227,7 +227,7 @@ The architect agent should:
 4. Explore the codebase to understand current architecture
 5. **Extract business rules as testable assertions** — Before designing anything, analyze the legacy code, user requirements, and codebase to produce a numbered list of crisp, unambiguous business rules. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. **Trace each assertion to an existing documented requirement where one exists.** New assertions (for gaps identified by the reviewer) must be clearly marked as new. These go in the plan's "Business Rules (Testable Assertions)" section. This is NOT optional — it is the first section completed.
 6. **Create concrete test scenarios** — For each business rule, create at least one scenario with specific inputs and expected result. These go in the "Test Scenarios" table. The architect must show the evaluation for each scenario. These scenarios become the acceptance tests.
-7. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions.
+7. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions. **Implementation steps must cover only source code changes** — do NOT include documentation updates (skill docs, user-facing docs, samples, design reference files, release notes) in implementation phases. List expected documentation deliverables in the plan's "Documentation" section for Step 9.
 8. **If verification resources exist** (design projects, sample projects, etc.): verify scope claims using them. Leave failing tests or code as acceptance criteria for features that need implementation.
 9. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
     - Phases that are independent and don't need prior implementation context
@@ -296,7 +296,8 @@ The developer agent (or specialized agents) should:
 2. Run tests at each verification gate
 3. **STOP and report** if out-of-scope tests fail or architectural contradictions are discovered
 4. Collect evidence (test output, generated code samples)
-5. **When finished**: Write "Implementation Progress" and "Completion Evidence" sections in the plan, set plan status to "Awaiting Verification", then **STOP**. Do NOT mark the todo or plan as Complete.
+5. **Do NOT update documentation markdown** — skill markdown, user-facing docs markdown, and release notes are handled in Step 9 by the documenter agent. The developer's scope is source code only. Code comments (XML docs) on modified code are in scope. Design project code (`src/Design/`) and sample code (`src/samples/`) are source code — update them during implementation if in scope, or as Developer Deliverables routed from the documenter in Step 9.
+6. **When finished**: Write "Implementation Progress" and "Completion Evidence" sections in the plan, set plan status to "Awaiting Verification", then **STOP**. Do NOT mark the todo or plan as Complete.
 
 ### Step 8: Verification (Architect + Requirements)
 
