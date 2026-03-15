@@ -134,6 +134,18 @@ Before starting the workflow, check for project-specific resources:
 3. **Domain skill** — Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
 4. **Verification resources** — Check if the project has additional verification resources (e.g., sample projects, integration test suites) that the architect should use to verify scope claims.
 
+### Agent Threading Strategy
+
+Three agent roles span multiple steps. Resume agents on subsequent invocations to preserve accumulated context. Record each agent's ID when first invoked (the Agent tool returns this).
+
+| Agent | Fresh At | Resume At | Why Resume |
+|---|---|---|---|
+| Architect | Step 2 | Steps 4, 6, 8A | Carries problem understanding through design and verification |
+| Developer | Step 5 | Steps 6, 7, 9A deliverables | Carries plan knowledge through review, implementation, and follow-up |
+| Requirements Reviewer | Step 3 | Step 8B | Carries requirements landscape through post-implementation check |
+
+Single-use agents (requirements documenter, documentation agent, specialized implementation agents) always start fresh. Within Step 7, the architect's Agent Phasing section may override resume defaults — phases marked "Fresh Agent? Yes" start new instances.
+
 ### Step 1: Create Todo
 
 1. Capture the user's description of the problem and desired outcome — in THEIR words
@@ -165,6 +177,8 @@ Before starting the workflow, check for project-specific resources:
 
 **Purpose:** Before investing in requirements review and full design work, confirm the architect understands the problem and proposed solution. This is a lightweight pass — just questions, not design. A clear, well-scoped todo ensures the requirements reviewer (Step 3) evaluates against the actual intent.
 
+**Agent threading:** Fresh — save the architect agent ID for resumption in Steps 4, 6, and 8A.
+
 Invoke the **architect agent** with:
 - The todo file path
 - Any domain skill references found in prerequisites
@@ -188,6 +202,8 @@ The architect agent should:
 ### Step 3: Business Requirements Review
 
 **Purpose:** Compare the proposed work against the project's EXISTING DOCUMENTED business requirements (business rules, user stories, workflows, data definitions already in the codebase) before design begins. This is NOT the same as gathering the user's problem and solution in Step 1 — this step searches the project's requirements documentation for contradictions with the proposed work. This step catches contradictions that would otherwise become bugs — especially implicit dependencies where changing one behavior breaks assumptions in other parts of the system.
+
+**Agent threading:** Fresh — save the reviewer agent ID for resumption in Step 8B.
 
 Invoke the **business-requirements-reviewer** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The todo file path (with Clarifications section populated from Step 2)
@@ -215,6 +231,8 @@ The reviewer agent should:
 
 ### Step 4: Architect Plan Creation & Design
 
+**Agent threading:** Resume the architect agent from Step 2.
+
 Invoke the **architect agent** with:
 - The todo file path (with Requirements Review and Clarifications sections populated)
 - Any domain skill references found in prerequisites
@@ -239,6 +257,8 @@ The architect agent should:
 
 ### Step 5: Developer Review
 
+**Agent threading:** Fresh — save the developer agent ID for resumption in Steps 6, 7, and 9A.
+
 Invoke the **developer agent** with:
 - The plan file path
 - The todo file path
@@ -262,8 +282,8 @@ If the developer raises concerns:
 1. Present concerns to the user
 2. Ask the user: "Would you like to clarify these yourself, or should the architect agent address them?"
 3. Based on user's choice:
-   - **User clarifies**: Orchestrator updates the plan with the user's answers, then returns to Step 5
-   - **Architect clarifies**: Invoke architect agent with the concerns, then return to Step 5
+   - **User clarifies**: Orchestrator updates the plan with the user's answers, then resume the developer (from Step 5) for re-review
+   - **Architect clarifies**: Resume the architect (from Step 2) with the concerns, then resume the developer (from Step 5) for re-review
 4. Repeat until the developer approves
 
 When the developer approves:
@@ -274,6 +294,8 @@ When the developer approves:
 ### Step 7: Implementation
 
 **STOP — Do not write code here. Invoke an agent for all implementation work.**
+
+**Agent threading:** Resume the developer agent from Step 5 to begin implementation. For multi-phase work, follow the Agent Phasing section for subsequent phase decisions.
 
 Invoke the **developer agent** for implementation with:
 - The plan file path (with implementation contract)
@@ -307,6 +329,8 @@ This step has two parts: technical verification and requirements verification. B
 
 #### Part A: Architect Verification
 
+**Agent threading:** Resume the architect agent from Step 2.
+
 Invoke the **architect agent** with:
 - The plan file path
 - The todo file path
@@ -327,6 +351,8 @@ The architect agent should:
 #### Part B: Requirements Verification
 
 **Only if Part A passes (VERIFIED).**
+
+**Agent threading:** Resume the reviewer agent from Step 3.
 
 Invoke the **business-requirements-reviewer** agent (same agent resolution as Step 3 — project-specific first, user-level fallback) with:
 - The plan file path
@@ -349,6 +375,8 @@ Every project organizes documentation differently. The documenter agent and the 
 
 #### Part A: Requirements Documentation
 
+**Agent threading:** Fresh documenter agent.
+
 Invoke the **business-requirements-documenter** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The plan file path
 - The todo file path
@@ -365,9 +393,11 @@ The documenter agent should:
 
 **Critical rule**: Document what was *implemented*, not what was *planned*. If the implementation diverged from the plan, the documentation must match the implementation.
 
-**Developer Deliverables**: If the documenter identified source code changes needed, invoke the **developer agent** to complete them. The developer builds and tests after changes, then marks each deliverable as completed in the Documentation section.
+**Developer Deliverables**: If the documenter identified source code changes needed, **resume** the developer agent from Step 5 to complete them. The developer builds and tests after changes, then marks each deliverable as completed in the Documentation section.
 
 #### Part B: General Documentation (if applicable)
+
+**Agent threading:** Fresh documentation agent, or resume the developer from Step 5 if no documentation agent exists.
 
 If the plan identifies non-requirements documentation deliverables (API docs, README changes, migration guides, architecture docs, getting-started updates), invoke the **documentation agent** (or developer agent if no documentation agent exists) with:
 - The plan file path
