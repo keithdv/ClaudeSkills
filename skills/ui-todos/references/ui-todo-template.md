@@ -17,13 +17,15 @@
 
 ---
 
-## Legacy Reference
+## Requirements Review
 
-[If matching or referencing a legacy screen, document findings here. Leave blank until the legacy reference agent provides analysis.]
+[Business-requirements-reviewer findings. Leave blank until Step 2 completes, or note "Skipped — pure styling/layout work" if not applicable.]
 
-- **Legacy screen:** [Template path or screen name, or "N/A — new functionality"]
-- **Key fields/elements:** [List from legacy analysis]
-- **Intentional divergences:** [What should differ from legacy and why]
+- **Verdict:** Pending | Skipped | APPROVED | VETOED
+- **Relevant Requirements:** [List of business rules or user stories that apply]
+- **Gaps:** [Requirements that don't exist yet for this work]
+- **Contradictions:** [Conflicts with existing documented requirements]
+- **Recommendations:** [Guidance for the UI agent when creating the plan]
 
 ---
 
@@ -42,8 +44,12 @@
 
 ## Tasks
 
-- [ ] First task
-- [ ] Second task
+- [ ] Requirements review (Step 2, if applicable)
+- [ ] Create plan + grade (Step 3)
+- [ ] User reviews plan (Step 4)
+- [ ] Backend prerequisites (Step 4.5, if applicable)
+- [ ] Implementation (Step 5)
+- [ ] Verification (Step 6)
 
 ---
 

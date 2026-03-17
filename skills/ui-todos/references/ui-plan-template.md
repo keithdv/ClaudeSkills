@@ -2,7 +2,7 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Draft | Under Review | Approved | In Progress | Awaiting Verification | Sent Back | Complete
+**Status:** Draft | Approved | In Progress | Awaiting Verification | Sent Back | Complete
 **Last Updated:** YYYY-MM-DD
 
 ---
@@ -10,6 +10,14 @@
 ## Overview
 
 [What this plan accomplishes visually. Reference the todo's visual description.]
+
+---
+
+## Difficulty & Risk Assessment
+
+**Difficulty:** Low | Medium | High
+**Risk:** Low | Medium | High
+**Justification:** [Scope, complexity, unknowns — why this grade. If High, recommend escalating to project-todos.]
 
 ---
 
@@ -60,7 +68,6 @@
 - [ ] [Specific visual check — what the user should see]
 - [ ] [Layout/spacing requirement]
 - [ ] [Component behavior requirement]
-- [ ] [Matches legacy screen (if applicable) — with noted divergences]
 
 ---
 
@@ -75,7 +82,7 @@
 
 ## Backend Prerequisites (Optional)
 
-[List any backend changes needed before UI implementation can proceed. Remove this section if none are needed.]
+None — or list backend changes needed before UI implementation can proceed.
 
 [If the changes involve more than 2-3 entities or require new aggregates or complex business rules, this UI todo is too large — use project-todos for the backend portion instead.]
 
@@ -100,6 +107,16 @@
 ## Risks / Considerations
 
 [MudBlazor version constraints, browser compatibility, performance concerns, etc.]
+
+---
+
+## Agent IDs
+
+[Orchestrator tracks agent IDs here for resume across steps]
+
+- **UI Agent (Plan/Implement):** [agent ID from Step 3, resumed in Step 5]
+- **Developer Agent:** [agent ID from Step 4.5, if used]
+- **Verification Agent:** [agent ID from Step 6]
 
 ---
 
