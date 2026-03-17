@@ -29,7 +29,7 @@ Two agent threads persist across steps:
 | Developer | Step 4 (Review) | Step 5 (Implement), Clarification Loop |
 | Documenter | Step 7 (Docs) | -- |
 
-Track agent IDs in the plan's Agent IDs section to enable resume across steps.
+**How to resume:** Agents must be spawned with `run_in_background: true` to be resumable. Call `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage. Give each agent a `name` when first spawned to enable resumption.
 
 ## Prerequisites
 

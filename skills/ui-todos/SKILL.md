@@ -222,7 +222,7 @@ Only after verification passes:
 
 ### What "Fresh" Means Operationally
 
-A fresh agent means launching a new Agent tool invocation — do not resume or continue a previous agent's thread. A resumed agent means passing the previous agent's ID to the Agent tool to continue with its full prior context.
+A fresh agent means launching a new Agent tool invocation. A resumed agent means calling `SendMessage(to: "agent-name", message: "new instructions")` — the agent resumes from its transcript in the background. Agents must be spawned with `run_in_background: true` to be resumable. Wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
 
 ### Principle
 

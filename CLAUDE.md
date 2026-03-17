@@ -1,3 +1,9 @@
+## Agent Resumption
+
+Agent teams must be enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings.json `env`). Agents must be spawned with `run_in_background: true` to be resumable. To resume, use `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
+
+---
+
 ## Core Rules
 
 - **STOP and ask** when you hit an obstacle - don't push through with workarounds

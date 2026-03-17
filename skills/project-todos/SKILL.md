@@ -136,7 +136,9 @@ Before starting the workflow, check for project-specific resources:
 
 ### Agent Threading Strategy
 
-Three agent roles span multiple steps. Resume agents on subsequent invocations to preserve accumulated context. Record each agent's ID when first invoked (the Agent tool returns this).
+Three agent roles span multiple steps. Resume agents on subsequent invocations to preserve accumulated context. Give each agent a `name` parameter when first spawned.
+
+**How to resume:** Agents must be spawned with `run_in_background: true` to be resumable. Call `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
 
 | Agent | Fresh At | Resume At | Why Resume |
 |---|---|---|---|
