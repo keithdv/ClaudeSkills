@@ -47,18 +47,9 @@ Before starting the workflow, check `.claude/agents/` for project-specific agent
 
 ---
 
-## Agent Resume Strategy
+## Agent Strategy
 
-Resume agents across steps to preserve accumulated context. Track agent IDs in the plan's Agent IDs section.
-
-| Agent | Fresh At | Resume At |
-|-------|----------|-----------|
-| Requirements Reviewer | Step 2 | — |
-| UI Agent | Step 3 (Plan) | Step 5 (Implement) |
-| Developer Agent | Step 4.5 (Backend) | — |
-| Verification Agent | Step 6 (Verify) | — |
-
-Start a fresh agent only if the resumed agent is failing or the context has grown too large.
+Every agent invocation is a **fresh** Agent call. Provide full context (todo path, plan path, relevant instructions) each time. Do not attempt to resume agents across steps.
 
 ---
 
@@ -142,7 +133,7 @@ The agent should:
 
 Present the plan to the user for review. The user decides:
 - **Approve** — Proceed to implementation (or backend prerequisites first)
-- **Request changes** — Resume the UI agent from Step 3 to revise the plan
+- **Request changes** — Invoke a fresh UI agent to revise the plan
 - **Escalate** — Move to `project-todos` if scope is larger than expected
 
 Mark plan as "Approved" when the user is satisfied.
@@ -159,9 +150,9 @@ Launch the **developer agent** with:
 
 After completion, update the plan's Backend Prerequisites section with results. All tests must pass before proceeding.
 
-### Step 5: Implementation (Resume UI Agent)
+### Step 5: Implementation (Fresh UI Agent)
 
-**Resume the UI agent** from Step 3 with:
+Invoke a fresh **UI agent** with:
 - Instruction: "Implement the approved plan. Update Implementation Progress as you work. When done, fill Completion Evidence and set status to Awaiting Verification. Do NOT mark the todo as Complete."
 
 The agent should:
@@ -192,7 +183,7 @@ The fresh agent should:
 6. Run `dotnet build` independently
 7. Render verdict: **VERIFIED** or **SENT BACK** with specific issues
 
-If **SENT BACK**: Report issues to the user. Resume the implementation agent from Step 5 to fix. Then verify again with another fresh agent.
+If **SENT BACK**: Report issues to the user. Invoke a fresh agent to fix the issues. Then verify again with another fresh agent.
 
 ### Step 7: Completion
 
@@ -222,7 +213,7 @@ When a session was interrupted or the user asks to resume:
    - `Awaiting Verification` → Step 6 (verification)
    - `Sent Back` → Step 5 (fix issues, read Verification section for what failed)
    - `Complete` → Step 7 (completion)
-4. Check the plan's Agent IDs section for stored IDs to resume the correct agents.
+4. Invoke a fresh agent for the appropriate step.
 
 ### Always Fresh
 
@@ -245,13 +236,11 @@ When a session was interrupted or the user asks to resume:
 
 ### What "Fresh" Means Operationally
 
-A fresh agent means launching a new Agent tool invocation. A resumed agent means calling `SendMessage(to: "agent-name", message: "new instructions")` — the agent resumes from its transcript in the background. Agents must be spawned with `run_in_background: true` to be resumable. Wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
-
-**Permissions for writing agents:** Any agent launched with `run_in_background: true` that needs to write files, edit files, or run bash commands MUST include `mode: "acceptEdits"` on the Agent call. Without an explicit mode, background agents silently fail to write — permission prompts go unanswered and the agent reports success while nothing persists to disk. Read-only agents (research, review) don't need it.
+Every agent invocation is a fresh Agent tool call. Provide full context (todo path, plan path, relevant instructions) each time.
 
 ### Principle
 
-Fresh agents provide unbiased investigation and review. Resumed agents preserve valuable implementation context. Default to fresh unless context reuse clearly helps.
+Every agent invocation is fresh. Provide full context each time.
 
 ---
 
@@ -299,11 +288,11 @@ Fresh agents provide unbiased investigation and review. Resumed agents preserve 
 1. **Don't rush planning** — flesh out the todo in conversation before launching agents
 2. **No code in conversation** — all source code edits happen in agents
 3. **Fresh for verification** — always use a fresh agent for Step 6
-4. **Resume for implementation** — resume the plan-creation agent to preserve codebase knowledge
+4. **Fresh for implementation** — every agent invocation is fresh with full context
 5. **Requirements over legacy** — documented business requirements are the authority, not the legacy application
 6. **One todo per UI task** — don't combine unrelated UI changes
 7. **Visual-first descriptions** — describe what the user should SEE, not implementation details
-8. **Track Agent IDs** — record agent IDs in the plan for cross-session resume
+8. **Provide full context** — every agent call includes todo/plan paths and all relevant instructions
 
 ---
 

@@ -1,12 +1,12 @@
 ---
 name: short-todo
 description: |
-  This skill should be used when the user asks to "create a short todo", "quick todo", "small todo", "simple todo", "short workflow", "lightweight todo", "short-todo", or mentions straightforward work that needs tracking but not the full project-todos workflow. Provides a shortened agent collaboration workflow with fewer steps, resumed agents, and simplified templates for small, well-understood changes.
+  This skill should be used when the user asks to "create a short todo", "quick todo", "small todo", "simple todo", "short workflow", "lightweight todo", "short-todo", or mentions straightforward work that needs tracking but not the full project-todos workflow. Provides a shortened agent collaboration workflow with fewer steps and simplified templates for small, well-understood changes.
 ---
 
 # Short Todo Workflow
 
-Shortened agent collaboration workflow for straightforward, small todos. Same orchestrator rules as project-todos but with fewer steps, resumed agents, and simplified templates.
+Shortened agent collaboration workflow for straightforward, small todos. Same orchestrator rules as project-todos but with fewer steps and simplified templates.
 
 ## Core Rules
 
@@ -17,21 +17,9 @@ The same core rules from project-todos apply:
 
 Full details on these rules are in `~/.claude/skills/project-todos/SKILL.md`.
 
-## Agent Resume Strategy
+## Agent Strategy
 
-Recommended approach is resume for all agent continuations. Start a fresh agent only if the resumed agent is failing or the context has grown too large to be effective.
-
-Two agent threads persist across steps:
-
-| Agent | Fresh At | Resumed At |
-|-------|----------|------------|
-| Architect | Step 2 (Questions) | Step 3 (Plan), Step 6 (Verify), Clarification Loop |
-| Developer | Step 4 (Review) | Step 5 (Implement), Clarification Loop |
-| Documenter | Step 7 (Docs) | -- |
-
-**How to resume:** Agents must be spawned with `run_in_background: true` to be resumable. Call `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage. Give each agent a `name` when first spawned to enable resumption.
-
-**Permissions for writing agents:** Any agent launched with `run_in_background: true` that needs to write files, edit files, or run bash commands MUST include `mode: "acceptEdits"` on the Agent call. Without an explicit mode, background agents silently fail to write — permission prompts go unanswered and the agent reports success while nothing persists to disk. Read-only agents (research, review) don't need it.
+Every agent invocation is a **fresh** Agent call. Provide full context (todo path, plan path, relevant instructions) each time. Do not attempt to resume agents across steps.
 
 ## Prerequisites
 
@@ -58,14 +46,13 @@ Invoke a **fresh architect agent** with:
 If the architect has questions:
 1. Present questions to the user
 2. Record answers in the todo's Clarifications section
-3. Resume the architect with the updated todo
+3. Invoke a fresh architect agent with the updated todo
 4. Repeat until "Ready"
 
-**Store the architect agent ID.**
+### Step 3: Architect Plan (Fresh)
 
-### Step 3: Architect Plan (Resume Architect)
-
-**Resume the architect agent** from Step 2 with:
+Invoke a **fresh architect agent** with:
+- The todo file path (with Clarifications populated)
 - Instruction: "Create the plan file for this todo. Design the implementation and grade difficulty and risk."
 
 The architect should:
@@ -93,17 +80,16 @@ The developer should:
 **If concerns -> Clarification Loop:**
 1. Present concerns to the user
 2. User decides: clarify themselves, or have the architect address
-3. If architect: **resume architect** (from Step 3) to address concerns and update the plan
-4. **Resume developer** (from Step 4) to re-review
+3. If architect: invoke a **fresh architect agent** to address concerns and update the plan
+4. Invoke a **fresh developer agent** to re-review
 5. Repeat until approved
 
 On approval: developer creates the Implementation Contract section (In Scope, Out of Scope, Stop Conditions). Set plan status to "Ready for Implementation."
 
-**Store the developer agent ID.**
+### Step 5: Implementation (Fresh Developer)
 
-### Step 5: Implementation (Resume Developer)
-
-**Resume the developer agent** from Step 4 with:
+Invoke a **fresh developer agent** with:
+- The plan file path (with implementation contract)
 - Instruction: "Implement the approved plan following the implementation contract."
 
 The developer should:
@@ -114,9 +100,11 @@ The developer should:
 5. Write Completion Evidence, set plan status to "Awaiting Verification"
 6. **Do NOT mark the todo as Complete**
 
-### Step 6: Architect Verification (Resume Architect)
+### Step 6: Architect Verification (Fresh Architect)
 
-**Resume the architect agent** from Step 3 with:
+Invoke a **fresh architect agent** with:
+- The plan file path
+- The todo file path
 - Instruction: "Verify the completed implementation. Independently run builds and tests. Do NOT trust the developer's reported results."
 
 The architect should:
@@ -127,7 +115,7 @@ The architect should:
    - **VERIFIED** -> proceed to Step 7
    - **SENT BACK** -> document issues, set plan status to "Sent Back"
 
-If SENT BACK: **resume developer** to fix issues, then **resume architect** to re-verify.
+If SENT BACK: invoke a fresh developer agent to fix issues, then a fresh architect agent to re-verify.
 
 ### Step 7: Documentation (Fresh Documenter)
 
@@ -171,7 +159,6 @@ When a session was interrupted or the user asks to resume:
    - `Awaiting Verification` -> Step 6 (verification)
    - `Sent Back` -> Step 5 (developer fixes, read Architect Verification for what failed)
    - `Documentation Complete` -> Step 8 (completion)
-4. Check the plan's Agent IDs section for stored IDs to resume the correct agents.
 
 ## Filename Convention
 

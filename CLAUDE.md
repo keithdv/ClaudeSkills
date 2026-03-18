@@ -1,11 +1,3 @@
-## Agent Resumption
-
-Agent teams must be enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings.json `env`). Agents must be spawned with `run_in_background: true` to be resumable. To resume, use `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
-
-## Background Agent Permissions
-
-**Any background agent that writes files MUST be launched with `mode: "acceptEdits"`.** Without an explicit mode, background agents silently fail to write — permission prompts go unanswered and the agent reports success while nothing persists to disk. Read-only agents (research, review) don't need it.
-
 ---
 
 ## Core Rules
