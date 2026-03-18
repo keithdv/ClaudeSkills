@@ -247,6 +247,8 @@ When a session was interrupted or the user asks to resume:
 
 A fresh agent means launching a new Agent tool invocation. A resumed agent means calling `SendMessage(to: "agent-name", message: "new instructions")` — the agent resumes from its transcript in the background. Agents must be spawned with `run_in_background: true` to be resumable. Wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
 
+**Permissions for writing agents:** Any agent launched with `run_in_background: true` that needs to write files, edit files, or run bash commands MUST include `mode: "acceptEdits"` on the Agent call. Without an explicit mode, background agents silently fail to write — permission prompts go unanswered and the agent reports success while nothing persists to disk. Read-only agents (research, review) don't need it.
+
 ### Principle
 
 Fresh agents provide unbiased investigation and review. Resumed agents preserve valuable implementation context. Default to fresh unless context reuse clearly helps.

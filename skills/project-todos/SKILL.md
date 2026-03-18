@@ -140,6 +140,8 @@ Three agent roles span multiple steps. Resume agents on subsequent invocations t
 
 **How to resume:** Agents must be spawned with `run_in_background: true` to be resumable. Call `SendMessage(to: "agent-name", message: "new instructions")`. The agent resumes from its transcript in the background — wait for the task-notification. Do NOT launch a duplicate Agent call after SendMessage.
 
+**Permissions for writing agents:** Any agent launched with `run_in_background: true` that needs to write files, edit files, or run bash commands MUST include `mode: "acceptEdits"` on the Agent call. Without an explicit mode, background agents silently fail to write — permission prompts go unanswered and the agent reports success while nothing persists to disk. Read-only agents (research, review) don't need it.
+
 | Agent | Fresh At | Resume At | Why Resume |
 |---|---|---|---|
 | Architect | Step 2 | Steps 4, 6, 8A | Carries problem understanding through design and verification |
