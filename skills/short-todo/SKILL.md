@@ -2,12 +2,12 @@
 name: short-todo
 version: 2.0.0
 description: |
-  This skill should be used when the user asks to "create a short todo", "quick todo", "small todo", "simple todo", "short workflow", "lightweight todo", "short-todo", or mentions straightforward work that needs tracking but not the full project-todos workflow. Provides a shortened agent collaboration workflow with fewer steps and simplified templates for small, well-understood changes.
+  This skill should be used when the user asks to "create a short todo", "quick todo", "small todo", "simple todo", "simple task", "short workflow", "lightweight todo", "short-todo", "don't need the full workflow", or mentions straightforward work that needs tracking but not the full project-todos workflow. Provides a streamlined agent collaboration workflow with simplified templates and no requirements review phase, designed for small, well-understood changes.
 ---
 
 # Short Todo Workflow
 
-Shortened agent collaboration workflow for straightforward, small todos. Same orchestrator rules as project-todos but with fewer steps and simplified templates.
+Streamlined agent collaboration workflow for straightforward, small todos. Same orchestrator rules as project-todos but with a simplified workflow (no requirements review, no agent phasing, no domain model behavioral design) and slimmed templates.
 
 ## Core Rules
 
@@ -33,7 +33,7 @@ Before starting, check for project-specific resources:
 
 ## Agent Memory Files
 
-Each plan has a companion memory directory where agents store their private working state. This keeps the plan file focused on design and prevents bloat from accumulating workflow artifacts.
+Each plan has a companion memory directory where agents store their private working state. For key rules, base format, and orchestrator responsibilities, see `~/.claude/skills/shared/references/agent-memory.md`.
 
 ### Structure
 
@@ -45,17 +45,6 @@ docs/plans/
     ├── developer.md                   # Developer's private notes
     └── documenter.md                  # Documenter's private notes (if applicable)
 ```
-
-The memory directory name is derived from the plan filename: `{plan-name}.memory/`.
-
-### Key Rules
-
-1. **Plan = shared design document.** All agents read it. Contains ONLY the design — what to build and why.
-2. **Memory = private notes for the agent's own future self.** Only that agent and the orchestrator read it.
-3. **Agents must NOT read each other's memory files.** The orchestrator mediates all cross-agent communication.
-4. **Orchestrator relays cross-agent information via spawn prompts.** When the developer raises concerns, the orchestrator reads `developer.md`, extracts the concerns, and includes them in the architect's spawn prompt. The architect never opens `developer.md`.
-5. **Memory format: curated summary** — not an append-only log. The agent rewrites the file each run, keeping only what's still relevant.
-6. **Agents create the memory directory and their file** the first time they write. Use the Write tool — the directory is created automatically.
 
 ### What Lives in Memory Files vs. Plan
 
@@ -69,44 +58,6 @@ The memory directory name is derived from the plan filename: `{plan-name}.memory
 | Completion Evidence (test results, contract status) | `developer.md` |
 | Architect Verification (verdict, build/test results, design match) | `architect.md` |
 | Documentation tracking (files updated) | `documenter.md` |
-
-### Memory File Base Format
-
-Each memory file follows this base format, plus agent-specific sections:
-
-```markdown
-# [Agent Role] — [Plan Name]
-
-Last updated: YYYY-MM-DD
-Current step: [what this agent is doing or last did]
-
-## Key Context
-[Curated summary — decisions, corrections, discoveries
-that matter for the next fresh run of THIS agent]
-
-## Mistakes to Avoid
-[Things this agent got wrong and was corrected on]
-
-## User Corrections
-[Direct quotes/paraphrases of user overrides]
-
-## [Agent-Specific Sections]
-[See workflow steps for required sections per agent]
-```
-
-### Orchestrator Responsibilities for Memory Files
-
-When spawning agents, the orchestrator MUST:
-
-1. **Include the memory file path** in the spawn prompt: "Write your findings to `docs/plans/{plan-name}.memory/{agent}.md`"
-2. **Relay cross-agent context** when needed: Read the relevant memory file and include extracted information in the spawn prompt — agents never read each other's files
-3. **Check memory files for routing decisions**: After an agent completes, read its memory file to determine the next workflow step (verdict, concerns, evidence)
-
-When resuming mid-workflow:
-
-1. Read the plan status to determine which step is current
-2. Read the relevant agent memory file(s) to understand the details (what was the concern, what evidence was collected, what was the verdict)
-3. Include relevant context from memory files in the fresh agent's spawn prompt
 
 ---
 
@@ -262,3 +213,4 @@ Always use relative paths between todos and plans (`../todos/`, `../plans/`). Up
 
 - **`references/todo-template.md`** -- Simplified todo template
 - **`references/plan-template.md`** -- Simplified plan template (design only — workflow state goes to agent memory files)
+- **`~/.claude/skills/shared/references/agent-memory.md`** -- Shared agent memory pattern (key rules, base format, orchestrator responsibilities)
