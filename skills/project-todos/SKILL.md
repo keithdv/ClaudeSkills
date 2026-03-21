@@ -1,5 +1,6 @@
 ---
 name: project-todos
+version: 2.0.0
 description: This skill should be used when the user asks to "create a todo", "add a plan", "plan this work", "track this work", "document this task", "complete a todo", "verify the implementation", "run architect verification", "hand off to the developer", "start the implementation", "update docs for this feature", "what's the next step", "what's the plan status", "resume the todo", "what's blocked", "pick up where we left off", "design this feature", "check business requirements", "review requirements", "review against requirements", "check for requirement conflicts", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration through the full design-review-implement-verify-document lifecycle.
 ---
 
@@ -82,7 +83,7 @@ Before reading a file, ask: **"Am I looking something up, or building a case?"**
 
 ---
 
-Agents also write to plan files as part of their work — design content, implementation progress, completion evidence, verification results, and documentation records. Plan/todo files are shared between the orchestrator and agents. The hard boundary is source code: only agents touch it.
+Agents write design content to plan files and workflow state to their own agent memory files (see Agent Memory Files section below). Plan files are shared and contain only the design. Agent memory files are private to each agent and the orchestrator. The hard boundary is source code: only agents touch it.
 
 If a source code change is needed and no agent is currently active, invoke the appropriate agent to make it.
 
@@ -118,6 +119,88 @@ docs/
 ```
 
 All paths are relative to the project root.
+
+---
+
+## Agent Memory Files
+
+Each plan has a companion memory directory where agents store their private working state. This keeps the plan file focused on design and prevents bloat from accumulating workflow artifacts.
+
+### Structure
+
+```
+docs/plans/
+├── feature-name-plan.md              # Design only — shared by all agents
+└── feature-name-plan.memory/
+    ├── architect.md                   # Architect's private notes
+    ├── developer.md                   # Developer's private notes
+    ├── requirements-reviewer.md       # Reviewer's private notes
+    └── requirements-documenter.md     # Documenter's private notes
+```
+
+The memory directory name is derived from the plan filename: `{plan-name}.memory/`.
+
+### Key Rules
+
+1. **Plan = shared design document.** All agents read it. Contains ONLY the design — what to build and why.
+2. **Memory = private notes for the agent's own future self.** Only that agent and the orchestrator read it.
+3. **Agents must NOT read each other's memory files.** The orchestrator mediates all cross-agent communication.
+4. **Orchestrator relays cross-agent information via spawn prompts.** When the developer raises concerns, the orchestrator reads `developer.md`, extracts the concerns, and includes them in the architect's spawn prompt. The architect never opens `developer.md`.
+5. **Memory format: curated summary** — not an append-only log. The agent rewrites the file each run, keeping only what's still relevant.
+6. **Agents create the memory directory and their file** the first time they write. Use the Write tool — the directory is created automatically.
+
+### What Lives in Memory Files vs. Plan
+
+| Content | Location |
+|---------|----------|
+| Design (Overview, Business Rules, Approach, Domain Model, Implementation Steps) | Plan file |
+| Business Requirements Context, Acceptance Criteria, Agent Phasing | Plan file |
+| Developer Review (assertion traces, concerns, verdict) | `developer.md` |
+| Implementation Contract (scope, gates, stop conditions) | `developer.md` |
+| Implementation Progress (milestones, evidence) | `developer.md` |
+| Completion Evidence (test results, contract status) | `developer.md` |
+| Architectural Verification (pre-handoff scope analysis) | `architect.md` |
+| Architect Verification (post-implementation verdict) | `architect.md` |
+| Requirements Verification (post-implementation) | `requirements-reviewer.md` |
+| Documentation tracking (files updated, deliverables) | `requirements-documenter.md` |
+
+### Memory File Base Format
+
+Each memory file follows this base format, plus agent-specific sections:
+
+```markdown
+# [Agent Role] — [Plan Name]
+
+Last updated: YYYY-MM-DD
+Current step: [what this agent is doing or last did]
+
+## Key Context
+[Curated summary — decisions, corrections, discoveries
+that matter for the next fresh run of THIS agent]
+
+## Mistakes to Avoid
+[Things this agent got wrong and was corrected on]
+
+## User Corrections
+[Direct quotes/paraphrases of user overrides]
+
+## [Agent-Specific Sections]
+[See individual agent instructions for required sections]
+```
+
+### Orchestrator Responsibilities for Memory Files
+
+When spawning agents, the orchestrator MUST:
+
+1. **Include the memory file path** in the spawn prompt: "Write your findings to `docs/plans/{plan-name}.memory/{agent}.md`"
+2. **Relay cross-agent context** when needed: Read the relevant memory file and include extracted information in the spawn prompt — agents never read each other's files
+3. **Check memory files for routing decisions**: After an agent completes, read its memory file to determine the next workflow step (verdict, concerns, evidence)
+
+When resuming mid-workflow:
+
+1. Read the plan status to determine which step is current
+2. Read the relevant agent memory file(s) to understand the details (what was the concern, what evidence was collected, what was the verdict)
+3. Include relevant context from memory files in the fresh agent's spawn prompt
 
 ---
 
@@ -231,7 +314,7 @@ The architect agent should:
 4. Explore the codebase to understand current architecture
 5. **Extract business rules as testable assertions** — Before designing anything, analyze the legacy code, user requirements, and codebase to produce a numbered list of crisp, unambiguous business rules. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. **Trace each assertion to an existing documented requirement where one exists.** New assertions (for gaps identified by the reviewer) must be clearly marked as new. These go in the plan's "Business Rules (Testable Assertions)" section. This is NOT optional — it is the first section completed.
 6. **Create concrete test scenarios** — For each business rule, create at least one scenario with specific inputs and expected result. These go in the "Test Scenarios" table. The architect must show the evaluation for each scenario. These scenarios become the acceptance tests.
-7. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions. **Implementation steps must cover only source code changes** — do NOT include documentation updates (skill docs, user-facing docs, samples, design reference files, release notes) in implementation phases. List expected documentation deliverables in the plan's "Documentation" section for Step 9.
+7. Fill in the remaining plan sections (Approach, Design, Implementation Steps, etc.). **Design against the assertions** — every design decision must trace to one or more business rule assertions. **Implementation steps must cover only source code changes** — do NOT include documentation updates (skill docs, user-facing docs, samples, design reference files, release notes) in implementation phases. Note expected documentation deliverables in the plan's Acceptance Criteria or Risks section for Step 9.
 8. **If verification resources exist** (design projects, sample projects, etc.): verify scope claims using them. Leave failing tests or code as acceptance criteria for features that need implementation.
 9. **Identify fresh agent phases**: Analyze the implementation steps and determine which phases would benefit from a fresh agent with a clean context window. Document this in the plan's "Agent Phasing" section. Consider:
     - Phases that are independent and don't need prior implementation context
@@ -246,32 +329,35 @@ The architect agent should:
 Invoke the **developer agent** with:
 - The plan file path
 - The todo file path
-- Instruction: "Review this plan. First: for EACH business rule assertion in the 'Business Rules' section, trace through the proposed implementation and verify the expected result matches. Fill in the Assertion Trace Verification table. Each Implementation Path entry must cite a specific method name and condition expression. Entries that say 'handled correctly' or 'matches design' without specifics are insufficient — send back for detail. Then review for completeness, correctness, and implementability. Raise concerns or approve."
+- The agent memory file path: `docs/plans/{plan-name}.memory/developer.md`
+- If the architect wrote pre-handoff verification notes, relay the key findings from `docs/plans/{plan-name}.memory/architect.md` in the spawn prompt (the developer must NOT read the architect's memory file directly)
+- Instruction: "Review this plan. For EACH business rule assertion, trace through the proposed implementation and verify the expected result matches. Write all review findings — assertion trace, concerns, verdict — to your agent memory file at [path]. Raise concerns or approve."
 
 The developer agent should:
-1. **Verify business rules first** — For EACH numbered assertion in the plan's "Business Rules" section, trace through the proposed implementation (the specific method, condition, or code path) and verify the expected result. Fill in the "Assertion Trace Verification" table in the Developer Review section. Each Implementation Path entry must cite a specific method name and the condition expression from the design. Entries without specifics (e.g., "handled in implementation", "matches design") are insufficient — reject and request detail from the architect. **This is the primary review task — do it before anything else.**
+1. **Verify business rules first** — For EACH numbered assertion in the plan's "Business Rules" section, trace through the proposed implementation (the specific method, condition, or code path) and verify the expected result. Create an "Assertion Trace Verification" table in the developer's memory file. Each Implementation Path entry must cite a specific method name and the condition expression from the design. Entries without specifics (e.g., "handled in implementation", "matches design") are insufficient — reject and request detail from the architect. **This is the primary review task — do it before anything else.**
 2. **Verify test scenarios** — For each test scenario in the plan, mentally execute it against the proposed implementation and confirm the expected result matches.
 3. If any assertion trace produces a result that contradicts the business rule, this is a **blocking concern** — the plan has a logic error.
 4. **Check against Requirements Context** — Verify the design respects the requirements identified in the Business Requirements Context section. Flag if the design introduced approaches that contradict documented requirements.
 5. Investigate the codebase to verify plan claims
-6. **If the architect provided verification evidence** (design projects, compilation results, etc.): confirm it exists and makes sense
+6. **If the architect provided verification evidence** (relayed by the orchestrator from the architect's memory): confirm it exists and makes sense
 7. **If verification resources exist but the architect did not use them**: reject the plan back to the architect
 8. Check for gaps, ambiguities, edge cases, and risks
 9. Review the Agent Phasing section — confirm the phasing is practical and the fresh/resume decisions make sense for the implementation work
 10. Render a verdict: **Concerns Raised** or **Approved**
+11. **Write all findings** (assertion trace, concerns, verdict) to the developer's agent memory file
 
 ### Step 6: Clarification Loop
 
-If the developer raises concerns:
+If the developer raises concerns (read from `docs/plans/{plan-name}.memory/developer.md`):
 1. Present concerns to the user
 2. Ask the user: "Would you like to clarify these yourself, or should the architect agent address them?"
 3. Based on user's choice:
-   - **User clarifies**: Orchestrator updates the plan with the user's answers, then resume the developer (from Step 5) for re-review
-   - **Architect clarifies**: Resume the architect (from Step 2) with the concerns, then resume the developer (from Step 5) for re-review
+   - **User clarifies**: Orchestrator records the user's answers and includes them in the developer's next spawn prompt, then invoke a fresh developer (from Step 5) for re-review
+   - **Architect clarifies**: Invoke a fresh architect with the concerns (extracted from developer's memory by the orchestrator — the architect does NOT read `developer.md`), then invoke a fresh developer (from Step 5) for re-review with the architect's response (extracted from architect's memory by the orchestrator)
 4. Repeat until the developer approves
 
 When the developer approves:
-- Developer creates an **Implementation Contract** in the plan (scope, out-of-scope, verification gates)
+- Developer creates an **Implementation Contract** in the developer's memory file (scope, out-of-scope, verification gates)
 - If verification resources have failing acceptance criteria, list them in the contract
 - Set plan status to "Ready for Implementation"
 
@@ -280,8 +366,9 @@ When the developer approves:
 **STOP — Do not write code here. Invoke an agent for all implementation work.**
 
 Invoke the **developer agent** for implementation with:
-- The plan file path (with implementation contract)
-- Instruction: "Implement the approved plan following the implementation contract"
+- The plan file path
+- The agent memory file path: `docs/plans/{plan-name}.memory/developer.md` (contains the implementation contract from Step 6)
+- Instruction: "Implement the approved plan following the implementation contract in your memory file. Write progress and evidence to your memory file."
 
 **Specialized agent routing**: If the implementation includes work that matches a specialized agent's scope (identified in Prerequisites step 1), split the implementation:
 - **Developer agent**: Domain models, repositories, services, tests, backend logic
@@ -291,17 +378,18 @@ Invoke the **developer agent** for implementation with:
 Coordinate by having the developer agent complete backend work first (or in parallel if independent), then invoke the specialized agent for its portion with the same plan file.
 
 **Agent phasing**: Follow the plan's "Agent Phasing" section (created by the architect in Step 4). Each phase gets a fresh Agent invocation with a clean context window. Provide:
-- The plan file path (so the agent can read scope and prior progress)
+- The plan file path (so the agent can read the design)
+- The agent memory file path (so the agent can read prior progress and write new progress)
 - The specific phase description and deliverables
-- Any outputs from prior phases that this phase depends on
+- Any outputs from prior phases that this phase depends on (relayed by the orchestrator from the prior agent's memory)
 
 The developer agent (or specialized agents) should:
-1. Work through the implementation contract checklist
+1. Work through the implementation contract checklist (in their memory file)
 2. Run tests at each verification gate
 3. **STOP and report** if out-of-scope tests fail or architectural contradictions are discovered
 4. Collect evidence (test output, generated code samples)
 5. **Do NOT update documentation markdown** — skill markdown, user-facing docs markdown, and release notes are handled in Step 9 by the documenter agent. The developer's scope is source code only. Code comments (XML docs) on modified code are in scope. Design project code (`src/Design/`) and sample code (`src/samples/`) are source code — update them during implementation if in scope, or as Developer Deliverables routed from the documenter in Step 9.
-6. **When finished**: Write "Implementation Progress" and "Completion Evidence" sections in the plan, set plan status to "Awaiting Verification", then **STOP**. Do NOT mark the todo or plan as Complete.
+6. **When finished**: Write "Implementation Progress" and "Completion Evidence" to the developer's memory file, set plan status to "Awaiting Verification", then **STOP**. Do NOT mark the todo or plan as Complete.
 
 ### Step 8: Verification (Architect + Requirements)
 
@@ -314,36 +402,48 @@ This step has two parts: technical verification and requirements verification. B
 Invoke the **architect agent** with:
 - The plan file path
 - The todo file path
-- Instruction: "Perform post-implementation verification of the completed work. The developer reports it is done. Independently verify."
+- The architect's memory file path: `docs/plans/{plan-name}.memory/architect.md`
+- The developer's completion evidence (relayed by the orchestrator from `docs/plans/{plan-name}.memory/developer.md` — the architect does NOT read `developer.md` directly)
+- Instruction: "Perform post-implementation verification. The developer's completion evidence is included below. Independently verify all builds and tests. Cross-check every test scenario. Write your verification verdict to your agent memory file at [path]."
 
 The architect agent should:
-1. Read the plan's "Completion Evidence" section to understand what the developer claims
+1. Review the developer's completion evidence (relayed in the spawn prompt) to understand what the developer claims
 2. **Independently run all builds and tests** — do NOT trust the developer's reported results
 3. **Check EVERY test result** — zero failures allowed. If any test fails, the work is NOT complete, even if the developer classified failures as "pre-existing"
 4. Verify the implementation matches the original design (compare generated code against the plan's expected patterns)
-5. If verification resources exist, verify they still pass
-6. Render a verdict:
-   - **VERIFIED**: All builds pass, all tests pass, implementation matches design → proceed to Part B
-   - **SENT BACK**: Failures found → document issues in "Architect Verification" section, set plan status to "Sent Back", report to orchestrator for developer to fix
+5. **Cross-check test scenarios against actual tests** — For EACH numbered test scenario in the plan's "Test Scenarios" table (or Business Rules section), verify that a corresponding test method exists in the test projects and passes. Specifically:
+   - Review the Test Scenario Mapping from the developer's evidence (relayed by orchestrator)
+   - For each scenario, confirm the mapped test method exists in the codebase (read the file, find the method)
+   - Confirm the test passes in the test run output
+   - If any scenario has no corresponding test, or the mapped test doesn't exist, this is a **SENT BACK** issue
+   - Report coverage: "N of M test scenarios verified with passing tests"
+6. If verification resources exist, verify they still pass
+7. **Write verification verdict and evidence** to the architect's memory file
+8. Render a verdict:
+   - **VERIFIED**: All builds pass, all tests pass, all test scenarios have corresponding passing tests, implementation matches design → proceed to Part B
+   - **SENT BACK**: Failures found OR test scenarios missing coverage → write issues to architect's memory file, set plan status to "Sent Back", report to orchestrator for developer to fix
 
 **Critical rule**: Any test failure — even one the developer classified as "pre-existing" — must be reported. Only the user can decide whether a failure is acceptable.
 
 #### Part B: Requirements Verification
 
-**Only if Part A passes (VERIFIED).**
+**Only if Part A passes (VERIFIED).** The orchestrator reads the architect's memory file to confirm the verdict before proceeding.
 
 Invoke the **business-requirements-reviewer** agent (same agent resolution as Step 3 — project-specific first, user-level fallback) with:
 - The plan file path
-- Instruction: "Perform post-implementation requirements verification. Confirm the implementation satisfies the documented business requirements identified in the Business Requirements Context section. Check for unintended side effects on other business rules."
+- The reviewer's memory file path: `docs/plans/{plan-name}.memory/requirements-reviewer.md`
+- The developer's completion evidence (relayed by the orchestrator from `developer.md` — the reviewer does NOT read `developer.md` directly)
+- Instruction: "Perform post-implementation requirements verification. Confirm the implementation satisfies the documented business requirements identified in the Business Requirements Context section. Check for unintended side effects. Write your verification verdict to your agent memory file at [path]."
 
 The reviewer agent should:
-1. Read the plan's Business Requirements Context, Completion Evidence, and Implementation Progress sections
-2. For each requirement identified as relevant, trace through the implementation to verify compliance
-3. Check for unintended side effects — changes that technically work but alter behavior governed by other business rules
-4. Fill in the Requirements Verification section of the plan
-5. Render a verdict:
+1. Read the plan's Business Requirements Context section
+2. Review the developer's completion evidence (relayed in the spawn prompt)
+3. For each requirement identified as relevant, trace through the implementation to verify compliance
+4. Check for unintended side effects — changes that technically work but alter behavior governed by other business rules
+5. **Write verification findings** to the reviewer's memory file (requirements compliance table, unintended side effects, issues found)
+6. Render a verdict:
    - **REQUIREMENTS SATISFIED**: Implementation respects all documented requirements → proceed to Step 9
-   - **REQUIREMENTS VIOLATION**: Implementation violates documented requirements → document violations, set plan status to "Sent Back", report to orchestrator
+   - **REQUIREMENTS VIOLATION**: Implementation violates documented requirements → write violations to memory file, set plan status to "Sent Back", report to orchestrator
 
 ### Step 9: Requirements Documentation
 
@@ -356,20 +456,23 @@ Every project organizes documentation differently. The documenter agent and the 
 Invoke the **business-requirements-documenter** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The plan file path
 - The todo file path
+- The documenter's memory file path: `docs/plans/{plan-name}.memory/requirements-documenter.md`
+- The developer's completion evidence (relayed by the orchestrator from `developer.md` — the documenter does NOT read `developer.md` directly)
 - The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Update business requirements documentation to reflect the completed implementation. Add new rules, update changed rules, resolve gaps. If source code changes are needed (code comments, samples, design project tests), list them as Developer Deliverables in the plan's Documentation section — do NOT modify source code."
+- Instruction: "Update business requirements documentation to reflect the completed implementation. Add new rules, update changed rules, resolve gaps. If source code changes are needed (code comments, samples, design project tests), list them as Developer Deliverables in your memory file — do NOT modify source code. Write all documentation tracking to your agent memory file at [path]."
 
 The documenter agent should:
-1. Read the plan's Business Requirements Context, Business Rules (Testable Assertions), Completion Evidence, and Implementation Progress sections
-2. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
-3. Update requirements documentation — new rules, changed rules, filled gaps, affected workflows
-4. If source code changes are needed (code comments, samples, design project tests), list them in the plan's Documentation section as **Developer Deliverables** — the orchestrator routes these to the developer agent
-5. Record all work in the plan's Documentation section
-6. Set plan status to "Requirements Documented"
+1. Read the plan's Business Requirements Context and Business Rules (Testable Assertions) sections
+2. Review the developer's completion evidence (relayed in the spawn prompt)
+3. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
+4. Update requirements documentation — new rules, changed rules, filled gaps, affected workflows
+5. If source code changes are needed (code comments, samples, design project tests), list them in the documenter's memory file as **Developer Deliverables** — the orchestrator routes these to the developer agent
+6. Record all work in the documenter's memory file (files updated, deliverables completed)
+7. Set plan status to "Requirements Documented"
 
 **Critical rule**: Document what was *implemented*, not what was *planned*. If the implementation diverged from the plan, the documentation must match the implementation.
 
-**Developer Deliverables**: If the documenter identified source code changes needed, invoke a fresh **developer agent** to complete them. The developer builds and tests after changes, then marks each deliverable as completed in the Documentation section.
+**Developer Deliverables**: If the documenter identified source code changes needed (read from the documenter's memory file), invoke a fresh **developer agent** to complete them. The developer builds and tests after changes.
 
 #### Part B: General Documentation (if applicable)
 
@@ -378,7 +481,7 @@ Invoke a fresh **documentation agent** (or a fresh developer agent if no documen
 If the plan identifies non-requirements documentation deliverables (API docs, README changes, migration guides, architecture docs, getting-started updates), invoke the **documentation agent** (or developer agent if no documentation agent exists) with:
 - The plan file path
 - The todo file path
-- Instruction: "Update non-requirements documentation affected by this implementation. See the Documentation section of the plan for expected deliverables."
+- Instruction: "Update non-requirements documentation affected by this implementation."
 
 After all applicable parts complete, set plan status to "Documentation Complete."
 
@@ -455,20 +558,21 @@ For valid plan status values, see `references/plan-template.md`.
 
 ### Plan Workflow Sections
 
-Plans that go through the agent collaboration workflow include additional sections for business requirements context, architectural verification, agent phasing, developer review, implementation contract, progress tracking, completion evidence, documentation, architect verification, and requirements verification.
+Plans that go through the agent collaboration workflow contain design sections only. Workflow state (reviews, contracts, progress, evidence, verification results) is stored in agent memory files — see the **Agent Memory Files** section above.
 
-These sections are defined in `references/plan-template.md`. When creating a plan for the full agent workflow, use the complete template. The key sections and their purposes:
+**In the plan file** (design content shared by all agents):
 
-- **Business Requirements Context** -- Architect populates from the todo's Requirements Review (filled in Step 4)
-- **Architectural Verification** -- Architect's scope analysis and verification evidence
-- **Agent Phasing** -- Which implementation phases to use and their scope
-- **Developer Review** -- Developer's verdict on the plan
-- **Implementation Contract** -- Approved scope, verification gates, stop conditions
-- **Implementation Progress** -- Milestone tracking during implementation
-- **Completion Evidence** -- Developer's evidence that work is done
-- **Documentation** -- Expected and completed documentation deliverables
-- **Architect Verification** -- Independent verification of completed work
-- **Requirements Verification** -- Reviewer's verification that implementation satisfies documented requirements
+- **Business Requirements Context** — Architect populates from the todo's Requirements Review (filled in Step 4)
+- **Business Rules (Testable Assertions)** — Numbered assertions with test scenarios
+- **Agent Phasing** — Which implementation phases to use and their scope
+- **Domain Model Behavioral Design** — Computed properties, reactive rules, validation
+
+**In agent memory files** (private workflow state):
+
+- **Developer Review**, **Implementation Contract**, **Implementation Progress**, **Completion Evidence** → `developer.md`
+- **Architectural Verification** (pre-handoff), **Architect Verification** (post-implementation) → `architect.md`
+- **Requirements Verification** → `requirements-reviewer.md`
+- **Documentation tracking** → `requirements-documenter.md`
 
 ### Link Plan to Todo
 
@@ -534,14 +638,14 @@ When a session was interrupted or the user asks to resume:
 3. **If a plan exists**, read it and check its **Status** field:
    - `Draft (Architect)` → Step 4 (architect still working)
    - `Under Review (Developer)` → Step 5 (developer review)
-   - `Concerns Raised` → Step 6 (clarification loop)
+   - `Concerns Raised` → Step 6 (clarification loop). Read the developer's memory file to extract concerns for the user.
    - `Ready for Implementation` → Step 7 (implementation)
-   - `In Progress` → Step 7 (implementation continues)
-   - `Awaiting Verification` → Step 8 (verification)
-   - `Sent Back` → Step 7 (developer fixes issues). Read both the Architect Verification and Requirements Verification sections of the plan to determine which verification failed and what the developer needs to fix.
-   - `Requirements Documented` → Check Documentation section for pending Developer Deliverables (from Part A). If none, proceed to Part B (general documentation, if applicable) or Step 10 (completion)
+   - `In Progress` → Step 7 (implementation continues). Read the developer's memory file to understand progress so far and include it in the spawn prompt.
+   - `Awaiting Verification` → Step 8 (verification). Read the developer's memory file to extract completion evidence for the architect's spawn prompt.
+   - `Sent Back` → Step 7 (developer fixes issues). Read the architect's memory file and/or reviewer's memory file to determine which verification failed and what needs fixing. Include the issues in the developer's spawn prompt.
+   - `Requirements Documented` → Read the documenter's memory file for pending Developer Deliverables (from Part A). If none, proceed to Part B (general documentation, if applicable) or Step 10 (completion).
    - `Documentation Complete` → Step 10 (completion)
-4. Invoke a fresh agent for that step, providing the todo and plan file paths (if plan exists)
+4. Invoke a fresh agent for that step, providing the todo path, plan path, and agent memory file path. Include relevant context from other agents' memory files in the spawn prompt (the fresh agent must NOT read other agents' memory files directly).
 
 ---
 
@@ -564,3 +668,4 @@ When a session was interrupted or the user asks to resume:
 - Todo template: `references/todo-template.md`
 - Plan template: `references/plan-template.md`
 - Documentation step guide: `references/documentation-step-guide.md`
+- Agent memory migration guide: `references/agent-memory-migration.md` — checklist for updating project-specific agents to v2.0.0
