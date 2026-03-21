@@ -5,6 +5,18 @@
 **Status:** Draft | Under Review | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Documentation Complete | Complete
 **Last Updated:** YYYY-MM-DD
 
+### Plan Status Values
+
+- `Draft` - Architect created the plan and is working on design
+- `Under Review` - Developer reviewing
+- `Concerns Raised` - Developer found issues
+- `Ready for Implementation` - Approved, contract created
+- `In Progress` - Implementation underway
+- `Awaiting Verification` - Developer reports done, architect must verify
+- `Sent Back` - Architect verification failed, developer must fix
+- `Documentation Complete` - All documentation finished
+- `Complete` - Verification passed, documentation complete, moved to completed/
+
 ---
 
 ## Overview
@@ -60,88 +72,3 @@
 ## Risks / Considerations
 
 [Things to watch out for, trade-offs]
-
----
-
-## Developer Review
-
-**Reviewed:** [date]
-**Verdict:** Approved | Concerns Raised
-
-### Concerns
-
-[Any concerns from the developer]
-
----
-
-## Implementation Contract
-
-**Created:** [date]
-
-### In Scope
-
-- [ ] Change 1
-- [ ] Change 2
-
-### Out of Scope
-
-[What won't change]
-
-### Stop Conditions
-
-If any occur, STOP and report:
-- Out-of-scope test failure
-- Architectural contradiction
-
----
-
-## Agent IDs
-
-[Orchestrator tracks agent IDs here for resume across steps]
-
-- **Architect:** [agent ID from Step 2]
-- **Developer:** [agent ID from Step 4]
-
----
-
-## Implementation Progress
-
-**Started:** [date]
-**Developer:** [agent name]
-
-- [ ] Step 1
-- [ ] Step 2
-
----
-
-## Completion Evidence
-
-**Reported:** [date]
-
-- **Tests Passing:** [summary]
-- **All Contract Items:** [complete?]
-
----
-
-## Architect Verification
-
-**Verified:** [date]
-**Verdict:** VERIFIED | SENT BACK
-
-**Build/Test Results:**
-- [results]
-
-**Design Match:** [yes/no]
-
-**Issues Found:** [list or "None"]
-
----
-
-## Documentation
-
-**Agent:** [agent name]
-**Completed:** [date]
-
-### Updates Made
-
-- [file]: [what changed]
