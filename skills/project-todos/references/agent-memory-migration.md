@@ -1,7 +1,8 @@
 # Agent Memory Migration Guide
 
-**Skill version:** 2.0.0
-**Breaking change:** Yes — agents must write workflow state to memory files, not plan sections.
+**Skill version:** 2.1.0
+**Breaking change from 1.x:** Yes — agents must write workflow state to memory files, not plan sections.
+**Change from 2.0:** Non-breaking — agents must move memory file loading to REQUIRED FIRST STEP position in system prompt.
 
 ## What Changed
 
@@ -31,23 +32,27 @@ docs/plans/
 
 Every project-specific agent that participates in the project-todos workflow needs two additions:
 
-### 1. Agent Memory File Section
+### 1. REQUIRED FIRST STEP Section (v2.1)
 
-Add this section after the agent's "Context Inheritance" or introductory section. Customize the memory file structure for the agent's role.
+Add this section **immediately after the one-sentence role description** — before modes of work, expertise, context inheritance, or any other section. This is the agent's first operational instruction.
 
 ```markdown
-## Agent Memory File
+## REQUIRED FIRST STEP
 
-Write all workflow state to your agent memory file at `docs/plans/{plan-name}.memory/{agent-name}.md`. The plan file contains only design — do NOT write [review results | verification | tracking] to the plan.
+Before taking any other action, find your memory file:
 
-**Create the memory file** using the Write tool the first time you need to write. The directory is created automatically.
+1. Find the plan file path in your task context (e.g., `docs/plans/foo-bar-plan.md`)
+2. Strip the `.md` extension, append `.memory/[your-agent-name].md`
+   Example: plan at `docs/plans/foo-bar-plan.md` → memory at `docs/plans/foo-bar-plan.memory/architect.md`
+3. Check if this file exists. If it does, read it completely before proceeding — it contains your prior work on this plan
+4. If it does not exist, proceed with a fresh start
 
-**Do NOT read other agents' memory files.** The orchestrator relays cross-agent information in your spawn prompt.
+All workflow state goes in this memory file — not the plan. Create it with the Write tool the first time you need to write.
 
-### Memory File Structure
-
-[Include the base format plus agent-specific sections — see examples below]
+Do NOT read other agents' memory files. The orchestrator relays cross-agent information in your spawn prompt.
 ```
+
+The Memory File Structure template can remain later in the agent file — only the operational "find and read" instruction needs to be at the top.
 
 ### 2. Updated References
 
@@ -167,6 +172,36 @@ Include these rules in each agent's memory file section:
 3. **Never read other agents' memory files.** Orchestrator mediates.
 4. **Create directory on first write.** The Write tool handles this automatically.
 5. **Curated, not append-only.** Rewrite each run with only relevant content.
+
+---
+
+## v2.1 Migration: REQUIRED FIRST STEP Placement
+
+**Problem:** In v2.0, the migration guide said to add the Agent Memory File section "after the agent's Context Inheritance or introductory section." This placed it after expertise lists, mode descriptions, and other content — often 50-70+ lines into the system prompt. Agents frequently ignored the memory file instructions because they had already committed to an approach by the time they reached them.
+
+**Fix:** Move memory file loading to a `## REQUIRED FIRST STEP` section immediately after the one-line role description — before modes of work, expertise, context inheritance, or any other section.
+
+### v2.1 Migration Checklist
+
+For each project-specific agent that participates in the workflow:
+
+- [ ] Find the `## Agent Memory File` section (wherever it currently lives)
+- [ ] Delete it from its current location
+- [ ] Add `## REQUIRED FIRST STEP` immediately after the agent's one-sentence role description
+- [ ] Use the template from `~/.claude/skills/shared/references/agent-memory.md` (Agent System Prompt Placement section)
+- [ ] Keep the Memory File Structure template where it was (or move it to a later section) — only the operational "check and read" instruction needs to be at the top
+- [ ] Verify the agent's system prompt now reads: role → REQUIRED FIRST STEP → modes/expertise → everything else
+
+### What Changed in Agent System Prompt Order
+
+| Before (v2.0) | After (v2.1) |
+|----------------|--------------|
+| Role description | Role description |
+| Modes of work | **REQUIRED FIRST STEP** (memory file check) |
+| Core expertise (often 30+ lines) | Modes of work |
+| Context inheritance | Core expertise |
+| Agent Memory File section | Context inheritance |
+| Memory File Structure | Memory File Structure |
 
 ---
 

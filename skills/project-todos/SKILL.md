@@ -1,6 +1,6 @@
 ---
 name: project-todos
-version: 2.0.0
+version: 2.1.0
 description: This skill should be used when the user asks to "create a todo", "add a plan", "plan this work", "track this work", "document this task", "complete a todo", "verify the implementation", "run architect verification", "hand off to the developer", "start the implementation", "update docs for this feature", "what's the next step", "what's the plan status", "resume the todo", "what's blocked", "pick up where we left off", "design this feature", "check business requirements", "review requirements", "review against requirements", "check for requirement conflicts", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration through the full design-review-implement-verify-document lifecycle.
 ---
 
@@ -124,7 +124,9 @@ All paths are relative to the project root.
 
 ## Agent Memory Files
 
-Each plan has a companion memory directory where agents store their private working state. For key rules, base format, and orchestrator responsibilities, see `~/.claude/skills/shared/references/agent-memory.md`.
+Each plan has a companion memory directory where agents store their private working state. For key rules, base format, system prompt placement, and orchestrator responsibilities, see `~/.claude/skills/shared/references/agent-memory.md`.
+
+**Agent system prompt placement (v2.1):** Every agent that participates in this workflow must have a `## REQUIRED FIRST STEP` section immediately after its one-line role description — before modes of work, expertise, or any other section. This ensures agents check for and read their memory file before doing anything else. See the shared reference and migration guide for the template and checklist.
 
 ### Structure
 
