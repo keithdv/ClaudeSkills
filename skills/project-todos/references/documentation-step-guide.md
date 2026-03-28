@@ -2,7 +2,7 @@
 
 Every project organizes documentation differently. The documenter agent and the project's CLAUDE.md provide the project-specific knowledge of where requirements live and how they're structured. This guide defines the workflow steps and agent responsibilities, not the project details.
 
-Detailed guidance for Step 9 (Documentation) of the agent collaboration workflow.
+Detailed guidance for Step 8 (Documentation) of the agent collaboration workflow.
 
 ## When Documentation Is Required
 
@@ -17,29 +17,20 @@ Documentation may be skipped (mark N/A) for:
 - Bug fixes that restore expected behavior
 - Test-only changes
 
-## Invoking the Documentation Agent
+## Step 8 Part Structure
 
-Invoke the **documentation agent** with:
-- The plan file path
-- The todo file path
-- Instruction: "Review the completed implementation and update all affected documentation. See the Documentation section of the plan for expected deliverables."
-
-If no documentation agent exists, invoke the **developer agent** with the same instruction.
-
-## Step 9 Part Structure
-
-Step 9 has two parts with distinct responsibilities:
+Step 8 has two parts with distinct responsibilities:
 
 ### Part A: Requirements Documentation (Documenter Agent)
 
 The documenter agent updates the project's business requirements documentation:
-- Reads the plan's Business Requirements Context, Business Rules, and Completion Evidence
+- Reads the plan's Business Requirements Context, Business Rules, and the developer's completion evidence (relayed by the orchestrator from the developer's memory file)
 - Adds new rules, updates changed rules, resolves gaps
-- If the documenter identifies source code changes needed (e.g., code comments, samples, verification tests), it lists them as **Developer Deliverables** in the plan — but does NOT modify source code
+- If the documenter identifies source code changes needed (e.g., code comments, samples, verification tests), it lists them as **Developer Deliverables** in the documenter's memory file — but does NOT modify source code
 
 The orchestrator routes any Developer Deliverables to the developer agent as needed.
 
-The documenter records work in the plan's Documentation section and sets plan status to "Requirements Documented."
+The documenter records all work in the documenter's memory file (files updated, deliverables completed) and sets plan status to "Requirements Documented."
 
 ### Part B: General Documentation (Docs Agent or Developer)
 
@@ -47,17 +38,22 @@ Non-requirements documentation — README, architecture docs, migration guides, 
 
 Only needed if the plan identifies non-requirements documentation deliverables.
 
+Invoke a fresh **documentation agent** (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`, such as `docs-writer`; use the developer agent as a final fallback if no documentation agent exists) with:
+- The plan file path
+- The todo file path
+- Instruction: "Update non-requirements documentation affected by this implementation."
+
+The documentation agent should:
 1. **Read the plan** to understand what was implemented
-2. **Identify documentation deliverables** from the plan's Documentation section
+2. **Identify documentation deliverables** from the plan's Acceptance Criteria or Risks section
 3. **Update affected files**, which may include:
    - README or getting-started guides
    - API documentation
    - Architecture documentation
    - Migration guides
-4. **Record work** in the plan's Documentation section:
-   - List each file created or updated
-   - Note any documentation deliverables that were N/A and why
-5. **Set plan status** to "Documentation Complete"
+4. **Set plan status** to "Documentation Complete"
+
+After all applicable parts complete (Part A + Part B if applicable), the plan status should be "Documentation Complete."
 
 ## Quality Criteria
 
@@ -67,4 +63,4 @@ Only needed if the plan identifies non-requirements documentation deliverables.
 
 ## Documentation Does Not Require Separate Verification
 
-Documentation quality is checked during the Completion step (Step 10), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.
+Documentation quality is checked during the Completion step (Step 9), not through a separate architect verification cycle. If documentation is materially wrong, the orchestrator can send it back, but this is rare.

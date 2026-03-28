@@ -17,15 +17,9 @@
 
 ---
 
-## Clarifications
-
-[Architect comprehension check Q&A from Step 2. The orchestrator records the architect's questions and the user's answers here before the requirements review.]
-
----
-
 ## Requirements Review
 
-[Business-requirements-reviewer agent writes findings here in Step 3 of the agent workflow. This section is filled BEFORE the plan is created.]
+[Business-requirements-reviewer agent writes findings here in Step 2 of the agent workflow. This section is filled BEFORE the architect reviews the plan.]
 
 **Reviewer:** [agent name]
 **Reviewed:** [date]

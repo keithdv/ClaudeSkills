@@ -2,34 +2,26 @@
 
 **Date:** YYYY-MM-DD
 **Related Todo:** [Link to todo file]
-**Status:** Draft | Draft (Architect) | Under Review (Developer) | Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back | Requirements Documented | Documentation Complete | Complete
+**Status:** Draft
 **Last Updated:** YYYY-MM-DD
 
-### Plan Status Values
-
-- `Draft` - Initial creation (standalone plans outside the agent workflow)
-- `Draft (Architect)` - Architect created the plan and is working on design (first status in the agent workflow)
-- `Under Review (Developer)` - Developer reviewing
-- `Concerns Raised` - Developer found issues
-- `Ready for Implementation` - Approved, contract created
-- `In Progress` - Implementation underway
-- `Awaiting Verification` - Developer reports done, architect must verify
-- `Sent Back` - Architect verification or requirements verification failed, developer must fix
-- `Requirements Documented` - Business requirements documentation updated (Step 9 Part A complete)
-- `Documentation Complete` - All documentation finished (Step 9 complete)
-- `Complete` - Both verifications passed, documentation complete, moved to completed/
+<!-- Valid status values (do not render in plan):
+Draft | Under Review (Architect) | Concerns Raised (Architect) | Under Review (Developer) |
+Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back |
+Requirements Documented | Documentation Complete | Complete
+-->
 
 ---
 
 ## Overview
 
-[Brief description of what this plan addresses]
+[Brief description of what this plan addresses. Written by user + orchestrator in Step 1.]
 
 ---
 
 ## Business Requirements Context
 
-[Architect populates this section from the todo's Requirements Review when creating the plan (Step 4). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
+[Architect populates this section from the todo's Requirements Review during plan review (Step 3). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
 
 **Source:** [Link to todo's Requirements Review section]
 
@@ -75,11 +67,13 @@
 
 ## Business Rules (Testable Assertions)
 
-[Extract ALL business rules as numbered, crisp, unambiguous assertions BEFORE designing the approach. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
+[Architect fills this section during plan review (Step 3). Extracts ALL business rules from the user's design as numbered, crisp, unambiguous assertions. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
 
 [Format each rule using WHEN/THEN to eliminate ambiguity about what the expected value applies to.]
 
 [For rules that trace to an existing documented requirement (from the Business Requirements Context section), include the reference. For new rules covering gaps, mark them as NEW.]
+
+[**If the architect struggles to write clear assertions from the user's design, this is an architectural smell — the design may not be concrete enough. Return to the user for clarification.**]
 
 1. WHEN [conditions], THEN [property/method] RETURNS [expected value] — Source: [requirement reference or NEW]
 2. WHEN [conditions], THEN [observable behavior]. Expected: [value] — Source: [requirement reference or NEW]
@@ -87,7 +81,7 @@
 
 ### Test Scenarios
 
-[For each business rule above, provide at least one concrete scenario showing inputs and expected result. These scenarios become acceptance tests.]
+[Architect fills this section during plan review (Step 3). For each business rule above, provide at least one concrete scenario showing inputs and expected result. These scenarios become acceptance tests.]
 
 | # | Scenario | Inputs / State | Rule(s) | Expected Result |
 |---|----------|---------------|---------|-----------------|
@@ -99,13 +93,13 @@
 
 ## Approach
 
-[How will we solve this? High-level strategy]
+[How will we solve this? High-level strategy. Written by user + orchestrator in Step 1.]
 
 ---
 
 ## Domain Model Behavioral Design
 
-[The domain model is the ViewModel for Blazor pages. Every behavioral property the UI needs must be designed here — Razor pages bind to these properties and NEVER implement business logic themselves. If this section is empty, the architect must justify why no behavioral properties are needed.]
+[Architect fills this section during plan review (Step 3). The domain model is the ViewModel for Blazor pages. Every behavioral property the UI needs must be designed here — Razor pages bind to these properties and NEVER implement business logic themselves. If this section is empty, the architect must justify why no behavioral properties are needed.]
 
 ### Computed Properties
 
@@ -129,7 +123,7 @@
 
 | Rule | Trigger | Affected Property | Behavior |
 |------|---------|-------------------|----------|
-| [e.g., Auto-set consultation date] | [CareStatus → Consultation] | [ConsultationDate] | [Set to today if null] |
+| [e.g., Auto-set consultation date] | [CareStatus -> Consultation] | [ConsultationDate] | [Set to today if null] |
 
 ### Classification Properties
 
@@ -151,11 +145,13 @@
 
 ## Design
 
-[Detailed design - architecture, file structure, data flow, etc.]
+[Detailed design - architecture, file structure, data flow, etc. Written by user + orchestrator in Step 1.]
 
 ---
 
 ## Implementation Steps
+
+[Ordered steps for the developer. Written by user + orchestrator in Step 1.]
 
 1. [Step 1]
 2. [Step 2]
@@ -165,6 +161,8 @@
 
 ## Acceptance Criteria
 
+[Written by user + orchestrator in Step 1.]
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
@@ -173,7 +171,7 @@
 
 ## Agent Phasing
 
-[Architect identifies which implementation phases benefit from fresh agents. Each phase is a unit of work that can be handed to an agent with clear inputs and expected outputs.]
+[Architect fills this section during plan review (Step 3). Identifies which implementation phases benefit from fresh agents. Each phase is a unit of work that can be handed to an agent with clear inputs and expected outputs.]
 
 | Phase | Agent Type | Fresh Agent? | Rationale | Dependencies |
 |-------|-----------|-------------|-----------|--------------|
@@ -188,10 +186,10 @@
 
 ## Dependencies
 
-[Any prerequisites, tools, or external factors]
+[Any prerequisites, tools, or external factors. Written by user + orchestrator in Step 1.]
 
 ---
 
 ## Risks / Considerations
 
-[Things to watch out for, trade-offs, known issues]
+[Things to watch out for, trade-offs, known issues. Written by user + orchestrator in Step 1.]
