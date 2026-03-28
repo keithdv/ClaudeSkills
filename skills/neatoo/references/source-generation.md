@@ -4,7 +4,7 @@ Neatoo uses Roslyn source generators at compile time. **Understanding source gen
 
 ## What Gets Generated
 
-For each `partial` property, the generator creates a backing `IValidateProperty<T>` field with change tracking, validation triggering, and `PropertyChanged` notifications wired in.
+For each `partial` property, the generator creates a backing field with change tracking, validation triggering, and `PropertyChanged` notifications wired in. The backing field type depends on the base class: `IValidateProperty<T>` for `ValidateBase` subclasses, `IEntityProperty<T>` for `EntityBase` subclasses. `IEntityProperty<T>` adds per-property modification tracking (`IsModified`, `LoadValue()` for setting without marking modified, `MarkSelfUnmodified()`).
 
 For each class with `[Factory]`, the generator creates a factory interface (`IMyEntityFactory`) with methods matching the `[Create]`, `[Fetch]`, etc. methods.
 
@@ -59,6 +59,26 @@ public partial class ApiGeneratedSaveEntity : EntityBase<ApiGeneratedSaveEntity>
 <!-- endSnippet -->
 
 If `[Insert]`/`[Update]`/`[Delete]` methods have non-service parameters (like a parent ID), `IFactorySave<T>` is not generated. The parent must call `factory.SaveAsync(child, parentId)` explicitly — this is the cascade save pattern described in [entities.md](entities.md).
+
+## Setter Accessibility
+
+The generator respects setter accessibility modifiers on partial properties:
+
+| Declaration | Generated Setter | Setter Body | Interface Declaration |
+|-------------|-----------------|-------------|----------------------|
+| `public partial string Name { get; set; }` | `set` (public) | `.Value = value` | `string Name { get; set; }` |
+| `public partial decimal Total { get; private set; }` | `private set` | `SetPrivateValue(value)` | `decimal Total { get; }` |
+| `protected partial string Data { get; protected set; }` | `protected set` | `.Value = value` | `string Data { get; set; }` |
+| `public partial string Info { get; internal set; }` | `internal set` | `.Value = value` | `string Info { get; }` |
+| `public partial string ReadOnly { get; }` | (none) | N/A | `string ReadOnly { get; }` |
+
+Key behaviors:
+- **`private set`** uses `SetPrivateValue()` which bypasses `IsReadOnly` checks. The property's `IsReadOnly` is `true` at runtime.
+- **`protected set`** and **`internal set`** use `.Value = value` (same as public). `IsReadOnly` is `false` at runtime.
+- Non-public setters generate `get;` only on the interface declaration.
+- LazyLoad properties with `private set` use `LoadValue(value)` (same as public LazyLoad), since LazyLoad already bypasses `IsReadOnly`.
+
+See [properties.md](properties.md) for runtime behavior of private-set properties.
 
 ## Suppressing Generation
 
