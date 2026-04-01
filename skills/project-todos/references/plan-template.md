@@ -6,8 +6,8 @@
 **Last Updated:** YYYY-MM-DD
 
 <!-- Valid status values (do not render in plan):
-Draft | Under Review (Architect) | Concerns Raised (Architect) | Under Review (Developer) |
-Concerns Raised | Ready for Implementation | In Progress | Awaiting Verification | Sent Back |
+Draft | Under Review (Architect) | Concerns Raised (Architect) | Ready for Implementation |
+In Progress | Awaiting Code Review | Code Review Concerns | Awaiting Verification | Sent Back |
 Requirements Documented | Documentation Complete | Complete
 -->
 
@@ -166,21 +166,6 @@ Requirements Documented | Documentation Complete | Complete
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
-
----
-
-## Agent Phasing
-
-[Architect fills this section during plan review (Step 3). Identifies which implementation phases benefit from fresh agents. Each phase is a unit of work that can be handed to an agent with clear inputs and expected outputs.]
-
-| Phase | Agent Type | Fresh Agent? | Rationale | Dependencies |
-|-------|-----------|-------------|-----------|--------------|
-| [Phase 1 name] | [developer/UI/specialized] | [Yes/No] | [Why fresh or continuing] | [Prior phases needed] |
-| [Phase 2 name] | [developer/UI/specialized] | [Yes/No] | [Why fresh or continuing] | [Prior phases needed] |
-
-**Parallelizable phases:** [List phases that can run concurrently, if any]
-
-**Notes:** [Any special coordination needed between phases]
 
 ---
 
