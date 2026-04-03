@@ -72,6 +72,7 @@ Both generate an `IXxxFactory` with the appropriate methods. The factory pattern
 | Can [Execute] go on a class factory? | Yes, if `public static` and returns containing type |
 | Do [Event] methods need CancellationToken? | Yes, as final parameter |
 | Where does business logic go? | In the entity, not the factory |
+| Can multiple types share a generic base? | Yes — use CRTP constraint (`where T : MyBase<T>`), `[Factory]` on base |
 | How do I reduce Blazor WASM bundle size? | Enable IL trimming (strongly recommended) |
 
 ## Reference Files
@@ -90,6 +91,7 @@ Consult these files for detailed patterns and examples:
 
 ### Advanced Topics
 - **`references/advanced-patterns.md`** - Authorization, correlation context, complex aggregates, testing
+- **`references/polymorphic-hierarchy.md`** - Generic base class hierarchy with multiple concrete types, CRTP constraint, routing pattern
 - **`references/trimming.md`** - IL trimming setup (removes server code from deployed client)
 
 ---
