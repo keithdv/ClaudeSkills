@@ -122,7 +122,7 @@ Before starting the workflow, check for project-specific resources:
 
 1. **Agents** — Check `.claude/agents/` for project-specific agents: architect, developer (for code review), specialized, documentation, **business-requirements-reviewer**, and **business-requirements-documenter**. Also check `~/.claude/agents/` for general agents. **Project-specific agents always take priority over user-level agents of the same role.** Fall back to general-purpose agents only when no project-specific agent exists for that role.
 2. **Business requirements** — Check the project's CLAUDE.md for where business requirements documentation lives (business rules, user stories, workflows, data dictionaries). **If CLAUDE.md does not clearly indicate where business requirements are documented, STOP and ask the user before proceeding.** This information is required for Step 2.
-3. **Domain skill** — Check if the project has domain-specific skills (in `skills/` or `.claude/skills/`) that provide context about the codebase. Reference these when invoking agents so they have domain knowledge.
+3. **Skills** — Check for domain-specific and framework skills (in `skills/`, `.claude/skills/`, `~/.claude/skills/`). Identify ALL skills relevant to this work. These must be recorded in the plan's **Skills** section during Step 1 — they are loaded into the fresh implementation context at Step 4. If a skill isn't in the plan, the implementer won't have it.
 4. **Verification resources** — Check if the project has additional verification resources (e.g., sample projects, integration test suites) that the architect should use to verify scope claims.
 
 ### Agent Strategy
@@ -153,6 +153,7 @@ Working in conversation or plan mode, collaborate with the user to design the co
    - **Business Rules (Testable Assertions)** — extract ALL business rules from the design as numbered, unambiguous WHEN/THEN assertions. Trace each to an existing documented requirement where one exists. New assertions must be marked as NEW.
    - **Test Scenarios** — concrete scenarios for each business rule with specific inputs and expected results
    - **Domain Model Behavioral Design** — computed properties, visibility flags, reactive rules, validation rules
+   - **Skills** — list ALL skills needed during implementation with their paths and why they're needed. Check `skills/`, `.claude/skills/`, `~/.claude/skills/`. If a skill isn't listed here, the implementer won't have it at Step 4.
    - **Implementation Steps** — ordered steps for implementation
    - **Acceptance Criteria** — what "done" looks like
    - **Dependencies** and **Risks**
@@ -228,23 +229,32 @@ The orchestrator updates plan status based on the verdict:
 3. After the user updates the plan, re-invoke the architect to review changes
 4. Repeat until Approved
 
-### Step 4: Implementation (Orchestrator + User)
+### Step 4: Implementation (Fresh Context + User)
 
-**The orchestrator implements code changes directly in conversation with the user.**
+**Start implementation in a fresh context.** The planning conversation (Steps 1-3) has been distilled into the plan. The accumulated discussion, codebase exploration, review back-and-forth, and concern resolution is noise at this point — the plan is the contract.
 
-The orchestrator should:
-1. Read the plan's Implementation Steps, Business Rules, and Domain Model Behavioral Design
-2. Work through the implementation steps in order, in conversation with the user
-3. Run tests at natural checkpoints (after completing a logical unit of work)
-4. **STOP and report** if out-of-scope tests fail. The project's CLAUDE.md defines which tests are "sacred" (existing tests are never gutted to make new code pass). When an out-of-scope test fails, present it to the user with: "Test X started failing. It tests [feature], which is outside the current task. Should I (1) fix the underlying issue, (2) add to the bug list, or (3) investigate further?"
-5. **Do NOT update documentation markdown** — skill markdown, user-facing docs, and release notes are handled in Step 7 by the documenter agent. Implementation scope is source code only. Code comments (XML docs) on modified code are in scope.
-6. When implementation is complete, run all builds and tests. Set plan status to `Awaiting Code Review`.
+**Recommend the user start a new session** for implementation. If continuing in the same session, do not rely on anything from the planning conversation — treat the plan as the sole source of truth.
 
-**Advantages of orchestrator implementation:**
-- The user can course-correct in real time ("wait, not that approach — try this instead")
-- No context loss between implementation phases
-- Ambiguities are resolved immediately through conversation
-- The feedback loop is tight and natural
+#### What to Load
+
+The orchestrator reads these resources at the start of implementation:
+
+1. **The plan file** — all sections (Business Rules, Test Scenarios, Domain Model Behavioral Design, Implementation Steps, Design, Approach)
+2. **The todo file** — for problem context and progress tracking
+3. **All skills listed in the plan's Skills section** — load each one. These are the domain, framework, and component skills identified during planning. If a skill isn't listed in the plan, it's not available.
+4. **The project's CLAUDE.md** — for project conventions and sacred test rules
+
+#### Implementation
+
+The orchestrator implements code changes in conversation with the user:
+
+1. Work through the plan's Implementation Steps in order
+2. Run tests at natural checkpoints (after completing a logical unit of work)
+3. **STOP and report** if out-of-scope tests fail. The project's CLAUDE.md defines which tests are "sacred" (existing tests are never gutted to make new code pass). When an out-of-scope test fails, present it to the user with: "Test X started failing. It tests [feature], which is outside the current task. Should I (1) fix the underlying issue, (2) add to the bug list, or (3) investigate further?"
+4. **Do NOT update documentation markdown** — skill markdown, user-facing docs, and release notes are handled in Step 7 by the documenter agent. Implementation scope is source code only. Code comments (XML docs) on modified code are in scope.
+5. When implementation is complete, run all builds and tests. Set plan status to `Awaiting Code Review`.
+
+**Why fresh context works:** The plan captures everything needed. The user is present to course-correct. If something is missing from the plan, that's a signal the plan template needs improvement — not that planning context should be preserved.
 
 ### Step 5: Developer Code Review
 
@@ -416,12 +426,9 @@ Use the template from `references/plan-template.md`. Fill in user-authored secti
 - **Related Todo**: Relative link to parent todo
 - **Status**: "Draft" (initial status when user creates the plan)
 - **Last Updated**: Same as Date
-- **Overview**, **Approach**, **Design**, **Implementation Steps**, **Acceptance Criteria**, **Dependencies**, **Risks**
+- **Overview**, **Skills**, **Approach**, **Design**, **Business Rules**, **Test Scenarios**, **Domain Model Behavioral Design**, **Implementation Steps**, **Acceptance Criteria**, **Dependencies**, **Risks**
 
-Leave architect-review sections empty (the architect fills these in Step 3):
-- **Business Requirements Context** (populated from todo's Requirements Review)
-- **Business Rules (Testable Assertions)** and **Test Scenarios**
-- **Domain Model Behavioral Design**
+**Do not skip the Skills section.** List every skill needed during implementation with its path and why it's needed. Skills not listed here will not be available in the fresh implementation context at Step 4.
 
 For valid plan status values, see `references/plan-template.md`.
 
@@ -432,6 +439,7 @@ Plans that go through the agent collaboration workflow contain design sections o
 **In the plan file** (all content written by the orchestrator):
 
 - All design sections: Overview, Approach, Design, Implementation Steps, Acceptance Criteria
+- **Skills** — Orchestrator identifies during Step 1 (loaded into fresh context at Step 4)
 - **Business Rules (Testable Assertions)** — Orchestrator writes during Step 1
 - **Test Scenarios** — Orchestrator writes during Step 1
 - **Domain Model Behavioral Design** — Orchestrator writes during Step 1
@@ -506,8 +514,8 @@ When a session was interrupted or the user asks to resume:
      - Verdict: VETOED -> Step 2 (resolve contradictions with user)
    - `Under Review (Architect)` -> Step 3 (architect review in progress, re-invoke architect)
    - `Concerns Raised (Architect)` -> Step 3 (user addresses architect concerns, re-invoke architect)
-   - `Ready for Implementation` -> Step 4 (orchestrator implements in conversation)
-   - `In Progress` -> Step 4 (implementation continues in conversation)
+   - `Ready for Implementation` -> Step 4 (fresh context: load plan, todo, skills from plan's Skills section, CLAUDE.md, agent memory files as needed)
+   - `In Progress` -> Step 4 (continue implementation — load plan and skills from plan's Skills section if starting a new session)
    - `Awaiting Code Review` -> Step 5 (developer code review)
    - `Code Review Concerns` -> Step 5 (orchestrator addresses concerns, re-invoke developer)
    - `Awaiting Verification` -> Step 6 (verification). Read the developer's memory file to see what the code review confirmed.

@@ -19,6 +19,14 @@ Requirements Documented | Documentation Complete | Complete
 
 ---
 
+## Skills
+
+[Orchestrator identifies these during Step 1. List every skill needed during implementation — domain skills, framework skills, component skills. At Step 4, the orchestrator loads these into a fresh context alongside the plan. If a skill isn't listed here, it won't be available during implementation.]
+
+- `path/to/skill/SKILL.md` — [why this skill is needed]
+
+---
+
 ## Business Rules (Testable Assertions)
 
 [Orchestrator writes this section during Step 1 with the user. ALL business rules from the design as numbered, crisp, unambiguous assertions. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
