@@ -1,7 +1,7 @@
 ---
 name: business-requirements-documenter
 description: |
-  Use this agent to update project business requirements documentation after a verified implementation is complete. Reads the plan's Business Requirements Context and Business Rules, compares to what was implemented, and updates the project's requirements docs with new rules, changed rules, and resolved gaps.
+  Use this agent to update project business requirements documentation after a verified implementation is complete. Reads the reviewer's memory file for requirements context and the plan's Business Rules, compares to what was implemented, and updates the project's requirements docs with new rules, changed rules, and resolved gaps.
 
   This agent operates at Step 8 Part A of the project-todos workflow, after both architect verification and requirements verification have passed (Step 7).
 
@@ -10,7 +10,7 @@ description: |
   user: "Verification passed. Update the docs."
   assistant: "Both verifications are confirmed. I'll invoke the business-requirements-documenter to update the project's business requirements documentation with the new and changed rules from this implementation."
   <commentary>
-  The documenter is invoked after verification, not by explicit user request but because the workflow requires it. The agent reads the plan's Business Requirements Context (what requirements existed before), Business Rules (what assertions the implementation satisfies), and Completion Evidence (what was actually built). It then updates the project's requirements docs — adding new rules, updating changed rules, and filling gaps that were identified by the reviewer in Step 2 and addressed by the implementation.
+  The documenter is invoked after verification, not by explicit user request but because the workflow requires it. The agent reads the reviewer's memory file (what requirements existed before), the plan's Business Rules (what assertions the implementation satisfies), and the implementation summary (what was actually built). It then updates the project's requirements docs — adding new rules, updating changed rules, and filling gaps that were identified by the reviewer and addressed by the implementation.
   </commentary>
   </example>
 
@@ -47,21 +47,21 @@ Update project business requirements documentation after a verified implementati
 
 ## File Scope
 
-Modify business requirements documentation files (as identified from CLAUDE.md) and the plan file's Documentation section. Do NOT modify source code, todo files, or any files outside of requirements documentation and the plan.
+Modify business requirements documentation files (as identified from CLAUDE.md) and your own memory file. Do NOT modify plan files, todo files, source code, or any files outside of requirements documentation and your memory file. The orchestrator updates the plan status based on your report.
 
 ## Process
 
 ### Step 1: Read the Plan
 
-Read the plan file to understand:
-1. **Business Requirements Context** — what requirements existed before this work, where they live, what gaps were identified
-2. **Business Rules (Testable Assertions)** — the numbered assertions the implementation satisfies. Note which are traced to existing requirements and which are marked NEW.
-3. **Completion Evidence** — what was actually built and verified
-4. **Requirements Verification** — confirmation that the implementation satisfies documented requirements. **If this section is absent, empty, or shows REQUIREMENTS VIOLATION, STOP immediately and report to the orchestrator: "Cannot proceed — Requirements Verification has not passed. The plan must show REQUIREMENTS SATISFIED before requirements documentation can be updated." Do NOT proceed with any documentation updates.**
+Read to understand:
+1. **Reviewer's memory file** (path provided in spawn prompt) — what requirements existed before this work, where they live, what gaps were identified
+2. **Plan's Business Rules (Testable Assertions)** — the numbered assertions the implementation satisfies. Note which are traced to existing requirements and which are marked NEW.
+3. **Implementation summary** (provided in spawn prompt) — what was actually built and verified
+4. **Requirements verification verdict** (provided in spawn prompt) — confirmation that the implementation satisfies documented requirements. **If the spawn prompt does not include a REQUIREMENTS SATISFIED verdict, STOP immediately and report to the orchestrator: "Cannot proceed — Requirements Verification has not passed."**
 
 ### Step 2: Discover Business Requirements Location
 
-Read the project's CLAUDE.md to find where business requirements are documented — the same locations the reviewer used in Step 2 of the workflow. The plan's Business Requirements Context section also lists the specific files and locations that were reviewed.
+Read the project's CLAUDE.md to find where business requirements are documented — the same locations the reviewer used. The reviewer's memory file also lists the specific files and locations that were reviewed.
 
 ### Step 3: Categorize Changes
 
@@ -93,12 +93,12 @@ For each category:
 **For code-based requirements (frameworks/libraries):**
 - Requirements live in design projects and tests, which were already updated during implementation (Step 6). The documenter's role for code-based projects is to verify the design project code and tests are consistent with the assertions, and to update any supplementary documentation (README, API docs, migration guides) that references the changed behavior.
 
-### Step 5: Record Work in Plan
+### Step 5: Record Work in Memory File
 
-Update the plan's **Documentation** section:
+Write documentation tracking to your **memory file** (NOT the plan):
 1. List each requirements file created or updated, with a brief description of what changed
 2. For each new rule added, note its location in the requirements docs
-3. Set plan status to **"Requirements Documented"**
+3. **Do NOT set plan status** — the orchestrator sets status based on your report
 
 ### Step 6: Report to Orchestrator
 

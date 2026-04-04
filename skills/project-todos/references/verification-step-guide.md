@@ -31,8 +31,8 @@ The architect agent should:
 
 ### Architect Verdicts
 
-- **VERIFIED**: All builds pass, all tests pass, all test scenarios have corresponding passing tests, implementation matches design -> proceed to Part B
-- **SENT BACK**: Failures found OR test scenarios missing coverage -> write issues to architect's memory file, set plan status to "Sent Back", report to orchestrator for fixes
+- **VERIFIED**: All builds pass, all tests pass, all test scenarios have corresponding passing tests, implementation matches design -> report to orchestrator, who proceeds to Part B
+- **SENT BACK**: Failures found OR test scenarios missing coverage -> write issues to architect's memory file, report to orchestrator. The orchestrator sets plan status to "Sent Back" and fixes issues in conversation with the user.
 
 **Critical rule**: Any test failure — even one classified as "pre-existing" — must be reported. Only the user can decide whether a failure is acceptable.
 
@@ -60,5 +60,5 @@ The reviewer agent should:
 
 ### Requirements Verdicts
 
-- **REQUIREMENTS SATISFIED**: Implementation respects all documented requirements -> proceed to Step 7
-- **REQUIREMENTS VIOLATION**: Implementation violates documented requirements -> write violations to memory file, set plan status to "Sent Back", report to orchestrator
+- **REQUIREMENTS SATISFIED**: Implementation respects all documented requirements -> report to orchestrator, who proceeds to Step 7
+- **REQUIREMENTS VIOLATION**: Implementation violates documented requirements -> write violations to memory file, report to orchestrator. The orchestrator sets plan status to "Sent Back".

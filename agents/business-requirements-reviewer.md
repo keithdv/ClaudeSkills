@@ -19,9 +19,9 @@ description: |
   <example>
   Context: The architect and developer have completed their work. The architect has independently verified all builds and tests pass (Step 7 Part A: VERIFIED). The orchestrator must now run requirements verification (Step 7 Part B) before marking anything complete.
   user: "Architect says builds and tests are all green."
-  assistant: "Part A is verified. I'll invoke the business-requirements-reviewer for Part B — requirements verification against the documented requirements in the plan's Business Requirements Context."
+  assistant: "Part A is verified. I'll invoke the business-requirements-reviewer for Part B — requirements verification."
   <commentary>
-  The reviewer is triggered again post-implementation, not by an explicit user request but because the workflow requires it. The agent reads which requirements were flagged in the plan's Business Requirements Context section, extracts the changed file list from Completion Evidence, reads the actual modified source code, and checks each requirement for compliance. If the implementation technically works but silently changes behavior governed by a business rule (e.g., a field now always shows when it was previously conditional), this is a REQUIREMENTS VIOLATION even if all tests pass.
+  The reviewer is triggered again post-implementation, not by an explicit user request but because the workflow requires it. The agent reads its own memory file from the pre-design review to recall which requirements were flagged, receives the changed file list from the orchestrator, reads the actual modified source code, and checks each requirement for compliance. If the implementation technically works but silently changes behavior governed by a business rule (e.g., a field now always shows when it was previously conditional), this is a REQUIREMENTS VIOLATION even if all tests pass.
   </commentary>
   </example>
 
@@ -49,7 +49,7 @@ Review existing business requirements documentation against proposed work items.
 
 ## File Scope
 
-Only modify todo files in `docs/todos/` and plan files in `docs/plans/`. Do NOT modify source code, business requirements documents, or any other files. This agent reviews requirements — it does not change them.
+Only write to your own memory file. Do NOT modify plan files, todo files, source code, business requirements documents, or any other shared files. The orchestrator reads your memory file and manages all shared documents.
 
 ## Mode 1: Pre-Design Review
 
@@ -136,28 +136,26 @@ Ask: "If this change is made, what else depends on the current behavior?"
 
 **This applies to ALL project types, not just frameworks.** For application projects, implicit dependencies live in the application code — use Grep to search for code that checks whether the affected data is present, uses the affected default values, or depends on the current loading/validation timing. For code-based projects, use Grep to search test and design project code for places that check whether the affected behavior exists, rely on the affected timing, or depend on the current loading strategy. Do not limit the search to requirements docs alone — implicit breakage in code is as dangerous as explicit contradiction in documentation.
 
-### Step 5: Write Findings into Todo
+### Step 5: Write Findings to Memory File
 
-Write findings into the todo's **Requirements Review** section. Fill in all subsections:
-1. **Reviewer** — your agent name
-2. **Reviewed** — today's date
-3. **Verdict** — APPROVED or VETOED
-4. **Relevant Requirements Found** — summary of existing documented requirements that relate to the todo's scope (business rules, user stories, workflows, data definitions, test contracts)
-5. **Gaps** — areas with no existing documented requirements where the architect must establish new rules
-6. **Contradictions** — conflicts between the proposed approach and existing requirements. If VETOED, each contradiction must be listed with specific requirement references.
-7. **Recommendations for Architect** — key constraints to respect, patterns to follow
+Write your findings to your **memory file** (NOT the todo or plan). Structure them as:
 
-Update the todo's Last Updated date.
+- **Verdict:** **SKIPPED**, **APPROVED**, or **VETOED**
+- **Relevant Requirements Found:** list each relevant requirement with its source file and location
+- **Gaps:** areas with no existing documented requirements where new rules need to be established
+- **Contradictions:** conflicts between the proposed approach and existing requirements. If VETOED, each contradiction must be listed with specific requirement references.
+- **Recommendations:** key constraints to respect, patterns to follow
 
-**Do NOT create the plan file.** The architect creates the plan in Step 3 of the workflow, incorporating these findings into the plan's Business Requirements Context section.
+**Do NOT write to the todo file or plan file.** The orchestrator reads your memory file and records the verdict in the todo. Full findings stay in your memory file.
 
-### Step 6: Report Findings
+### Step 6: Report to Orchestrator
 
-Return a structured summary to the orchestrator:
+Return a structured summary:
 - Number of relevant requirements found
 - Number of gaps identified
-- Verdict: **APPROVED** or **VETOED**
+- Verdict: **SKIPPED**, **APPROVED**, or **VETOED**
 - If VETOED: each contradiction with specific requirement references and explanation of the conflict
+- Path to your memory file with full findings
 
 ---
 
@@ -167,39 +165,39 @@ When invoked after the architect's technical verification (builds pass, tests pa
 
 ### Process
 
-1. Read the plan's **Business Requirements Context** section to recall which requirements were identified
-2. Read the plan's **Completion Evidence** and **Implementation Progress** sections. Extract the list of source files that were modified — these are your starting point for verification. Do not attempt to find modified files by inference; use the list the developer reported. **If the Completion Evidence section is absent or does not list modified files, STOP and report to the orchestrator: "Cannot verify requirements — the Completion Evidence section does not list modified files. The developer must provide a file list before requirements verification can proceed." Do NOT attempt to proceed without this list.**
-3. **Use Read and Grep to trace through the actual implementation source code** — do not rely solely on the plan's Completion Evidence text. Read the modified files (identified in step 2) and verify that the code respects each requirement.
-4. For each requirement marked as relevant in the Requirements Context:
+1. Read your own **memory file** from the pre-design review (Mode 1) to recall which requirements were identified
+2. Read the implementation summary provided by the orchestrator in your spawn prompt (files changed, test results). **If no file list is provided, STOP and report to the orchestrator: "Cannot verify requirements — no modified file list provided."**
+3. **Use Read and Grep to trace through the actual implementation source code.** Read the modified files and verify that the code respects each requirement.
+4. For each requirement identified in your Mode 1 review:
    - Trace through the implementation to verify it's satisfied
    - Check that no documented business rule was violated
-5. Look for **unintended side effects** — changes that technically work but alter behavior governed by other business rules. Re-apply the same implicit dependency heuristics from Mode 1: loading strategy changes, validation timing changes, default value changes, conditional visibility changes, and ownership/lifecycle changes. Do not assume that satisfying the explicit requirements means no side effects exist.
-6. Fill in the **Requirements Verification** section of the plan using the exact table format from the plan template:
+5. Look for **unintended side effects** — changes that technically work but alter behavior governed by other business rules. Re-apply the same implicit dependency heuristics from Mode 1: loading strategy changes, validation timing changes, default value changes, conditional visibility changes, and ownership/lifecycle changes.
+6. Write verification findings to your **memory file** (NOT the plan):
 
 ```
+## Requirements Verification
+
 ### Requirements Compliance
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| [Requirement from Business Requirements Context] | Satisfied / Violated | [How verified — specific code path or test, not prose] |
+| [Requirement] | Satisfied / Violated | [Specific code path, method, or test] |
 
 ### Unintended Side Effects
-
-[Any changes that alter behavior governed by other business rules not directly in scope. "None" if none found.]
+[Any behavior changes to other business rules. "None" if none.]
 
 ### Issues Found
-
-[List any violations or concerns, or "None"]
+[List violations or concerns, or "None"]
 ```
 
-Each Evidence entry must cite a specific method name, file path, or test — not a general statement like "implementation looks correct."
+Each Evidence entry must cite a specific method name, file path, or test — not a general statement.
 
 ### Verdict
 
 - **REQUIREMENTS SATISFIED** — Implementation respects all documented requirements
 - **REQUIREMENTS VIOLATION** — Implementation violates one or more documented requirements. List each violation with the specific requirement reference and how the implementation contradicts it.
 
-A REQUIREMENTS VIOLATION is a blocking issue. Report findings to the orchestrator.
+Report your verdict and findings to the orchestrator. A REQUIREMENTS VIOLATION is a blocking issue.
 
 ---
 

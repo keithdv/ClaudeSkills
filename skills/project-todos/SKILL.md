@@ -1,6 +1,6 @@
 ---
 name: project-todos
-version: 4.0.0
+version: 5.0.0
 description: This skill should be used when the user asks to "create a todo", "add a plan", "plan this work", "track this work", "document this task", "complete a todo", "verify the implementation", "run architect verification", "start the implementation", "update docs for this feature", "what's the next step", "what's the plan status", "resume the todo", "what's blocked", "pick up where we left off", "design this feature", "check business requirements", "review requirements", "review against requirements", "check for requirement conflicts", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration through the full design-review-implement-verify-document lifecycle.
 ---
 
@@ -14,20 +14,35 @@ The orchestrator is the user's design partner AND implementer. Agents handle rev
 
 ### What the Orchestrator Does
 
-- Create and manage todo/plan files (create, update status fields, record user answers)
+- **Author all plan content** — business rules, test scenarios, domain model design, implementation steps — everything in the plan file
+- **Write all shared files** — the orchestrator is the ONLY writer of todo files, plan files, and status fields
 - **Analyze the codebase with the user** — the orchestrator is the user's design partner
 - **Implement code changes in conversation with the user** — the user watches, steers, and course-corrects in real time
 - Track implementation progress through conversation tasks
-- Invoke agents for reviews (requirements, architecture, code), verification, and documentation
-- Present agent results and concerns to the user
+- Invoke agents for reviews, research, verification, and documentation
+- Present agent findings and concerns to the user
 - Make workflow decisions (which agent to invoke next, when to loop)
-- Read workflow files (todos, plans, agent definitions) to make routing decisions
+- Set plan/todo status based on agent verdicts
 
-### What the Orchestrator Does NOT Do
+### What Agents Do
 
-- **NEVER** skip agent reviews — requirements review (Step 2), architect review (Step 3), developer code review (Step 5), and verification (Step 6) are mandatory
-- **NEVER** self-verify — the orchestrator cannot mark implementation as verified; agents must independently verify
-- **NEVER** mark work as Complete without verification passing (Step 6, both parts)
+- **Review and validate** — requirements review, architecture validation, code review, verification
+- **Research and answer questions** — investigate codebase, trace patterns, check legacy behavior
+- **Update documentation** — the documenter agent writes to docs/ files (its specialized purpose)
+- **Write to their own memory files** — agents store findings in their memory file, never in the plan or todo
+- **Report back to the orchestrator** — findings, verdicts, and concerns come back as the agent's response
+
+### What Agents Do NOT Do
+
+- **NEVER** write to plan files or todo files — only the orchestrator writes shared documents
+- **NEVER** set plan or todo status — only the orchestrator manages status
+- **NEVER** address other agents — agents report to the orchestrator, not to each other
+
+### Mandatory Steps the Orchestrator Cannot Skip
+
+- Requirements review (Step 2), architect validation (Step 3), developer code review (Step 5), and verification (Step 6) are mandatory
+- The orchestrator cannot mark implementation as verified — agents must independently verify
+- Work cannot be marked Complete without verification passing (Step 6, both parts)
 
 ---
 
@@ -84,15 +99,16 @@ docs/plans/
 
 ### What Lives in Memory Files vs. Plan
 
-| Content | Location |
-|---------|----------|
-| Design (Overview, Business Rules, Approach, Domain Model, Implementation Steps) | Plan file |
-| Business Requirements Context, Acceptance Criteria | Plan file |
-| Architect Review (codebase findings, concerns, testable assertions draft) | `architect.md` |
-| Architect Verification (post-implementation verdict) | `architect.md` |
-| Developer Code Review (assertion traces against actual code, concerns, verdict) | `developer.md` |
-| Requirements Verification (post-implementation) | `requirements-reviewer.md` |
-| Documentation tracking (files updated, deliverables) | `requirements-documenter.md` |
+| Content | Location | Written By |
+|---------|----------|------------|
+| All design content (Overview, Business Rules, Test Scenarios, Approach, Domain Model, Implementation Steps, Acceptance Criteria) | Plan file | Orchestrator |
+| Plan status, todo status, review verdicts (one-liners) | Plan/todo files | Orchestrator |
+| Architect validation findings (codebase analysis, concerns, verdict) | `architect.md` | Architect agent |
+| Architect verification (post-implementation verdict) | `architect.md` | Architect agent |
+| Developer code review (assertion traces, concerns, verdict) | `developer.md` | Developer agent |
+| Requirements review findings (relevant rules, gaps, contradictions, verdict) | `requirements-reviewer.md` | Reviewer agent |
+| Requirements verification (post-implementation) | `requirements-reviewer.md` | Reviewer agent |
+| Documentation tracking (files updated, deliverables) | `requirements-documenter.md` | Documenter agent |
 
 ---
 
@@ -126,23 +142,21 @@ Every agent invocation is a **fresh** Agent call. Provide full context (todo pat
 
 #### Part B: Draft the Plan
 
-Working in conversation or plan mode, collaborate with the user to design the solution:
+Working in conversation or plan mode, collaborate with the user to design the complete solution:
 
 1. Create the plan file in `docs/plans/` using the plan template
 2. Link the plan to the todo (update both files)
-3. Fill in the user-authored sections together:
+3. Fill in ALL sections together with the user:
    - **Overview** — what the plan addresses
    - **Approach** — high-level strategy
    - **Design** — detailed design (architecture, file structure, data flow)
+   - **Business Rules (Testable Assertions)** — extract ALL business rules from the design as numbered, unambiguous WHEN/THEN assertions. Trace each to an existing documented requirement where one exists. New assertions must be marked as NEW.
+   - **Test Scenarios** — concrete scenarios for each business rule with specific inputs and expected results
+   - **Domain Model Behavioral Design** — computed properties, visibility flags, reactive rules, validation rules
    - **Implementation Steps** — ordered steps for implementation
    - **Acceptance Criteria** — what "done" looks like
    - **Dependencies** and **Risks**
-4. Leave these sections for the architect to fill during review (Step 3):
-   - **Business Requirements Context** — populated from the reviewer's findings
-   - **Business Rules (Testable Assertions)** — the architect extracts these from the design
-   - **Test Scenarios** — concrete scenarios for each business rule
-   - **Domain Model Behavioral Design** — computed properties, visibility flags, reactive rules, validation
-5. Set plan status to `Draft`
+4. Set plan status to `Draft`
 
 **The plan should reflect the user's design decisions.** The orchestrator helps structure and flesh out the design but does not override the user's choices.
 
@@ -153,19 +167,21 @@ Working in conversation or plan mode, collaborate with the user to design the so
 Invoke the **business-requirements-reviewer** agent (use the project-specific agent from `.claude/agents/` if one exists, otherwise fall back to the general agent at `~/.claude/agents/`) with:
 - The todo file path
 - The plan file path
+- The reviewer's memory file path: `docs/plans/{plan-name}.memory/requirements-reviewer.md`
 - The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Review this todo and draft plan against the project's existing business requirements. Write your findings into the todo's Requirements Review section. VETO if contradictions are found."
+- Instruction: "Review this todo and draft plan against the project's existing business requirements. Write your findings to your memory file at [path]. Report back with your verdict and a summary of findings. VETO if contradictions are found."
 
 The reviewer agent should:
 1. Read the todo and draft plan to understand the problem, proposed solution, and design
-2. Discover business requirements documentation paths from CLAUDE.md. **If paths are unclear, STOP and return questions for the user — do NOT guess.**
-3. Search requirements docs for rules, user stories, workflows, and data definitions related to the scope
-4. Identify relevant requirements, gaps, and contradictions
-5. Pay special attention to **implicit dependencies** — changes that technically work but alter behavior governed by other business rules
-6. Write findings into the todo's **Requirements Review** section (Relevant Requirements Found, Gaps, Contradictions, Recommendations for Architect)
-7. Set the verdict in the todo's Requirements Review section:
-   - **APPROVED** — No contradictions. Proceed to Step 3 (Architect Review).
-   - **VETOED** — Contradictions found. Must be resolved before proceeding.
+2. Search requirements docs for rules, user stories, workflows, and data definitions related to the scope
+3. Identify relevant requirements, gaps, and contradictions
+4. Pay special attention to **implicit dependencies** — changes that technically work but alter behavior governed by other business rules
+5. Write detailed findings to their **memory file** (relevant requirements found, gaps, contradictions, recommendations)
+6. Report back to the orchestrator with: verdict (APPROVED or VETOED), summary of findings
+
+**After the reviewer reports back:**
+- The orchestrator records the verdict and a one-line summary in the todo's **Requirements Review** section
+- Full findings stay in the reviewer's memory file — the orchestrator reads it when needed, not copied into the plan
 
 **If VETOED:**
 1. Present the specific contradictions to the user, including exact requirement references, file paths, and why they conflict with the proposed work
@@ -173,39 +189,38 @@ The reviewer agent should:
 3. After the user provides direction, update the plan accordingly. If requirements need updating, invoke the appropriate agent. Then re-invoke the reviewer to confirm the contradiction is resolved
 4. Repeat until APPROVED
 
-### Step 3: Architect Review
+### Step 3: Architect Validation
 
-**Purpose:** The architect performs a deep codebase dive to validate the user's design, fill in the technical validation sections, and catch architectural issues the user may have missed. The architect is a **reviewer and enhancer**, not the designer.
+**Purpose:** The architect performs a deep codebase dive to validate the user's complete plan — checking that business rules are correct, test scenarios are adequate, domain model design is sound, and the approach is feasible. The architect is a **validator**, not the author.
 
 Set plan status to `Under Review (Architect)` before invoking the agent.
 
 Invoke the **architect agent** with:
-- The plan file path
-- The todo file path (with Requirements Review section populated from Step 2)
+- The plan file path (all sections already populated by the orchestrator)
+- The todo file path
+- The architect's memory file path: `docs/plans/{plan-name}.memory/architect.md`
 - Any domain skill references found in prerequisites
-- Instruction: "Review this plan created by the user. Perform a deep codebase analysis. Fill in the Business Requirements Context (from the todo's Requirements Review), Business Rules (Testable Assertions), Test Scenarios, and Domain Model Behavioral Design sections. Validate the design against codebase reality. Raise concerns or approve."
+- The reviewer's memory file path (so the architect can read it for requirements context if needed)
+- Instruction: "Validate this plan. Perform a deep codebase analysis. Check that the business rules are correct and complete, test scenarios are adequate, domain model design is sound, and the approach is feasible. The reviewer's findings are in [reviewer memory path] if you need requirements context. Write your findings to your memory file at [path]. Report back with your verdict."
 
 The architect agent should:
-1. Read the plan and todo (including the Requirements Review section)
-2. **Populate Business Requirements Context** from the reviewer's findings in the todo — so the plan is self-contained
-3. **Perform a deep codebase dive** — examine affected aggregates, existing patterns, related tests, repository implementations. Document files examined.
-4. **Extract business rules as testable assertions** — Analyze the user's design, legacy code, and codebase to produce numbered assertions. Format: `WHEN [conditions], THEN [property/method] RETURNS [value]`. Trace each to an existing documented requirement where one exists. New assertions must be marked as NEW. **If the architect struggles to write clear assertions, this is an architectural smell** — the design may not be concrete enough. Report this to the orchestrator.
-5. **Create concrete test scenarios** — For each business rule, at least one scenario with specific inputs and expected result.
-6. **Fill in Domain Model Behavioral Design** — computed properties, visibility flags, reactive rules, validation rules.
-7. **Validate the design** against codebase reality:
+1. Read the complete plan (all sections already filled by the orchestrator)
+2. **Perform a deep codebase dive** — examine affected aggregates, existing patterns, related tests, repository implementations. Document files examined.
+3. **Validate business rules** — Are the assertions correct? Are any missing? Are any ambiguous? If the architect finds issues with the assertions, report them — don't rewrite them.
+4. **Validate test scenarios** — Are they adequate? Do they cover the business rules? Are any missing?
+5. **Validate domain model design** — Are computed properties, visibility flags, reactive rules, and validation rules correctly designed?
+6. **Validate the approach** against codebase reality:
    - Are aggregate boundaries correct?
    - Do proposed changes conflict with existing patterns?
    - Are there affected tests the user didn't account for?
    - Is the implementation approach feasible given the framework constraints?
-8. If verification resources exist, verify scope claims using them
-9. Write review findings to the architect's memory file
-10. Render a verdict:
-    - **Approved** — Design is sound, all sections filled. Proceed to Step 4 (Implementation).
-    - **Concerns** — Issues found that the user should address. Return concerns to the orchestrator.
-    - **Rejected** — Fundamental problems with the design that require significant rework.
-11. Update plan status:
-    - Approved: `Ready for Implementation`
-    - Concerns/Rejected: `Concerns Raised (Architect)`
+7. If verification resources exist, verify scope claims using them
+8. Write all findings to the architect's **memory file** (codebase analysis, concerns, verdict)
+9. Report back to the orchestrator with: verdict (Approved, Concerns, or Rejected), summary of findings
+
+The orchestrator updates plan status based on the verdict:
+- Approved: `Ready for Implementation`
+- Concerns/Rejected: `Concerns Raised (Architect)`
 
 **If Concerns or Rejected:**
 1. Present the architect's findings to the user
@@ -259,7 +274,7 @@ The developer agent should:
 3. Re-invoke the developer agent for re-review
 4. Repeat until Approved
 
-When approved, set plan status to `Awaiting Verification`.
+When approved, the orchestrator sets plan status to `Awaiting Verification`.
 
 ### Step 6: Verification (Architect + Requirements)
 
@@ -275,7 +290,9 @@ Invoke the **architect agent** to independently verify the implementation:
 - Verify implementation matches the plan's design
 - Zero tolerance for test failures — any failure is SENT BACK
 
-Verdicts: **VERIFIED** (proceed to Part B) or **SENT BACK** (orchestrator fixes issues in conversation with user).
+The architect reports back with verdict and findings. The orchestrator reads the architect's memory file for details.
+
+Verdicts: **VERIFIED** (proceed to Part B) or **SENT BACK** (orchestrator sets plan status to "Sent Back", fixes issues in conversation with user).
 
 **Critical rule**: Any test failure — even one classified as "pre-existing" — must be reported. Only the user can decide whether a failure is acceptable.
 
@@ -286,8 +303,12 @@ Verdicts: **VERIFIED** (proceed to Part B) or **SENT BACK** (orchestrator fixes 
 Invoke the **business-requirements-reviewer** agent to confirm the implementation satisfies documented business requirements:
 - Trace each relevant requirement through the implementation
 - Check for unintended side effects on other business rules
+- Write findings to the reviewer's memory file
+- Report back with verdict
 
-Verdicts: **REQUIREMENTS SATISFIED** (proceed to Step 7) or **REQUIREMENTS VIOLATION** (plan status "Sent Back").
+The reviewer reports back. The orchestrator reads the reviewer's memory file for details and sets plan status accordingly.
+
+Verdicts: **REQUIREMENTS SATISFIED** (proceed to Step 7) or **REQUIREMENTS VIOLATION** (orchestrator sets plan status to "Sent Back").
 
 ### Step 7: Requirements Documentation
 
@@ -301,18 +322,21 @@ Invoke the **business-requirements-documenter** agent (use the project-specific 
 - The plan file path
 - The todo file path
 - The documenter's memory file path: `docs/plans/{plan-name}.memory/requirements-documenter.md`
+- The reviewer's memory file path: `docs/plans/{plan-name}.memory/requirements-reviewer.md` (for requirements context)
 - A summary of what was implemented (files changed, test results)
 - The project's business requirements locations (from CLAUDE.md, identified in Prerequisites)
-- Instruction: "Update business requirements documentation to reflect the completed implementation. Add new rules, update changed rules, resolve gaps. If source code changes are needed (code comments, samples, design project tests), list them as Developer Deliverables in your memory file — do NOT modify source code. Write all documentation tracking to your agent memory file at [path]."
+- Instruction: "Update business requirements documentation to reflect the completed implementation. The reviewer's memory file has the requirements context. Add new rules, update changed rules, resolve gaps. If source code changes are needed (code comments, samples, design project tests), list them as Developer Deliverables in your memory file — do NOT modify source code. Write all documentation tracking to your agent memory file at [path]."
 
 The documenter agent should:
-1. Read the plan's Business Requirements Context and Business Rules (Testable Assertions) sections
+1. Read the reviewer's memory file for requirements context, and the plan's Business Rules (Testable Assertions) section
 2. Review the implementation summary (relayed in the spawn prompt)
 3. Compare: identify new requirements (marked NEW in the assertions), changed requirements, and gaps that were filled
 4. Update requirements documentation — new rules, changed rules, filled gaps, affected workflows
 5. If source code changes are needed (code comments, samples, design project tests), list them in the documenter's memory file as **Developer Deliverables** — the orchestrator handles these directly
 6. Record all work in the documenter's memory file (files updated, deliverables completed)
-7. Set plan status to "Requirements Documented"
+7. Report back to the orchestrator with: summary of changes, any developer deliverables needed
+
+The orchestrator sets plan status to "Requirements Documented" after the documenter reports back.
 
 **Critical rule**: Document what was *implemented*, not what was *planned*. If the implementation diverged from the plan, the documentation must match the implementation.
 
@@ -405,17 +429,19 @@ For valid plan status values, see `references/plan-template.md`.
 
 Plans that go through the agent collaboration workflow contain design sections only. Workflow state (reviews, progress, evidence, verification results) is stored in agent memory files — see the **Agent Memory Files** section above.
 
-**In the plan file** (design content shared by all):
+**In the plan file** (all content written by the orchestrator):
 
-- **Business Requirements Context** — Architect populates from the todo's Requirements Review (filled in Step 3)
-- **Business Rules (Testable Assertions)** — Architect extracts from the user's design (filled in Step 3)
-- **Domain Model Behavioral Design** — Architect specifies (filled in Step 3)
+- All design sections: Overview, Approach, Design, Implementation Steps, Acceptance Criteria
+- **Business Rules (Testable Assertions)** — Orchestrator writes during Step 1
+- **Test Scenarios** — Orchestrator writes during Step 1
+- **Domain Model Behavioral Design** — Orchestrator writes during Step 1
 
-**In agent memory files** (private workflow state):
+**In agent memory files** (private findings — agents write here, orchestrator reads):
 
-- **Architect Review** (codebase findings, concerns, verdict), **Architect Verification** (post-implementation) -> `architect.md`
-- **Developer Code Review** (assertion traces against actual code, concerns, verdict) -> `developer.md`
-- **Requirements Verification** -> `requirements-reviewer.md`
+- **Architect validation** (codebase analysis, concerns, verdict), **Architect verification** (post-implementation) -> `architect.md`
+- **Developer code review** (assertion traces against actual code, concerns, verdict) -> `developer.md`
+- **Requirements review findings** (relevant rules, gaps, contradictions, verdict) -> `requirements-reviewer.md`
+- **Requirements verification** (post-implementation) -> `requirements-reviewer.md`
 - **Documentation tracking** -> `requirements-documenter.md`
 
 ### Link Plan to Todo
@@ -450,14 +476,14 @@ Always use relative paths (`../todos/`, `../plans/`).
 
 ### Todo with Full Agent Workflow
 
-1. Create todo and draft plan with the user (Step 1)
-2. Business requirements review (Step 2) — reviewer writes findings into todo, checks for contradictions
-3. Architect review (Step 3) — architect validates design, fills testable assertions, domain model design
+1. Create todo and draft complete plan with the user (Step 1) — orchestrator writes all sections
+2. Business requirements review (Step 2) — reviewer reports findings, orchestrator writes into todo and plan
+3. Architect validation (Step 3) — architect validates the plan, reports concerns or approval
 4. Implementation (Step 4) — orchestrator implements in conversation with the user
-5. Developer code review (Step 5) — developer agent reviews actual code against plan's business rules
-6. Verification (Step 6) — architect verifies builds/tests, then reviewer verifies requirements compliance
-7. Documentation (Step 7) — documenter updates requirements docs, orchestrator handles source code deliverables if any, docs agent handles general docs
-8. Completion (Step 8) — only after both verifications pass
+5. Developer code review (Step 5) — developer reviews actual code against plan's business rules, reports back
+6. Verification (Step 6) — architect verifies builds/tests, reviewer verifies requirements, both report back
+7. Documentation (Step 7) — documenter updates requirements docs, reports back; orchestrator handles source code deliverables
+8. Completion (Step 8) — orchestrator marks complete only after both verifications pass
 
 ### Adding a Plan to Existing Todo
 
@@ -503,7 +529,7 @@ When a session was interrupted or the user asks to resume:
 7. **Verification resources**: When the project has verification resources (design projects, sample projects, integration suites), use them. Compilation and test results are the source of truth for scope claims.
 8. **Documentation deliverables**: Identify expected documentation deliverables during planning, not as an afterthought.
 9. **Code review catches what conversation misses**: The developer code review in Step 5 traces assertions against real code. This is more reliable than reviewing a plan because it verifies what was actually built, not what was intended.
-10. **Architect struggles = smell**: If the architect cannot write clear testable assertions from the user's design, the design needs more work. Return to the user.
+10. **Architect flags issues = design needs work**: If the architect reports that business rules are ambiguous or test scenarios have gaps, the orchestrator addresses this in conversation with the user before re-invoking the architect.
 11. **Course-correct in conversation**: The orchestrator implements in conversation specifically so the user can steer. When something feels wrong, change direction immediately rather than completing the wrong approach.
 
 ## Reference Files
@@ -512,6 +538,7 @@ When a session was interrupted or the user asks to resume:
 - Plan template: `references/plan-template.md`
 - Verification step guide: `references/verification-step-guide.md` — detailed Step 6 agent invocation instructions
 - Documentation step guide: `references/documentation-step-guide.md` — detailed Step 7 agent invocation instructions
+- Agent migration guide (v4 -> v5): `references/agent-migration-v5.md`
 - Agent migration guide (v2 -> v3): `references/agent-migration-v3.md`
 - Agent migration guide (v1 -> v2): `references/agent-memory-migration.md`
 - Shared agent memory pattern: `~/.claude/skills/shared/references/agent-memory.md` — key rules, base format, orchestrator responsibilities

@@ -19,61 +19,13 @@ Requirements Documented | Documentation Complete | Complete
 
 ---
 
-## Business Requirements Context
-
-[Architect populates this section from the todo's Requirements Review during plan review (Step 3). The reviewer's findings in the todo are the source; the architect incorporates them here so the plan is self-contained.]
-
-**Source:** [Link to todo's Requirements Review section]
-
-### Relevant Existing Requirements
-
-[Every project organizes requirements differently. List requirements from whatever sources the project uses — documentation, tests, legacy code, etc. Use whichever sections below apply and remove the rest.]
-
-#### Business Rules
-
-- [Rule reference/location]: [Summary] — Relevance: [How it relates to this todo]
-
-#### User Stories
-
-- [Story ID/location]: [Summary] — Relevance: [How it relates]
-
-#### Workflows
-
-- [Workflow reference/location]: [Summary] — Relevance: [How it relates]
-
-#### Data Definitions
-
-- [Definition reference/location]: [Summary] — Relevance: [How it relates]
-
-#### Existing Tests
-
-[Tests that pass today and define expected behavior for the affected area]
-
-- [Test location]: [What behavior it verifies] — Relevance: [How the proposed change affects it]
-
-### Gaps
-
-[Areas where the todo's scope has no existing documented requirements — the architect must establish new rules for these areas]
-
-### Contradictions
-
-[Any conflicts between the todo's proposed approach and existing documented requirements. If VETOED, each contradiction must be listed here with specific requirement references.]
-
-### Recommendations for Architect
-
-[Guidance for the architect based on existing requirements — key constraints to respect, patterns to follow]
-
----
-
 ## Business Rules (Testable Assertions)
 
-[Architect fills this section during plan review (Step 3). Extracts ALL business rules from the user's design as numbered, crisp, unambiguous assertions. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
+[Orchestrator writes this section during Step 1 with the user. ALL business rules from the design as numbered, crisp, unambiguous assertions. These are the source of truth for the entire plan. Every design decision, implementation step, and test scenario must trace back to one or more assertions here.]
 
 [Format each rule using WHEN/THEN to eliminate ambiguity about what the expected value applies to.]
 
-[For rules that trace to an existing documented requirement (from the Business Requirements Context section), include the reference. For new rules covering gaps, mark them as NEW.]
-
-[**If the architect struggles to write clear assertions from the user's design, this is an architectural smell — the design may not be concrete enough. Return to the user for clarification.**]
+[For rules that trace to an existing documented requirement, include the reference. For new rules, mark as NEW.]
 
 1. WHEN [conditions], THEN [property/method] RETURNS [expected value] — Source: [requirement reference or NEW]
 2. WHEN [conditions], THEN [observable behavior]. Expected: [value] — Source: [requirement reference or NEW]
@@ -81,7 +33,7 @@ Requirements Documented | Documentation Complete | Complete
 
 ### Test Scenarios
 
-[Architect fills this section during plan review (Step 3). For each business rule above, provide at least one concrete scenario showing inputs and expected result. These scenarios become acceptance tests.]
+[Orchestrator writes this section during Step 1 with the user. For each business rule above, at least one concrete scenario showing inputs and expected result. These scenarios become acceptance tests.]
 
 | # | Scenario | Inputs / State | Rule(s) | Expected Result |
 |---|----------|---------------|---------|-----------------|
@@ -99,7 +51,7 @@ Requirements Documented | Documentation Complete | Complete
 
 ## Domain Model Behavioral Design
 
-[Architect fills this section during plan review (Step 3). The domain model is the ViewModel for Blazor pages. Every behavioral property the UI needs must be designed here — Razor pages bind to these properties and NEVER implement business logic themselves. If this section is empty, the architect must justify why no behavioral properties are needed.]
+[Orchestrator writes this section during Step 1 with the user. The domain model is the ViewModel for Blazor pages. Every behavioral property the UI needs must be designed here — Razor pages bind to these properties and NEVER implement business logic themselves.]
 
 ### Computed Properties
 

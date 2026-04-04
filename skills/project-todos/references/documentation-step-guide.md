@@ -30,7 +30,7 @@ The documenter agent updates the project's business requirements documentation:
 
 The orchestrator handles any Developer Deliverables directly in conversation with the user.
 
-The documenter records all work in the documenter's memory file (files updated, deliverables completed) and sets plan status to "Requirements Documented."
+The documenter records all work in the documenter's memory file (files updated, deliverables completed) and reports back to the orchestrator. The orchestrator sets plan status to "Requirements Documented."
 
 ### Part B: General Documentation (Docs Agent or Orchestrator)
 
@@ -51,9 +51,9 @@ The documentation agent should:
    - API documentation
    - Architecture documentation
    - Migration guides
-4. **Set plan status** to "Documentation Complete"
+4. Report back to the orchestrator with results
 
-After all applicable parts complete (Part A + Part B if applicable), the plan status should be "Documentation Complete."
+After all applicable parts complete (Part A + Part B if applicable), the orchestrator sets plan status to "Documentation Complete."
 
 ## Quality Criteria
 

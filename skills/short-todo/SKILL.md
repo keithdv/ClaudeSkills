@@ -13,8 +13,9 @@ Streamlined agent collaboration workflow for straightforward, small todos. Same 
 
 The same core rules from project-todos apply:
 
-1. **The orchestrator NEVER modifies source code.** All source changes go through agents. No exceptions for "small" fixes.
-2. **Discovery vs Analysis.** The orchestrator may discover (look things up, resolve ambiguity) but must not analyze (draw conclusions about what should change).
+1. **The orchestrator is the planner and implementer.** The orchestrator creates plans and implements code in conversation with the user.
+2. **Agents review and report back.** Agents validate, verify, and review — they don't write to shared files (plans, todos) or set status.
+3. **Agents write to their own memory files only.** The orchestrator reads agent memory files and manages all shared documents.
 
 Full details on these rules are in `~/.claude/skills/project-todos/SKILL.md`.
 
@@ -69,27 +70,10 @@ Capture the user's description. Discover/resolve ambiguity (Glob/Grep for file p
 
 **Do NOT create the plan file.** The architect creates it in Step 3.
 
-### Step 2: Architect Questions (Fresh)
+### Step 2: Draft Plan (Orchestrator + User)
 
-Invoke a **fresh architect agent** with:
-- The todo file path
-- Any domain skill references
-- Instruction: "Read this todo. Confirm you understand the problem and proposed solution. Return clarifying questions or confirm Ready."
+Working in conversation with the user, create the complete plan:
 
-If the architect has questions:
-1. Present questions to the user
-2. Record answers in the todo's Clarifications section
-3. Invoke a fresh architect agent with the updated todo
-4. Repeat until "Ready"
-
-### Step 3: Architect Plan (Fresh)
-
-Invoke a **fresh architect agent** with:
-- The todo file path (with Clarifications populated)
-- The architect's memory file path: `docs/plans/{plan-name}.memory/architect.md`
-- Instruction: "Create the plan file for this todo. Design the implementation and grade difficulty and risk."
-
-The architect should:
 1. Create the plan file in `docs/plans/` (project-relative) using this skill's `references/plan-template.md`
 2. Link the plan to the todo (update both files)
 3. Write business rules as WHEN/THEN assertions
@@ -99,43 +83,60 @@ The architect should:
 
 **Present the Difficulty & Risk grade to the user before proceeding.** This is where the user can decide to escalate to the full project-todos workflow if the scope is larger than expected.
 
-### Step 4: Developer Review (Fresh)
+### Step 3: Architect Validation (Fresh)
 
-Invoke a **fresh developer agent** with:
-- The plan file path
+Invoke a **fresh architect agent** with:
+- The plan file path (all sections already populated)
 - The todo file path
-- The developer's memory file path: `docs/plans/{plan-name}.memory/developer.md`
-- Instruction: "Review this plan for completeness, correctness, and implementability. Write your review findings (concerns, verdict) to your agent memory file at [path]. Raise concerns or approve."
+- The architect's memory file path: `docs/plans/{plan-name}.memory/architect.md`
+- Instruction: "Validate this plan. Check that business rules are correct, approach is feasible, and implementation steps are sound. Write findings to your memory file at [path]. Report back with your verdict."
 
-The developer should:
-1. Review the business rules and design
+The architect should:
+1. Validate the business rules and design against codebase reality
 2. Check for gaps, ambiguities, and risks
-3. Render a verdict: **Approved** or **Concerns Raised**
-4. **Write all findings** (concerns, verdict) to the developer's agent memory file
+3. Write findings to their memory file
+4. Report verdict: **Approved** or **Concerns**
 
-**If concerns -> Clarification Loop:**
-1. Present concerns to the user (read from `docs/plans/{plan-name}.memory/developer.md`)
-2. User decides: clarify themselves, or have the architect address
-3. If architect: invoke a **fresh architect agent** with the concerns (extracted from developer's memory by the orchestrator — the architect does NOT read `developer.md`)
-4. Invoke a **fresh developer agent** to re-review
-5. Repeat until approved
+**If concerns:**
+1. Present concerns to the user
+2. The orchestrator updates the plan based on user's direction
+3. Re-invoke architect to validate
+4. Repeat until approved
 
-On approval: developer writes the **Implementation Contract** to the developer's memory file (In Scope, Out of Scope, Stop Conditions). Set plan status to "Ready for Implementation."
+On approval, the orchestrator sets plan status to "Ready for Implementation."
 
-### Step 5: Implementation (Fresh Developer)
+### Step 4: Implementation (Orchestrator + User)
 
-Invoke a **fresh developer agent** with:
-- The plan file path
-- The developer's memory file path: `docs/plans/{plan-name}.memory/developer.md` (contains the implementation contract from Step 4)
-- Instruction: "Implement the approved plan following the implementation contract in your memory file. Write progress and evidence to your memory file."
+The orchestrator implements code changes directly in conversation with the user:
 
-The developer should:
 1. Set plan status to "In Progress"
-2. Work through the implementation contract (in memory file)
+2. Work through the implementation steps
 3. Run tests at milestones
 4. **STOP and report** if out-of-scope tests fail
-5. Write **Implementation Progress** and **Completion Evidence** to the developer's memory file, set plan status to "Awaiting Verification"
-6. **Do NOT mark the todo as Complete**
+5. When complete, run all builds and tests
+6. Set plan status to "Awaiting Verification"
+
+### Step 5: Developer Code Review (Fresh)
+
+Invoke a **fresh developer agent** with:
+- The plan file path
+- The developer's memory file path: `docs/plans/{plan-name}.memory/developer.md`
+- A summary of what was implemented: files changed, tests written, test results
+- Instruction: "Review the implementation against the plan's business rules. Trace each assertion through the actual code. Write findings to your memory file at [path]. Report back with your verdict."
+
+The developer should:
+1. Review the business rules against actual code
+2. Check test coverage for each scenario
+3. Write findings to their memory file
+4. Report verdict: **Approved** or **Concerns**
+
+**If concerns:**
+1. Present concerns to the user
+2. The orchestrator fixes issues in conversation with the user
+3. Re-invoke developer for re-review
+4. Repeat until approved
+
+On approval, the orchestrator sets plan status to "Awaiting Verification."
 
 ### Step 6: Architect Verification (Fresh Architect)
 
@@ -143,19 +144,17 @@ Invoke a **fresh architect agent** with:
 - The plan file path
 - The todo file path
 - The architect's memory file path: `docs/plans/{plan-name}.memory/architect.md`
-- The developer's completion evidence (relayed by the orchestrator from `docs/plans/{plan-name}.memory/developer.md` — the architect does NOT read `developer.md` directly)
-- Instruction: "Verify the completed implementation. The developer's completion evidence is included below. Independently run builds and tests. Do NOT trust the developer's reported results. Write your verification verdict to your agent memory file at [path]."
+- A summary of what was implemented: files changed, tests written, build/test results
+- Instruction: "Verify the completed implementation. Independently run builds and tests. Do NOT trust previously reported results. Write your verification verdict to your agent memory file at [path]. Report back with your verdict."
 
 The architect should:
 1. Independently run all builds and tests
 2. Zero failures allowed
 3. Check implementation matches the design
-4. **Write verification verdict** to the architect's memory file
-5. Render a verdict:
-   - **VERIFIED** -> proceed to Step 7
-   - **SENT BACK** -> write issues to architect's memory file, set plan status to "Sent Back"
+4. Write verification verdict to the architect's memory file
+5. Report verdict to orchestrator: **VERIFIED** or **SENT BACK**
 
-If SENT BACK: invoke a fresh developer agent to fix issues (relay the architect's issues from memory file in the spawn prompt), then a fresh architect agent to re-verify.
+The orchestrator sets plan status based on the verdict. If SENT BACK: the orchestrator fixes issues in conversation with the user, then re-invokes the architect to verify.
 
 ### Step 7: Documentation (Fresh Documenter)
 
@@ -189,19 +188,17 @@ The orchestrator performs this step directly:
 When a session was interrupted or the user asks to resume:
 
 1. Read the todo file. Check if a plan exists (Plans section).
-2. **If no plan exists**, check Clarifications section:
-   - Empty -> Step 2 (architect questions)
-   - Answered, architect confirmed "Ready" -> Step 3 (architect plan)
+2. **If no plan exists** -> Step 2 (draft plan with the user)
 3. **If a plan exists**, read its Status field:
-   - `Draft` -> Step 3 (architect still working)
-   - `Under Review` -> Step 4 (developer review)
-   - `Concerns Raised` -> Step 4 clarification loop. Read the developer's memory file to extract concerns for the user.
-   - `Ready for Implementation` -> Step 5 (implementation)
-   - `In Progress` -> Step 5 (implementation continues). Read the developer's memory file to understand progress so far and include it in the spawn prompt.
-   - `Awaiting Verification` -> Step 6 (verification). Read the developer's memory file to extract completion evidence for the architect's spawn prompt.
-   - `Sent Back` -> Step 5 (developer fixes). Read the architect's memory file to determine what failed. Include the issues in the developer's spawn prompt.
+   - `Draft` -> Step 3 (architect validation)
+   - `Concerns Raised` -> Step 3 (address architect concerns with user, re-invoke architect)
+   - `Ready for Implementation` -> Step 4 (orchestrator implements in conversation)
+   - `In Progress` -> Step 4 (implementation continues in conversation)
+   - `Awaiting Code Review` -> Step 5 (developer code review)
+   - `Awaiting Verification` -> Step 6 (verification). Read the developer's memory file to understand what the code review confirmed.
+   - `Sent Back` -> Read the architect's memory file to determine what failed. The orchestrator fixes issues in conversation with the user, then returns to Step 5 or Step 6 as appropriate.
    - `Documentation Complete` -> Step 8 (completion)
-4. Invoke a fresh agent for that step, providing the todo path, plan path, and agent memory file path. Include relevant context from other agents' memory files in the spawn prompt (the fresh agent must NOT read other agents' memory files directly).
+4. Invoke a fresh agent for review/verification steps, providing the todo path, plan path, and agent memory file path. Include relevant context from other agents' memory files in the spawn prompt (the fresh agent must NOT read other agents' memory files directly).
 
 ## Filename Convention
 
