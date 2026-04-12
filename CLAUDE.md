@@ -11,6 +11,15 @@
 
 ---
 
+#### NuGet Package Lookups
+
+- **ONLY use the listed/registration endpoints on `nuget.org`** (e.g., `https://api.nuget.org/v3/registration5-gz-semver2/...` or the package page at `https://www.nuget.org/packages/<id>`).
+- **DO NOT use `flatcontainer`** (`https://api.nuget.org/v3-flatcontainer/...`) for version lookups or anything else.
+- If a dependency is a **NuGet package, get versions from NuGet only**. Do NOT infer versions from local builds, local `bin/` output, sibling repository clones, or `Directory.Packages.props` in another repo.
+- Local source checkouts of a NuGet-published library are NOT a source of truth for "latest version" — always query NuGet.
+
+---
+
 #### Existing Tests Are Sacred - Never Gut Them
 
 **Do NOT modify out-of-scope tests to complete your task.**
