@@ -28,9 +28,16 @@
 
 ## Plans
 
-[Plan(s) created to design and implement the solution]
+[A todo can have multiple plans. List every plan, with current status. The todo only reaches `Complete` when every plan reaches `Complete` or `Won't Do`. See "Multi-Plan Todos — Decompose Up Front, Don't Defer" in the project-todos SKILL for when to split into multiple plans vs. a sibling todo.]
 
-- [Plan Title](../plans/{plan-filename}.md)
+- [ ] [Plan 1 Title](../plans/{plan-1-filename}.md) — `Draft` / `Approved` / `In Progress` / `Awaiting Review` / `Reviewed` / `Documented` / `Complete` / `Won't Do`
+- [ ] [Plan 2 Title](../plans/{plan-2-filename}.md) — `Draft` (stub — full design at next session)
+
+## Sibling Todos
+
+[Todos created from work discovered during this todo's planning or implementation, where the work belongs to its own goal rather than another plan in this todo. Empty if none.]
+
+- [ ] [Sibling Todo Title](./{sibling-todo-filename}.md)
 
 ---
 

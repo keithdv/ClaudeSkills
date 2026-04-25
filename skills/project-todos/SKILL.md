@@ -102,26 +102,37 @@ Every todo has one of these types. Declared in the todo's header.
 
 Every step except Step 1 and Step 6 can be skipped. Skips are conversational: the user requests a skip, the orchestrator confirms what's being skipped and why it matters, the skip is recorded in the todo's **Skipped Steps** list with a reason.
 
-## Deferring Logic — Capture as a Follow-Up Todo
+## Multi-Plan Todos — Decompose Up Front, Don't Defer
 
-**Deferring work is fine. Forgetting about it is not.** A bullet point inside a completed plan is invisible. A real `docs/todos/{name}.md` file is queue-able and surfaces in the Follow-Up Todos callout at PR-stage.
+**Stop thinking "deferral." Start thinking "this is another plan."**
 
-A "deferral" is anything the plan acknowledges should happen but isn't doing in this todo. Signal phrases: *deferred*, *out of phase*, *future phase*, *future/next/separate todo*, *Phase N+1*, *later*, *follow-up*, *will be done separately*, *coexistence for now*.
+When work is bigger than one coherent plan, the right move is to decompose it into **multiple plans** — either multiple plans within the same todo (when the goal is one thing but execution naturally splits) or sibling todos (when the goals are genuinely distinct). The act of creating the additional plan file or todo file IS the capture mechanism. A bullet-point note that "we'll come back to this" is what historically gets lost; a `docs/plans/{plan-2}.md` file with status `Draft` does not.
 
-**Required process** when deferring (during Step 1 design or Step 3 implementation):
+The framing shift matters. "Deferral" implies punting — work that should have been here but got pushed away. "Plan decomposition" implies design — the work has its own scope, its own Approach, its own Implementation Steps, and deserves to be planned in its own right rather than bolted onto another plan as a bullet point.
 
-1. Name the work, tell the user, and either create a new `docs/todos/{follow-up-name}.md` (initial status: `Deferred`, with a back-pointer to the parent todo) or append to an existing follow-up todo that covers the area.
-2. Record an entry in the parent plan's **Deferred Scope** in this exact format:
+### When to make a new plan vs. a new todo
 
-   ```
-   - [Item description] — Follow-up todo: `docs/todos/{follow-up-name}.md`. Reason: [why deferred]. Cost: [what's carried forward].
-   ```
+- **New plan, same todo** — when the work shares this todo's goal and Current Behavior Map but has its own Approach and Implementation Steps. Example: "modernize visit save" → plan 1 (domain refactor), plan 2 (UI rebinding), plan 3 (legacy compatibility shim).
+- **Sibling todo** — when the work is its own goal with its own Current Behavior Map and Out of Scope list. Example: a bug found during an enhancement that's worth fixing independently.
+- **Truly out of scope** — neither a plan nor a todo, just a one-line note in the Out of Scope list. Use this for things like "we're not redesigning the whole module."
 
-3. Any deferral text elsewhere in the plan (Implementation Steps, Approach, Design, Phase boundaries) must point back to the matching Deferred Scope entry. No orphan "Out of Phase X" subsections.
+### How it works in the workflow
 
-At Step 6, every Deferred Scope entry is surfaced in the **Follow-Up Todos** callout (see Step 6) that goes into the PR description.
+**At Step 1 (planning)**, the orchestrator and user explicitly ask: *Is this one plan or multiple?* If multiple, list them in the todo's **Plans** section. Draft the first plan in full detail; draft the others as one-paragraph stubs (problem statement + intended Approach) that can be filled in detail later, when their session begins. Stub plans live in `docs/plans/` with status `Draft`.
 
-The plan-reviewer and code-reviewer both verify the link and check the file exists. A missing or broken link → CONCERNS at plan review; automatic C in Scope Discipline at graded review.
+**At Step 3 (implementation)**, if the orchestrator notices work outside the current plan's scope, the question is *which plan does this belong to?* Either:
+
+1. It belongs to a stub plan that already exists in this todo → just note it in that plan's Approach.
+2. It belongs to a new plan in this todo → create `docs/plans/{plan-N}.md` (status `Draft`), link it from the todo's Plans section, briefly describe scope.
+3. It belongs to a sibling todo → create `docs/todos/{name}.md` (status `In Progress` or `Draft`), with its own first plan.
+
+The current plan's **Companion Plans** section gets a one-line entry pointing at the new plan/todo file. That section is the audit trail.
+
+**A todo isn't complete until every plan in it has reached `Complete` or `Won't Do`.** Individual plans complete and move to `docs/plans/completed/` while their parent todo stays `In Progress` until all its plans are addressed.
+
+**At Step 6 (completion of the *current plan*)**, the orchestrator surfaces the **Plan Sequence** callout (see Step 6) — every plan in this todo with current status, plus any sibling todos created. That callout goes into the PR description so the user sees what's done, what's still queued, and what spawned off.
+
+The plan-reviewer and code-reviewer both verify Companion Plans entries point at real files. A bullet-point with no plan/todo file → CONCERNS at plan review; automatic C in Scope Discipline at graded review.
 
 Common skip patterns:
 
@@ -156,11 +167,19 @@ Collaborate with the user to fill every plan section:
 - **Design Decisions** — Timestamped "chose A over B because C" entries. Grows during implementation as decisions get made.
 - **Skills** — Every skill needed at Step 3 with its path and why. Not listed → not loaded at implementation.
 - **Implementation Steps** — Ordered steps.
-- **Acceptance Criteria** — What "done" looks like.
-- **Deferred Scope** — Noticed during planning/implementation but explicitly not doing. Grows during implementation. **Every entry must link to a follow-up todo file** (see "Deferring Logic — Capture as a Follow-Up Todo"). No link = the deferral will be lost.
+- **Acceptance Criteria** — What "done" looks like for **this plan**.
+- **Companion Plans** — Other plans (in this todo) or sibling todos covering work outside this plan's scope. Each entry links to a real plan or todo file (see "Multi-Plan Todos — Decompose Up Front, Don't Defer"). Grows during implementation as the orchestrator notices work that belongs elsewhere.
 - **Dependencies** and **Risks**.
 
-Link the plan and todo (update both files). Set plan status to **Draft**.
+### Decompose first
+
+Before drafting the plan in detail, ask: *Is this one plan or multiple?*
+
+If multiple, list them in the todo's **Plans** section and create stub plan files (`docs/plans/{plan-N}.md`, status `Draft`, with a one-paragraph problem statement and intended Approach). Then draft the *first* plan in full. The stubs are queued for future Step 3 sessions and get fleshed out before each session.
+
+This is the active mechanism for what people used to call "deferring." The plan that gets implemented now is focused; the work for next session is captured as its own real planning artifact, not a bullet point hoping to be remembered.
+
+Link the plan and todo (update both files). Set plan status to `Draft`.
 
 ## Step 2: Plan Review
 
@@ -215,13 +234,13 @@ Work through Implementation Steps in order, in conversation with the user. Run t
 
 Once Step 3 starts, the plan body — Overview, Current Behavior Map, Out of Scope / Invariants, Approach, Design, Business Rules, Test Scenarios, Domain Model, Implementation Steps, Acceptance Criteria — is **frozen**. Rewriting it post-hoc to match what got built is plan laundering — it erases the intent-vs-reality gap that the graded review needs to see.
 
-Only **append-only** sections may be updated during/after Step 3: Design Decisions, Deferred Scope, Plan Amendments, the todo's review sections (Plan Review, Graded Review, Documentation), and status fields.
+Only **append-only** sections may be updated during/after Step 3: Design Decisions, Companion Plans, Plan Amendments, the todo's review sections (Plan Review, Graded Review, Documentation), and status fields.
 
 **If a major issue surfaces during or after implementation** (design doesn't work, an invariant has to break, a Business Rule was wrong, the Approach is infeasible), stop and present the user three options — don't pick:
 
 1. **Tweak plan + implementation.** Record the change as a dated **Plan Amendment** entry (append-only — do not edit the original Approach/Design text). Continue.
 2. **Revert and restart.** Revert the code. Original todo gets a Results section noting why it was reset; a fresh todo/plan begins the cycle.
-3. **Ship as-is, capture as a follow-up.** Current implementation completes; the unaddressed issue becomes a follow-up todo file linked from Deferred Scope. Graded review sees the gap honestly.
+3. **Ship as-is, spawn a new plan or sibling todo.** Current implementation completes; the unaddressed issue becomes a new plan file in this todo (or a sibling todo) linked from Companion Plans. Graded review sees the gap honestly.
 
 Picking option 1 unilaterally — quietly editing Approach or Design — is the failure mode. Always present the three options.
 
@@ -285,33 +304,37 @@ If the plan identifies non-requirements docs (README, API docs, migration guides
 
 Set plan status to `Documented`.
 
-## Step 6: Completion
+## Step 6: Completion of *the current plan*
+
+A todo can have multiple plans. This step completes **one plan**. The todo itself only reaches `Complete` when every plan in it is at `Complete` or `Won't Do`.
 
 1. Verify the last Graded Review entry exists and the user has acknowledged the grade.
 2. Verify documentation is complete (or was skipped with reason).
-3. **Surface follow-up todos.** Walk the plan's Deferred Scope list. For each entry, confirm a follow-up todo file exists at the linked path. Produce the **Follow-Up Todos** callout (see below) and paste it into the todo's Results / Conclusions section AND present it to the user as the PR-stage summary. If any Deferred Scope entry has no follow-up todo file, stop and create one — that entry will be lost otherwise.
-4. Update todo status to **Complete**, set Last Updated date.
-5. Fill in the Results / Conclusions section, including the Follow-Up Todos callout.
-6. Move the todo to `docs/todos/completed/`.
-7. Move associated plans to `docs/plans/completed/`.
-8. Update plan status to **Complete** in each plan file.
+3. **Surface the plan sequence.** Walk the plan's Companion Plans list and the parent todo's Plans section. Confirm every linked plan and sibling-todo file exists. Produce the **Plan Sequence** callout (see below) and paste it into the todo's Results / Conclusions section AND present it to the user as the PR-stage summary.
+4. Update **this plan's** status to `Complete`. Move it to `docs/plans/completed/`.
+5. Update the parent todo:
+   - If every plan in the todo is now `Complete` or `Won't Do` → set todo status to `Complete`, fill in the Results / Conclusions section (including the Plan Sequence callout), move to `docs/todos/completed/`.
+   - Otherwise → todo stays `In Progress`. Note in Results that this plan finished and which plan(s) remain. The PR for this plan still ships; the next plan starts a new Step 3 session against the same parent todo.
 
-### Follow-Up Todos Callout (PR-stage)
+### Plan Sequence Callout (PR-stage)
 
-This is the artifact that prevents deferred work from evaporating. Format it as a copy-pasteable block so the user can drop it directly into the PR description:
+This is the artifact that surfaces remaining work to the user before the PR ships. Format it as a copy-pasteable block:
 
 ```
-## Follow-Up Todos
+## Plan Sequence
 
-This todo deferred the following work to follow-up todos. Each is a real file under `docs/todos/` and is queued for future scheduling:
+Plans for this todo (`docs/todos/{todo-name}.md`):
+- [x] `docs/plans/{plan-1}.md` — Complete (Grade A)
+- [ ] `docs/plans/{plan-2}.md` — Draft, queued for next session
+- [ ] `docs/plans/{plan-3}.md` — Draft, queued
 
-- [ ] `docs/todos/{follow-up-name-1}.md` — [one-line summary of what's deferred and why it matters]
-- [ ] `docs/todos/{follow-up-name-2}.md` — [one-line summary]
+Sibling todos created from this work:
+- [ ] `docs/todos/{sibling-name}.md` — Draft
 
-(Or "No follow-up todos — this todo is fully self-contained." when Deferred Scope is empty.)
+(Or "Single-plan todo, no sibling todos — fully self-contained." when there's only one plan and nothing spawned off.)
 ```
 
-The callout is mandatory at completion **even when every deferral is properly linked**. The point is to give the user one final at-a-glance reminder before the PR ships. The cumulative deferral debt across many todos is what bites later, and the user only catches it if every completion surfaces it.
+The callout is mandatory at completion **of every plan**, even when there's only one plan and the todo is closing out cleanly. The point is to give the user a final at-a-glance reminder of what's done, what's queued, and what spawned off. Cumulative scope across many todos is what bites later — every completion surfaces it.
 
 ## Resuming Mid-Workflow
 
@@ -359,7 +382,7 @@ Status tracks **workflow position**, not verdict. Verdicts (Vetoed / Concerns / 
 6. **Re-reviews append, they don't replace.** Every Graded Review run creates a new entry. History matters.
 7. **Agents return findings, orchestrator writes summaries.** If an agent's 2000-word response has something worth keeping, paste the relevant section into the todo. Otherwise let it go.
 8. **Skip with intent.** Conversational skip is fine, but record it. A skipped Plan Review six months later without context is a mystery.
-9. **Deferrals become follow-up todos, not bullet points.** See "Deferring Logic — Capture as a Follow-Up Todo." Deferring is fine; losing track is the bug.
+9. **Decompose into multiple plans, don't defer.** When work is bigger than one coherent plan, draft additional plan files (in this todo) or sibling todos up front. The act of creating the plan/todo file IS the capture mechanism — bullet-point "we'll come back to this" notes get lost. See "Multi-Plan Todos — Decompose Up Front, Don't Defer."
 10. **Worktree-aware.** If working in a git worktree, confirm `docs/todos/` and `docs/plans/` are tracked in the worktree before starting Step 3. The plan is the contract for fresh-context implementation — losing it because the worktree didn't include it costs a session.
 
 ## Reference Files

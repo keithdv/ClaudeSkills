@@ -124,17 +124,18 @@ For Neatoo / zTreatment-style projects, append the tables in `references/plan-te
 
 ---
 
-## Deferred Scope
+## Companion Plans
 
-[Things noticed during planning or implementation that are explicitly not being done. Captured so they aren't lost. Grows during Step 3 — append as things come up.
+[Other plans (in this todo) or sibling todos covering work outside this plan's scope. Grows during Step 3 — append as the orchestrator notices work that belongs elsewhere.
 
-**EVERY entry MUST link to a follow-up todo file.** Deferring is fine; losing the deferral is not. When the orchestrator decides to defer something, it creates a follow-up todo at `docs/todos/{name}.md` (status `Deferred`, with a back-pointer to this parent todo) — or appends to an existing follow-up todo when the area already has one — and links it inline below. At Step 6, every follow-up todo is surfaced in the parent todo's Follow-Up Todos callout, which goes into the PR description.
+**Every entry MUST link to a real plan or todo file.** When the orchestrator notices work outside this plan's scope, the question is *which plan/todo does it belong to?* — either a stub plan that already exists in this todo, a new plan in this todo, or a sibling todo. The orchestrator creates the file (status `Draft`) and links it here. See "Multi-Plan Todos — Decompose Up Front, Don't Defer" in the project-todos SKILL.
 
-A Deferred Scope entry without a `Follow-up todo:` link is treated by the plan-reviewer and code-reviewer as a silent drop — CONCERNS verdict at plan review and automatic C in Scope Discipline at graded review. See "Deferring Logic — Capture as a Follow-Up Todo" in the project-todos SKILL.
+A Companion Plans entry without a real file link is treated by plan-reviewer and code-reviewer as a silent drop — CONCERNS at plan review, automatic C in Scope Discipline at graded review.
 
-Required entry format:]
+Required entry formats:]
 
-- [Item description] — Follow-up todo: `docs/todos/{follow-up-name}.md`. Reason: [why deferred]. Cost: [what's carried forward, e.g., "5 callers still on old API"].
+- Plan (this todo): `docs/plans/{plan-name}.md` — [one-line summary of what this plan covers]
+- Sibling todo: `docs/todos/{todo-name}.md` — [one-line summary of why it's its own todo]
 
 ---
 
@@ -144,7 +145,7 @@ Required entry format:]
 
 The plan body above (Overview, Approach, Design, Business Rules, Implementation Steps, etc.) is **frozen** once Step 3 begins. Do NOT edit it in place. Instead, every authorized change gets recorded here as a dated entry with a back-pointer to the section it modifies. The original text stays intact so the audit trail between intent and reality is preserved — that gap is exactly what the graded review needs to see.
 
-The other two options (revert + restart, or ship + follow-up) do NOT use this section: revert + restart spawns a new todo/plan, and ship + follow-up adds an entry to Deferred Scope.
+The other two options (revert + restart, or ship + spawn new plan/todo) do NOT use this section: revert + restart spawns a new todo/plan, and ship + spawn adds an entry to Companion Plans.
 
 Required entry format:]
 

@@ -148,18 +148,18 @@ Explicitly verify each item. Report any that fail:
 - [ ] Save / persist paths are covered for every new entity or mutation
 - [ ] Data migrations / schema changes are explicit, not implicit
 - [ ] The Out of Scope / Invariants list is respected by the Approach
-- [ ] **Every Deferred Scope entry includes a `Follow-up todo: docs/todos/{name}.md` link** — see Step 4a below
-- [ ] **No phrases like "future phase," "Phase N+1," "later todo," "out of phase X," "deferred," "not in this todo," "follow-up" appear anywhere in the plan without a corresponding linked Deferred Scope entry** — see Step 4a
+- [ ] **Every Companion Plans entry links to a real `docs/plans/{name}.md` (companion plan in this todo) or `docs/todos/{name}.md` (sibling todo) file that exists on disk** — see Step 4a below
+- [ ] **No phrases like "future phase," "Phase N+1," "later todo," "out of phase X," "deferred," "not in this todo," "follow-up" appear anywhere in the plan without a corresponding linked Companion Plans entry** — see Step 4a
 - [ ] Skills section lists every framework the implementation will touch
 - [ ] For Bug-Exposes-Fallacy: the Fallacy section is present and the design flows from the corrected assumption, not the symptom
 
-### Step 4a: Deferred-Scope Follow-Up Todo Audit
+### Step 4a: Companion Plans Audit
 
-This is a hard verdict gate. Deferring work is fine, but every deferral must be captured as a real follow-up todo file under `docs/todos/` so it isn't lost when the parent todo closes (see project-todos SKILL "Deferring Logic — Capture as a Follow-Up Todo"). Verify both halves:
+This is a hard verdict gate. Decomposing into multiple plans is encouraged; bullet-point notes that scope-cuts will happen "later" without a real plan/todo file are not (see project-todos SKILL "Multi-Plan Todos — Decompose Up Front, Don't Defer"). Verify both halves:
 
-1. **Inventory the Deferred Scope section.** For each entry, confirm it includes the literal text `Follow-up todo: docs/todos/{name}.md` with a path. Verify the file actually exists on disk (use Read or Glob). Entries without a link, OR with a link to a non-existent file, are silent drops.
+1. **Inventory the Companion Plans section.** For each entry, confirm it links to either `docs/plans/{name}.md` (a companion plan in this todo) or `docs/todos/{name}.md` (a sibling todo). Verify the linked file actually exists on disk (use Read or Glob). Entries with no link, OR with a link to a non-existent file, are silent drops.
 
-2. **Sweep the rest of the plan for hidden deferrals.** Grep / read every section (Approach, Design, Implementation Steps, Phase boundary descriptions, Acceptance Criteria, Risks, Out of Scope) for these phrases:
+2. **Sweep the rest of the plan for hidden scope-cuts.** Grep / read every section (Approach, Design, Implementation Steps, Phase boundary descriptions, Acceptance Criteria, Risks, Out of Scope) for these phrases:
 
    - "deferred" / "defer to" / "we'll defer"
    - "future phase" / "Phase 2" / "Phase 3" / "Phase N+1" / "next phase"
@@ -168,9 +168,9 @@ This is a hard verdict gate. Deferring work is fine, but every deferral must be 
    - "Phase 3 will" / "the next pass will" / "subsequent work"
    - "coexistence for now" / "side-by-side for now" / "parallel build"
 
-   Each hit must point to a corresponding Deferred Scope entry whose `Follow-up todo:` link resolves to a real file. A subsection like "Out of Phase 2 (deferred):" tucked inside Implementation Steps with bullet points but no matching linked Deferred Scope entries is a verdict-blocker.
+   Each hit must trace back to a Companion Plans entry with a working file link. A subsection like "Out of Phase 2 (deferred):" tucked inside Implementation Steps with bullet points but no matching Companion Plans entry is a verdict-blocker.
 
-3. **Verdict impact:** Any unlinked deferral, broken link, or orphan deferral phrase forces a **CONCERNS** verdict at minimum. List each in the **Deferred-Scope Follow-Up Todos** findings section. The orchestrator must either create the follow-up todo file and link it, or remove the deferral by doing the work in this todo, before re-invoking the reviewer.
+3. **Verdict impact:** Any unlinked scope-cut, broken link, or orphan deferral phrase forces a **CONCERNS** verdict at minimum. List each in the **Companion Plans** findings section. The orchestrator must either create the plan/todo file and link it, or remove the scope-cut by doing the work in this plan, before re-invoking the reviewer.
 
 ### Step 5: Return Findings
 
@@ -216,8 +216,8 @@ Return a structured response:
 **Test Coverage Concerns**
 [Business rules without test scenarios, test tier mismatches, sacred tests at risk. "None" if clean.]
 
-### Deferred-Scope Follow-Up Todos
-[For each Deferred Scope entry: file location in the plan, what is deferred, the follow-up todo path, and whether that file actually exists on disk. For each in-line deferral phrase found elsewhere in the plan: location and whether it points to a linked Deferred Scope entry. Any unlinked, broken-linked, or orphan deferral forces CONCERNS minimum. "All deferrals captured as follow-up todos" only if confirmed.]
+### Companion Plans
+[For each Companion Plans entry: file location in the plan body, what it covers, whether it's a plan-in-this-todo or sibling-todo, the linked path, and whether that file actually exists on disk. For each in-line deferral phrase found elsewhere in the plan: location and whether it points to a linked Companion Plans entry. Any unlinked, broken-linked, or orphan scope-cut forces CONCERNS minimum. "All scope-cuts captured as companion plans or sibling todos" only if confirmed.]
 
 ### Recommendations
 [Specific actionable items for the orchestrator to address before implementation. Order by severity. Each item: tag with `[Pass A]` or `[Pass B]` so the orchestrator knows which finding it traces to.]
