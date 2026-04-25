@@ -6,7 +6,7 @@
 **Last Updated:** YYYY-MM-DD
 
 <!-- Valid status values (do not render in plan):
-Draft | Vetoed | Approved | In Progress | Awaiting Review |
+Draft | Approved | In Progress | Awaiting Review | Reviewed | Documented | Complete |
 Grade A | Grade B | Grade C | Documented | Complete
 -->
 
@@ -79,39 +79,11 @@ Grade A | Grade B | Grade C | Documented | Complete
 
 ---
 
-## Domain Model Behavioral Design
+## Domain Model Behavioral Design (optional, framework-specific)
 
-[The domain model is the ViewModel for UI pages. Every behavioral property the UI needs is designed here. Razor pages bind to these properties and do not implement business logic.]
+[Optional section. Use it when the project's domain model framework expects behavioral design (computed properties, visibility flags, reactive rules, validation rules) to be specified up front so the UI binds to them rather than re-implementing logic.
 
-### Computed Properties
-
-| Property | Type | Computes | Triggered By |
-|----------|------|----------|-------------|
-| [e.g., FullName] | [string] | [FirstName + " " + LastName] | [FirstName, LastName] |
-
-### Visibility / Conditional Flags
-
-| Property | Condition | Depends On |
-|----------|-----------|------------|
-| [e.g., ShowDeclineReason] | [CareStatus == ConsultationDeclined] | [CareStatus] |
-
-### Reactive Rules
-
-| Rule | Trigger | Affected Property | Behavior |
-|------|---------|-------------------|----------|
-| [e.g., Auto-set consultation date] | [CareStatus -> Consultation] | [ConsultationDate] | [Set to today if null] |
-
-### Classification Properties
-
-| Property | Type | Logic |
-|----------|------|-------|
-| [e.g., IsPatient] | [bool] | [CareStatus >= InitialCare] |
-
-### Validation Rules
-
-| Rule | Trigger Properties | Error Message |
-|------|-------------------|---------------|
-| [e.g., DeclineReason required] | [CareStatus, DeclineReason] | [Decline reason is required when consultation is declined] |
+For Neatoo / zTreatment-style projects, append the tables in `references/plan-template-neatoo.md` here. For other projects, use the format their domain framework expects, or omit this section entirely if it doesn't apply.]
 
 ---
 
@@ -154,9 +126,35 @@ Grade A | Grade B | Grade C | Documented | Complete
 
 ## Deferred Scope
 
-[Things noticed during planning or implementation that are explicitly not being done. Captured so they aren't lost. Grows during Step 3 — append as things come up.]
+[Things noticed during planning or implementation that are explicitly not being done. Captured so they aren't lost. Grows during Step 3 — append as things come up.
 
-- [Item — e.g., "Also refactor PaymentHistoryPage to use the new calculation"] — [When noticed] — [Why deferred]
+**EVERY entry MUST link to a follow-up todo file.** Deferring is fine; losing the deferral is not. When the orchestrator decides to defer something, it creates a follow-up todo at `docs/todos/{name}.md` (status `Deferred`, with a back-pointer to this parent todo) — or appends to an existing follow-up todo when the area already has one — and links it inline below. At Step 6, every follow-up todo is surfaced in the parent todo's Follow-Up Todos callout, which goes into the PR description.
+
+A Deferred Scope entry without a `Follow-up todo:` link is treated by the plan-reviewer and code-reviewer as a silent drop — CONCERNS verdict at plan review and automatic C in Scope Discipline at graded review. See "Deferring Logic — Capture as a Follow-Up Todo" in the project-todos SKILL.
+
+Required entry format:]
+
+- [Item description] — Follow-up todo: `docs/todos/{follow-up-name}.md`. Reason: [why deferred]. Cost: [what's carried forward, e.g., "5 callers still on old API"].
+
+---
+
+## Plan Amendments
+
+[Append-only. Used ONLY when, during or after Step 3, a major issue surfaces and the user explicitly chooses option 1 ("Tweak plan + implementation") from the three options presented in Step 3 (see "The Plan Is Sacred Once Implementation Begins" in the project-todos SKILL).
+
+The plan body above (Overview, Approach, Design, Business Rules, Implementation Steps, etc.) is **frozen** once Step 3 begins. Do NOT edit it in place. Instead, every authorized change gets recorded here as a dated entry with a back-pointer to the section it modifies. The original text stays intact so the audit trail between intent and reality is preserved — that gap is exactly what the graded review needs to see.
+
+The other two options (revert + restart, or ship + follow-up) do NOT use this section: revert + restart spawns a new todo/plan, and ship + follow-up adds an entry to Deferred Scope.
+
+Required entry format:]
+
+### YYYY-MM-DD — [Short title]
+
+- **Section affected:** [e.g., "Approach", "Design — Visit aggregate", "Business Rule BR-3"]
+- **Original text said:** [one-line summary of what the plan committed to]
+- **What changed:** [what the implementation actually does instead]
+- **Why:** [the issue that surfaced]
+- **User decision:** Approved tweak on YYYY-MM-DD. (Acknowledges revert + restart and ship + follow-up were the other options.)
 
 ---
 

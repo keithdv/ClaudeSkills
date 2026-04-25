@@ -34,27 +34,22 @@
 
 ---
 
-## Requirements Review
-
-[Filled in during Step 2. If re-run, append new dated entries.]
-
-### YYYY-MM-DD — [APPROVED | VETOED]
-**Summary:** [One-paragraph summary of findings]
-**Key findings:**
-- [Relevant requirements found]
-- [Gaps identified]
-- [Contradictions or "None"]
-
----
-
 ## Plan Review
 
-[Filled in during Step 2.5 (optional). If re-run, append new dated entries. Omit this section if the step was skipped — record the skip under Skipped Steps.]
+[Filled in during Step 2 (one agent invocation, two passes). If re-run, append new dated entries. Omit this section entirely if the step was skipped — record the skip under Skipped Steps.]
 
 ### YYYY-MM-DD — [APPROVED | CONCERNS | REJECTED]
-**Summary:** [One-paragraph summary of findings]
-**Files examined:** [Count and brief scope — e.g., "12 files across Treatment, Visit, VisitHub.razor"]
-**Key findings:**
+**Summary:** [One-paragraph summary of overall findings]
+
+**Pass A — vs. documented requirements:**
+- Requirement docs consulted: [paths or "none — no documented requirements"]
+- Contradictions: [list or "None"]
+- Implicit dependencies missed: [list or "None"]
+- Coverage gaps: [list or "None"]
+- Rules marked NEW: [list or "None"]
+
+**Pass B — vs. codebase:**
+- Files examined: [count and brief scope — e.g., "12 files across Treatment, Visit, VisitHub.razor"]
 - Gaps: [list or "None"]
 - Domain logic placement: [concerns or "Clean"]
 - Framework-correctness risks: [list or "None"]

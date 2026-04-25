@@ -17,7 +17,17 @@ If no calibration document exists, proceed with the rubric below and flag the mi
 Output for each category:
 - Grade (A / B / C)
 - One-line justification referencing specific evidence (file:line, test name, etc.)
-- If not A: concrete "To reach A" suggestions with file:line citations
+- If not A: concrete "To reach A" suggestions with file:line citations, **each tagged with a confidence level**
+
+## Confidence on Findings
+
+Every "to reach A" suggestion carries a confidence label: **High**, **Medium**, or **Low**.
+
+- **High** — the issue is verifiable from the code in front of you. A test fails, a citation is wrong, a CLAUDE.md rule is plainly violated. The orchestrator and user should treat this as actionable.
+- **Medium** — the issue is plausible based on patterns and standards, but it depends on context the reviewer doesn't have. Worth raising, worth discussing, not necessarily a blocker.
+- **Low** — speculative, "while you're in there" suggestions, style preferences without backing in CLAUDE.md or the calibration doc. Default: don't include them at all. If included, mark Low so the user can dismiss without weight.
+
+A category grade reflects only High and Medium findings. Low findings inform but never lower the grade. This stops "to reach A" from becoming a wishlist of unconfirmed nits — the failure mode where every review burns the orchestrator's time chasing low-value suggestions.
 
 ## 1. Requirements Coverage
 
@@ -63,24 +73,15 @@ Readability, naming, abstraction level, absence of dead code.
 
 ## 5. Framework Correctness
 
-Project-specific framework idioms are respected. The code-reviewer must read the project's CLAUDE.md for the framework rules to check.
+Project-specific framework idioms are respected. The code-reviewer must read the project's CLAUDE.md for the framework rules to check, and the project's calibration doc (if any) for which rules are load-bearing vs. nice-to-have.
 
-For zTreatment this includes:
-- Neatoo patterns (EntityBase, rules, state flags — `IsModified` not `IsDirty`)
-- RemoteFactory patterns ([Factory], [Create], [Fetch], [Remote] attributes correct)
-- KnockOff idioms (strict mode on factories/services/repositories; loose on entities)
-- EF Core + PostgreSQL (`.ToUtcForDb()` on all DateTime saved to DB; `IRepositoryTransaction` for transactions)
-- No exception swallowing (every catch logs `ex`; Razor pages don't catch RemoteFactory exceptions)
-- No reflection; no casting interfaces to concrete types
-- Domain logic in domain models, not Blazor components
-
-For other projects, the code-reviewer checks the framework rules listed in that project's CLAUDE.md.
+This rubric stays framework-agnostic. The list of idioms-to-check comes from the project's CLAUDE.md, not from this file. For project-specific check lists, see `references/rubric-{project}.md` (e.g., `rubric-ztreatment.md` for the zTreatment-specific Neatoo / RemoteFactory / KnockOff / EF UTC list). The reviewer loads the project-specific reference if one exists for the active project.
 
 | Grade | Criteria |
 |-------|----------|
-| A | All applicable framework idioms followed correctly. |
-| B | One minor deviation (e.g., a XML comment missing, a factory attribute omitted on a method that works anyway). |
-| C | One or more material violations (missing `.ToUtcForDb()`, silent catch, reflection used, business logic in Blazor component, interface cast to concrete type, wrong factory attribute). |
+| A | All applicable framework idioms (per CLAUDE.md and project-specific rubric reference) followed correctly. |
+| B | One minor deviation (e.g., a XML comment missing, a framework attribute omitted on code that works anyway). |
+| C | One or more material violations (a CLAUDE.md hard rule broken, a load-bearing framework idiom violated, a known footgun left in place). |
 
 ## 6. Build & Test Health
 
@@ -96,13 +97,22 @@ The code-reviewer runs a fresh `dotnet build` and the project's test command. No
 
 ## 7. Scope Discipline
 
-The implementation respects the plan's **Out of Scope / Invariants** list. It did not accidentally change behavior the plan said it wouldn't.
+The implementation respects the plan's **Out of Scope / Invariants** list AND every Deferred Scope entry is captured as a real follow-up todo file. Deferring is fine; losing track of the deferral is the failure mode.
 
 | Grade | Criteria |
 |-------|----------|
-| A | Every item on the Out of Scope / Invariants list still holds after the change. No callers/integrations/UI flows listed as invariant have been modified. |
-| B | One item on the list was incidentally touched (e.g., a file was modified but the behavior is preserved), OR Deferred Scope items are documented for follow-up. |
-| C | One or more invariants were changed without a Design Decisions entry authorizing the change. |
+| A | Every item on the Out of Scope / Invariants list still holds after the change. **Every Deferred Scope entry has a `Follow-up todo: docs/todos/{name}.md` link AND that file actually exists.** No deferral phrases ("future phase," "Phase N+1," "later," "follow-up," "out of phase X," "deferred," "not in this todo") appear anywhere in the plan or implementation summary without a corresponding linked follow-up todo. |
+| B | One item on the Out of Scope list was incidentally touched but behavior is preserved. All Deferred Scope entries link to real follow-up todo files. |
+| C | One or more invariants were changed without a Design Decisions entry authorizing it, OR **one or more Deferred Scope entries lack a follow-up-todo link (or the linked file does not exist)**, OR there are in-line deferral phrases (e.g., "Phase 3 will…", "out of Phase 2 (deferred):" subsections) that don't trace back to a linked follow-up todo. |
+
+**Follow-up todo capture is mandatory** — see project-todos SKILL "Deferring Logic — Capture as a Follow-Up Todo." A single missing or broken link is automatic C in this category. The reviewer must:
+
+1. Inventory the plan's Deferred Scope section. Every entry needs a `Follow-up todo: docs/todos/{name}.md` link.
+2. Verify each linked file actually exists on disk. A dead link is the same as a missing one.
+3. Sweep the rest of the plan (Approach, Design, Implementation Steps, Phase descriptions, etc.) for deferral phrases. Each hit must point to a linked follow-up todo.
+4. List every unlinked or broken-linked deferral with file location and what it defers, in the "To Reach A" section under Scope Discipline.
+
+Reasoning: the user has been burned by orchestrators marking todos "complete" with deferred work disappearing into a vague future phase that never gets done. A bullet point inside a closed-out plan is invisible. A real follow-up todo file under `docs/todos/` is queue-able, schedule-able, and surfaces in the Follow-Up Todos callout at completion.
 
 If the plan lacks an Out of Scope / Invariants list, the code-reviewer notes this as a planning gap and grades based on apparent intent (not a free pass — a missing list is itself a concern to flag).
 
@@ -139,7 +149,18 @@ The code-reviewer returns findings in this structure:
 
 - Build: PASSED (0 errors, 0 new warnings in changed files)
 - Tests: 247 passed, 0 failed (command: `dotnet test -m:1`)
+
+## Follow-Up Todos
+
+| # | Description | Follow-Up Todo File | Exists? | Cost / Carry-forward |
+|---|-------------|---------------------|---------|----------------------|
+| 1 | Migrate ConsultationPlanViewModel to VisitV2 | `docs/todos/migrate-consultationplan-vm-visitv2.md` | ✅ | 5 callers still on old API |
+| 2 | Delete old Visit class | `docs/todos/remove-old-visit-class.md` | ✅ | Cleanup once migrations land |
+
+(Or "No follow-up todos — this todo is fully self-contained." if zero entries.)
 ```
+
+**The Follow-Up Todos section is mandatory at the end of every graded review**, even when every deferral is properly linked. It is the artifact that the orchestrator copies into the PR description at Step 6 so the user sees the deferral debt before the PR ships. The reviewer's job is to verify the linked files actually exist on disk — a Deferred Scope entry pointing at a non-existent file is the same as a silent drop, and grades C in this category.
 
 The orchestrator reads this response and writes a summary into the todo's Graded Review section.
 

@@ -1,7 +1,7 @@
 ---
 name: project-todos
 version: 6.1.0
-description: This skill should be used when the user asks to "create a todo", "add a plan", "plan this work", "track this work", "document this task", "complete a todo", "verify the implementation", "start the implementation", "update docs for this feature", "what's the next step", "what's the plan status", "resume the todo", "what's blocked", "pick up where we left off", "design this feature", "check business requirements", "review requirements", "review against requirements", "check for requirement conflicts", "review the plan", "review plan against codebase", "plan review", "grade the work", "code review", or mentions managing project todos, plans, and multi-agent workflows. Provides the structured workflow for creating, managing, and linking todo/plan files, and orchestrating agent collaboration through the full design-review-implement-grade-document lifecycle.
+description: Use when the user asks to "create a todo", "plan this work", "design this feature", "resume the todo", or "grade the implementation" — i.e., multi-session design-heavy work where the plan needs to outlive the conversation, the codebase has documented business rules to check against, or deferred scope must be tracked into PRs. Provides the structured workflow for creating durable todo/plan files and orchestrating agents through design → review → implement → grade → document. **Skip this skill for single-session tasks**, trivial fixes, or work that fits in Claude Code's built-in plan mode (`Shift+Tab`) — that's the right tool when the plan doesn't need to survive the session.
 ---
 
 # Project Todos, Plans, and Agent Workflow
@@ -59,27 +59,28 @@ docs/
 
 All paths are relative to the project root.
 
-## The Four Agents
+## The Two Agents
 
-### 1. `business-requirements-reviewer` — Step 2 (plan vs. documented rules)
+### 1. `plan-reviewer` — Step 2 (plan vs. documented rules + plan vs. codebase)
 
-Reads the draft plan, searches the project's business requirements docs, identifies contradictions, implicit dependencies, and gaps. Verdict: **APPROVED** or **VETOED**.
+Reads the draft plan and runs two passes in one invocation:
 
-### 2. `plan-reviewer` — Step 2.5 (plan vs. codebase, optional but recommended)
+- **Pass A — plan vs. documented requirements.** Searches the project's business requirements docs (locations from CLAUDE.md), identifies contradictions, implicit dependencies, and gaps.
+- **Pass B — plan vs. codebase.** Deep-dive on affected aggregates/services/UI. Catches design gaps, missed call sites, infeasible approaches, domain-logic-in-UI smells, framework-correctness risks, and invariant violations before implementation.
 
-Reads the draft plan and does a codebase deep-dive. Catches design gaps, missed call sites, infeasible approaches, domain-logic-in-UI smells, framework-correctness risks, and invariant violations before implementation. Complementary to `business-requirements-reviewer`: that agent checks plan-vs-docs; this agent checks plan-vs-code. Verdict: **APPROVED**, **CONCERNS**, or **REJECTED**.
+One verdict covers both: **APPROVED**, **CONCERNS**, or **REJECTED**. Findings are reported in dedicated subsections so the orchestrator can route fixes correctly.
 
-### 3. `code-reviewer` — Step 4 (graded review)
+### 2. `code-reviewer` — Step 4 (graded review)
 
-Reads the plan and actual code, runs fresh builds and tests, grades seven categories A/B/C, produces "to reach A" suggestions. See `references/rubric.md` for the rubric.
+Reads the plan and actual code, runs fresh builds and tests, grades seven categories A/B/C with confidence-scored findings, produces "to reach A" suggestions. See `references/rubric.md` for the rubric.
 
-### 4. `business-requirements-documenter` — Step 5 (post-impl docs, optional)
+### Documentation (Step 5)
 
-Updates the project's business requirements documentation to reflect what was implemented. Skipped when no requirements changed (internal refactor, bug fix with no behavior change).
+The orchestrator updates project requirements documentation directly in conversation with the user. No agent involved — the inputs (plan, todo, Requirements Review section, what was implemented) are already in context, and a dedicated agent has historically just paraphrased that context back as text the orchestrator pastes. Direct edits remove the handoff fragility.
 
 ### Optional specialist agents
 
-Domain and framework experts (e.g., `ef-postgres-query-expert`, `grails-legacy-expert`, `blazor-ui`, `dosing-analyst`, `treatment-architect`, `dosing-architect`) are research helpers during Step 1 or deep-dive reviewers the orchestrator calls situationally when Step 2.5 or a rubric category needs a specialist opinion. They do not own workflow steps.
+Domain and framework experts (e.g., `ef-postgres-query-expert`, `grails-legacy-expert`, `blazor-ui`, `dosing-analyst`, `treatment-architect`, `dosing-architect`) are research helpers during Step 1 or deep-dive reviewers the orchestrator calls situationally when a rubric category needs a specialist opinion. They do not own workflow steps.
 
 ## Prerequisites
 
@@ -101,13 +102,31 @@ Every todo has one of these types. Declared in the todo's header.
 
 Every step except Step 1 and Step 6 can be skipped. Skips are conversational: the user requests a skip, the orchestrator confirms what's being skipped and why it matters, the skip is recorded in the todo's **Skipped Steps** list with a reason.
 
+## Deferring Logic — Capture as a Follow-Up Todo
+
+**Deferring work is fine. Forgetting about it is not.** A bullet point inside a completed plan is invisible. A real `docs/todos/{name}.md` file is queue-able and surfaces in the Follow-Up Todos callout at PR-stage.
+
+A "deferral" is anything the plan acknowledges should happen but isn't doing in this todo. Signal phrases: *deferred*, *out of phase*, *future phase*, *future/next/separate todo*, *Phase N+1*, *later*, *follow-up*, *will be done separately*, *coexistence for now*.
+
+**Required process** when deferring (during Step 1 design or Step 3 implementation):
+
+1. Name the work, tell the user, and either create a new `docs/todos/{follow-up-name}.md` (initial status: `Deferred`, with a back-pointer to the parent todo) or append to an existing follow-up todo that covers the area.
+2. Record an entry in the parent plan's **Deferred Scope** in this exact format:
+
+   ```
+   - [Item description] — Follow-up todo: `docs/todos/{follow-up-name}.md`. Reason: [why deferred]. Cost: [what's carried forward].
+   ```
+
+3. Any deferral text elsewhere in the plan (Implementation Steps, Approach, Design, Phase boundaries) must point back to the matching Deferred Scope entry. No orphan "Out of Phase X" subsections.
+
+At Step 6, every Deferred Scope entry is surfaced in the **Follow-Up Todos** callout (see Step 6) that goes into the PR description.
+
+The plan-reviewer and code-reviewer both verify the link and check the file exists. A missing or broken link → CONCERNS at plan review; automatic C in Scope Discipline at graded review.
+
 Common skip patterns:
 
-- **Step 2 (Requirements Review)** — Skip if the project has no documented requirements yet, or the change is purely mechanical with no business rule impact. Ask first.
-- **Step 2.5 (Plan Review)** — Opt-in, not default. Recommended for Enhancement and Bug-Exposes-Fallacy todos, plans that touch multiple aggregates or introduce new patterns, or any plan where the orchestrator isn't confident all affected code has been accounted for. Skip for trivial one-file changes or bug fixes with a tight blast radius.
+- **Step 2 (Plan Review)** — Default yes for Enhancement and Bug-Exposes-Fallacy, plans touching multiple aggregates, or changes that touch documented business behavior. Skip for one-file bug fixes with an obvious blast radius and no business-rule impact. Ask first.
 - **Step 5 (Documentation)** — Skip for internal refactors, bug fixes restoring documented behavior, or test-only changes.
-
-Step 2 is the default for changes that touch business behavior. Step 2.5 is the default for Enhancement and Bug-Exposes-Fallacy todos — propose running it unless the plan is obviously small.
 
 ## Step 1: Create Todo and Draft Plan
 
@@ -128,6 +147,7 @@ Collaborate with the user to fill every plan section:
 - **Current Behavior Map** — How the affected code works today. Specific paths, assumptions, invariants. This is the anchor for "don't break what works." Enhancements that contradict current behavior are caught here, not during review.
 - **Out of Scope / Invariants** — Behaviors that must NOT change. Specific callers, integrations, UI flows, data shapes. Becomes the basis for the Scope Discipline rubric category.
 - **Fallacy** (Bug-Exposes-Fallacy only) — What was believed. What is actually true. Downstream consequences.
+- **Options Considered** — When the design space has more than one defensible answer, present 2–3 options to the user with trade-offs (cost, complexity, maintainability, blast radius), pick one, and record the decision in Design Decisions. Skip this section when the answer is obvious — it earns its keep when the orchestrator's instinct could plausibly be wrong.
 - **Approach** — High-level strategy.
 - **Design** — Detailed design (architecture, file structure, data flow).
 - **Business Rules (Testable Assertions)** — Numbered WHEN/THEN assertions. Trace each to an existing requirement or mark NEW.
@@ -137,58 +157,38 @@ Collaborate with the user to fill every plan section:
 - **Skills** — Every skill needed at Step 3 with its path and why. Not listed → not loaded at implementation.
 - **Implementation Steps** — Ordered steps.
 - **Acceptance Criteria** — What "done" looks like.
-- **Deferred Scope** — Noticed during planning/implementation but explicitly not doing. Grows during implementation.
+- **Deferred Scope** — Noticed during planning/implementation but explicitly not doing. Grows during implementation. **Every entry must link to a follow-up todo file** (see "Deferring Logic — Capture as a Follow-Up Todo"). No link = the deferral will be lost.
 - **Dependencies** and **Risks**.
 
 Link the plan and todo (update both files). Set plan status to **Draft**.
 
-## Step 2: Business Requirements Review
+## Step 2: Plan Review
 
-**Purpose:** Catch contradictions between the draft plan and existing documented requirements before implementation. The most expensive bugs come from chasing a design that conflicts with a rule nobody remembered.
+**Purpose:** Catch contradictions and gaps in the draft plan before implementation. Two failure modes get caught here: (a) the plan conflicts with a documented business rule nobody remembered, and (b) the plan misses 5+ call sites, a save path, or a UI binding because the design was sketched without a real codebase pass.
 
-Invoke **business-requirements-reviewer** with:
+Both passes used to be separate steps with separate agents; they are now one. The reviewer reads the plan once, does both passes in one context, and returns one verdict with subsection findings the orchestrator can route correctly.
+
+Invoke **plan-reviewer** with:
 - The todo file path and plan file path
 - The project's requirements locations (from CLAUDE.md)
-- Instruction: "Review this todo and plan against the project's existing business requirements. Return your verdict (APPROVED or VETOED) with specific findings."
-
-The reviewer searches requirements docs and the legacy codebase (if applicable), identifies relevant rules, gaps, implicit dependencies, and contradictions, then reports.
-
-**When the reviewer reports back:**
-
-The orchestrator writes a summary to the todo's **Requirements Review** section (verdict, date, one-paragraph summary, key findings).
-
-**If VETOED:** Present contradictions to the user. The user decides direction (modify plan, update requirements, override). Update the plan, re-invoke the reviewer. Repeat until APPROVED.
-
-**If APPROVED:** Set plan status to **Requirements Approved** and propose Step 2.5 unless the plan is trivially small.
-
-## Step 2.5: Plan Review (Optional, Recommended for Enhancements)
-
-**Purpose:** Catch gaps between the draft plan and the actual codebase before implementation. The business-requirements-reviewer validates plan-vs-docs; this step validates plan-vs-code.
+- Instruction: "Review this plan in two passes. Pass A: against the project's documented business requirements — surface contradictions, gaps, implicit dependencies. Pass B: against the actual codebase — verify feasibility, find missed call sites, check domain-logic placement, flag framework-correctness risks, check invariants. Return one verdict (APPROVED / CONCERNS / REJECTED) with findings split by pass."
 
 **When to run:**
 - **Default yes** for Enhancement and Bug-Exposes-Fallacy todos
 - **Default yes** for any plan that touches multiple aggregates, introduces new patterns, or renames/refactors widely-referenced types
-- **Default no** for one-file bug fixes with an obvious blast radius
-
-The common Step 3 failure mode is discovering, mid-implementation, that the plan missed 5+ call sites, a save path, or a UI binding. Step 2.5 exists to catch those before the orchestrator commits to the design.
-
-Invoke **plan-reviewer** with:
-- The todo file path and plan file path
-- Instruction: "Review this plan against the codebase. Verify feasibility, find missed call sites, check domain-logic placement, flag framework-correctness risks. Return APPROVED, CONCERNS, or REJECTED with specific findings."
-
-The reviewer reads the plan and CLAUDE.md, does a codebase deep-dive on affected aggregates/services/UI/tests, and reports.
+- **Skip** for one-file bug fixes with an obvious blast radius and no business-rule impact (record in Skipped Steps with reason)
 
 **When the reviewer reports back:**
 
-The orchestrator writes a summary to the todo's **Plan Review** section (verdict, date, files examined count, gaps, domain-logic concerns, framework risks, invariant violations, recommendations).
+The orchestrator writes a summary to the todo's **Plan Review** section (verdict, date, requirements-pass findings, codebase-pass findings, recommendations).
 
-**If REJECTED:** Present fundamental issues to the user. The Approach needs rework, not tweaks. Rewrite affected plan sections, then re-invoke.
+**If REJECTED:** Fundamental issues with the Approach itself. Rewrite affected plan sections with the user, then re-invoke.
 
-**If CONCERNS:** Present gaps to the user. Orchestrator and user update the plan to address each concern. Re-invoke the reviewer. Repeat until APPROVED (or the user explicitly accepts a concern as out-of-scope).
+**If CONCERNS:** Present findings to the user. Orchestrator and user update the plan to address each concern. Re-invoke the reviewer. Repeat until APPROVED (or the user explicitly accepts a concern as out-of-scope).
 
-**If APPROVED:** Set plan status to **Approved**.
+**If APPROVED:** Set plan status to `Approved`.
 
-**If Skipped:** Skip is recorded in the todo's Skipped Steps list. Set plan status directly to **Approved** from **Requirements Approved**.
+**If Skipped:** Skip is recorded in the todo's Skipped Steps list. Set plan status to `Approved`.
 
 ## Step 3: Implementation
 
@@ -207,11 +207,25 @@ Recommend the user start a new session. If continuing in the same session, treat
 
 Work through Implementation Steps in order, in conversation with the user. Run tests at natural checkpoints.
 
-**During implementation, update the plan in these places:**
-- **Design Decisions** — Append any new "chose A because B" decisions with timestamps.
-- **Deferred Scope** — Append anything noticed but not doing.
+**Optional: tests-first.** When the plan's Test Scenarios are concrete and the rule under test is well-defined, write the failing tests for those scenarios before the production code, run them to confirm they fail for the expected reason, then implement until they pass. The plan already inventories Test Scenarios — capitalizing on them as a tests-first gate cheaply catches "rule was wrong" and "test was tautological" before you've committed to an implementation. Skip when the rule is exploratory or the test surface isn't clear yet. Not a hard gate; use judgment.
 
-**If out-of-scope tests fail**, stop. Present to the user: "Test X in area Y started failing, outside the current task. (1) fix root cause, (2) add to bug list, (3) investigate further?"
+**Worktrees.** If the project uses git worktrees, the `docs/todos/` and `docs/plans/` directories must be in the worktree's tracked tree (or in `.worktreeinclude` for tools that need it). The plan file is the contract for Step 3 — losing it because the worktree didn't include it is a real footgun. Verify before starting Step 3 in a worktree.
+
+### The Plan Is Sacred Once Implementation Begins
+
+Once Step 3 starts, the plan body — Overview, Current Behavior Map, Out of Scope / Invariants, Approach, Design, Business Rules, Test Scenarios, Domain Model, Implementation Steps, Acceptance Criteria — is **frozen**. Rewriting it post-hoc to match what got built is plan laundering — it erases the intent-vs-reality gap that the graded review needs to see.
+
+Only **append-only** sections may be updated during/after Step 3: Design Decisions, Deferred Scope, Plan Amendments, the todo's review sections (Plan Review, Graded Review, Documentation), and status fields.
+
+**If a major issue surfaces during or after implementation** (design doesn't work, an invariant has to break, a Business Rule was wrong, the Approach is infeasible), stop and present the user three options — don't pick:
+
+1. **Tweak plan + implementation.** Record the change as a dated **Plan Amendment** entry (append-only — do not edit the original Approach/Design text). Continue.
+2. **Revert and restart.** Revert the code. Original todo gets a Results section noting why it was reset; a fresh todo/plan begins the cycle.
+3. **Ship as-is, capture as a follow-up.** Current implementation completes; the unaddressed issue becomes a follow-up todo file linked from Deferred Scope. Graded review sees the gap honestly.
+
+Picking option 1 unilaterally — quietly editing Approach or Design — is the failure mode. Always present the three options.
+
+**If out-of-scope tests fail**, stop. Present: "Test X in area Y started failing, outside the current task. (1) fix root cause, (2) add to bug list, (3) investigate further?"
 
 **Do NOT update docs markdown, skill markdown, release notes, or user-facing documentation.** Those are Step 5. Implementation scope is source code only. XML code comments on modified code are fine.
 
@@ -244,47 +258,60 @@ Each category is graded A/B/C. **Overall grade = worst category.** Grade A requi
 
 The orchestrator writes a summary to the todo's **Graded Review** section (date, overall grade, per-category table, key suggestions).
 
-**If Grade A:** Set plan status to **Grade A**. Proceed to Step 5 (or Step 6 if docs are skipped).
+**If Grade A:** Set plan status to `Reviewed`. The grade letter is in the Graded Review entry. Proceed to Step 5 (or Step 6 if docs are skipped).
 
-**If Grade B or C:** Present category grades and "to reach A" suggestions to the user. The user acknowledges:
+**If Grade B or C:** Plan status stays at `Awaiting Review` until the user acknowledges. Present category grades and "to reach A" suggestions to the user. The user acknowledges:
 - **Accept the grade** — proceed as-is. The user owns the decision.
 - **Address specific items** — orchestrator fixes in conversation with user, then re-invokes code-reviewer for re-grade. Append the new grade entry (don't overwrite).
 
-A grade below A is not a blocker by itself. The user's acknowledgment is the gate.
+A grade below A is not a blocker by itself. The user's acknowledgment is the gate. Once the user accepts (any grade), set plan status to `Reviewed`.
 
 ## Step 5: Documentation (Optional)
 
 **Purpose:** Update project business requirements documentation to reflect what was implemented.
 
-Skip if the user confirms the change doesn't affect documented business rules (internal refactor, bug fix restoring documented behavior, test-only).
+Skip if the change doesn't affect documented business rules (internal refactor, bug fix restoring documented behavior, test-only).
 
-Invoke **business-requirements-documenter** with:
-- The plan file path and todo file path
-- The todo's Requirements Review section content
-- Summary of what was implemented
-- Instruction: "Update business requirements documentation to reflect the completed implementation. Add new rules, update changed rules, resolve gaps identified during review."
+The orchestrator handles this directly — no agent. Inputs needed (plan, todo, the Plan Review section's requirements-pass findings, what was implemented) are already in conversation context. With the user, work through:
 
-### When the documenter reports back
-
-The orchestrator writes a summary to the todo's **Documentation** section (files updated, any developer deliverables).
-
-**Developer deliverables** (source code changes requested by the documenter, such as XML comments, sample code): the orchestrator makes them directly in conversation with the user. Build and test after changes.
+1. **Identify affected docs.** From the Plan Review's requirements pass and the implementation summary, list which requirements docs need updates: new rules to add, existing rules that changed, gaps that were filled.
+2. **Edit the docs.** Make the edits in conversation with the user. Match the project's existing format (assertion numbering, headers, terminology). For new rules, link back to the plan's numbered Business Rules.
+3. **Source code touch-ups (if needed).** XML doc comments on modified domain code, sample code referenced by the docs, anything else the docs cite. Build and test after.
+4. **Record what changed.** Write a summary to the todo's **Documentation** section: files updated, rules added/changed/filled.
 
 ### General documentation (rare)
 
-If the plan identifies non-requirements docs (README, API docs, migration guides), invoke a project-specific docs agent (or `docs-writer`) after the requirements documenter finishes. Most todos don't need this.
+If the plan identifies non-requirements docs (README, API docs, migration guides), invoke a project-specific docs agent (or `docs-writer`) for those. Most todos don't need this.
 
-Set plan status to **Documented**.
+Set plan status to `Documented`.
 
 ## Step 6: Completion
 
 1. Verify the last Graded Review entry exists and the user has acknowledged the grade.
 2. Verify documentation is complete (or was skipped with reason).
-3. Update todo status to **Complete**, set Last Updated date.
-4. Fill in the Results / Conclusions section.
-5. Move the todo to `docs/todos/completed/`.
-6. Move associated plans to `docs/plans/completed/`.
-7. Update plan status to **Complete** in each plan file.
+3. **Surface follow-up todos.** Walk the plan's Deferred Scope list. For each entry, confirm a follow-up todo file exists at the linked path. Produce the **Follow-Up Todos** callout (see below) and paste it into the todo's Results / Conclusions section AND present it to the user as the PR-stage summary. If any Deferred Scope entry has no follow-up todo file, stop and create one — that entry will be lost otherwise.
+4. Update todo status to **Complete**, set Last Updated date.
+5. Fill in the Results / Conclusions section, including the Follow-Up Todos callout.
+6. Move the todo to `docs/todos/completed/`.
+7. Move associated plans to `docs/plans/completed/`.
+8. Update plan status to **Complete** in each plan file.
+
+### Follow-Up Todos Callout (PR-stage)
+
+This is the artifact that prevents deferred work from evaporating. Format it as a copy-pasteable block so the user can drop it directly into the PR description:
+
+```
+## Follow-Up Todos
+
+This todo deferred the following work to follow-up todos. Each is a real file under `docs/todos/` and is queued for future scheduling:
+
+- [ ] `docs/todos/{follow-up-name-1}.md` — [one-line summary of what's deferred and why it matters]
+- [ ] `docs/todos/{follow-up-name-2}.md` — [one-line summary]
+
+(Or "No follow-up todos — this todo is fully self-contained." when Deferred Scope is empty.)
+```
+
+The callout is mandatory at completion **even when every deferral is properly linked**. The point is to give the user one final at-a-glance reminder before the PR ships. The cumulative deferral debt across many todos is what bites later, and the user only catches it if every completion surfaces it.
 
 ## Resuming Mid-Workflow
 
@@ -292,22 +319,31 @@ Read the todo and any linked plan. Check plan status:
 
 | Plan Status | Next Step |
 |-------------|-----------|
-| Draft | Step 2 (Requirements Review) unless skipped |
-| Vetoed | Step 2 — resolve contradictions with user, re-invoke reviewer |
-| Requirements Approved | Step 2.5 (Plan Review) unless skipped; skip → set to Approved |
-| Plan Review Concerns | Step 2.5 — address gaps with user, re-invoke plan-reviewer |
-| Approved | Step 3 (Implementation) — load plan, skills, CLAUDE.md in fresh context |
-| In Progress | Step 3 — continue implementation |
-| Awaiting Review | Step 4 (Graded Review) |
-| Grade A / B / C | If user acknowledged → Step 5; if not acknowledged → present to user |
-| Documented | Step 6 (Completion) |
-| Complete | Nothing — work is done |
+| Draft | Step 2 (Plan Review). If the latest Plan Review entry shows REJECTED or CONCERNS, address with the user and re-invoke. When APPROVED, set to `Approved`. |
+| Approved | Step 3 (Implementation) — load plan, skills, CLAUDE.md in fresh context. |
+| In Progress | Step 3 — continue implementation. |
+| Awaiting Review | Step 4 (Graded Review). |
+| Reviewed | Last Graded Review entry has the verdict letter. If user acknowledged → Step 5. If not → present to user. |
+| Documented | Step 6 (Completion). |
+| Complete | Nothing — work is done. |
 
-Full reviewer/documenter findings from prior runs live in the todo sections (Requirements Review, Plan Review, Graded Review, Documentation). No other state to load.
+To find the latest verdict at any status, read the most recent entry in the relevant todo section: Requirements Review, Plan Review, or Graded Review.
+
+Full reviewer findings from prior runs live in the todo sections (Plan Review, Graded Review, Documentation). No other state to load.
 
 ## Plan Status Values
 
-`Draft` · `Vetoed` · `Requirements Approved` · `Plan Review Concerns` · `Approved` · `In Progress` · `Awaiting Review` · `Grade A` · `Grade B` · `Grade C` · `Documented` · `Complete`
+`Draft` · `Approved` · `In Progress` · `Awaiting Review` · `Reviewed` · `Documented` · `Complete`
+
+Status tracks **workflow position**, not verdict. Verdicts (Vetoed / Concerns / Grade A / B / C) live in the latest review section of the todo, where they belong — that's the audit trail. Status only answers "what step are we on?"
+
+- `Draft` — Plan written, no reviews yet (covers pre-Step 2 and any pending re-review during Step 2 / 2.5).
+- `Approved` — Plan Review landed at APPROVED (or was skipped). Ready for Step 3.
+- `In Progress` — Step 3 implementation underway.
+- `Awaiting Review` — Implementation done, Step 4 pending.
+- `Reviewed` — Step 4 graded review complete and the user has acknowledged the grade. Verdict letter is in the latest Graded Review entry.
+- `Documented` — Step 5 done (or skipped with reason).
+- `Complete` — Step 6 done; todo and plan moved to `completed/`.
 
 ## Todo Status Values
 
@@ -316,16 +352,20 @@ Full reviewer/documenter findings from prior runs live in the todo sections (Req
 ## Best Practices
 
 1. **The plan is the contract.** Step 3 implementation starts in a fresh context with only the plan. If something is missing from the plan, that's a signal to improve the plan, not to preserve context.
-2. **Update the plan during implementation.** Design Decisions and Deferred Scope grow during Step 3. Append, don't overwrite.
+2. **Once implementation starts, the plan body is sacred.** See "The Plan Is Sacred Once Implementation Begins" in Step 3. Only append-only sections update during/after Step 3; major issues get the three-options protocol, never an in-place rewrite.
 3. **Current Behavior Map before design.** Document how it works today before designing how it will work. This catches contradictions earlier than any review.
 4. **Out of Scope is a commitment.** If you find yourself changing something on the list, stop. Either remove it from the list (with user agreement) or back out the change.
 5. **Graded review is honest, not punitive.** A B or C grade is useful information. The user decides whether to address it. Don't treat A as the only acceptable outcome — treat the suggestions as value.
 6. **Re-reviews append, they don't replace.** Every Graded Review run creates a new entry. History matters.
 7. **Agents return findings, orchestrator writes summaries.** If an agent's 2000-word response has something worth keeping, paste the relevant section into the todo. Otherwise let it go.
-8. **Skip with intent.** Conversational skip is fine, but record it. A skipped Requirements Review six months later without context is a mystery.
+8. **Skip with intent.** Conversational skip is fine, but record it. A skipped Plan Review six months later without context is a mystery.
+9. **Deferrals become follow-up todos, not bullet points.** See "Deferring Logic — Capture as a Follow-Up Todo." Deferring is fine; losing track is the bug.
+10. **Worktree-aware.** If working in a git worktree, confirm `docs/todos/` and `docs/plans/` are tracked in the worktree before starting Step 3. The plan is the contract for fresh-context implementation — losing it because the worktree didn't include it costs a session.
 
 ## Reference Files
 
 - `references/todo-template.md` — todo template
-- `references/plan-template.md` — plan template
-- `references/rubric.md` — the seven-category rubric for graded review, with specific A/B/C criteria for each category
+- `references/plan-template.md` — plan template (framework-agnostic)
+- `references/plan-template-neatoo.md` — extra Domain Model Behavioral Design section for Neatoo / zTreatment-style projects (computed properties, visibility flags, reactive rules, validation rules). Append to the base template when the project uses Neatoo.
+- `references/rubric.md` — the seven-category rubric for graded review, with A/B/C criteria and confidence scoring on findings
+- `references/rubric-ztreatment.md` — project-specific framework-correctness check list for zTreatment (Neatoo / RemoteFactory / KnockOff / EF UTC / no reflection / no interface-to-concrete casts). Loaded by code-reviewer alongside the base rubric when reviewing zTreatment.
