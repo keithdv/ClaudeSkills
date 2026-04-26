@@ -171,6 +171,34 @@ Collaborate with the user to fill every plan section:
 - **Companion Plans** — Other plans (in this todo) or sibling todos covering work outside this plan's scope. Each entry links to a real plan or todo file (see "Multi-Plan Todos — Decompose Up Front, Don't Defer"). Grows during implementation as the orchestrator notices work that belongs elsewhere.
 - **Dependencies** and **Risks**.
 
+### Plan detail vs. implementation — the plan is the design, not the diff
+
+The plan describes **what** changes, **where**, and **why**. The diff is the **implementation**. Drift between these two is the most common bloat in this skill: in high-effort mode the orchestrator transcribes the implementation in markdown — full method bodies, before/after blocks, full Razor markup, "Item 1 / Item 2 / Item 3" code dumps. The plan doubles in length without doubling in design value, and Step 3 becomes "type out what's already in the plan" instead of implementing the design.
+
+**Code in a plan earns its keep when it is:**
+- A non-obvious algorithm (cascade logic, state machine, parsing, ordering rules)
+- An interface or signature contract that downstream code binds to (~5–10 lines)
+- A *single* example of a recurring pattern, not all instances of it
+- Pseudocode the implementer must follow exactly
+
+**Code in a plan is bloat when it is:**
+- Before/after blocks for mechanical refactors — the diff itself is the artifact
+- Full Razor markup (use the component name + structural description)
+- Trivial method bodies that follow mechanically from the design (getters, mappers, constructors)
+- "Item 1's code, Item 2's code, Item 3's code" — that's transcription, not design
+
+**The smell-test:** if the orchestrator at Step 3 will copy a code block out of the plan with little or no thought, the block didn't belong in the plan. Either it's so trivial it was needless transcription, or it's an implementation detail that should have surfaced organically at Step 3.
+
+**Length budget by todo type** (guidelines, not gates):
+- Bug fix → typically under 300 lines, mostly prose
+- Refactor → typically under 600 lines, prose + a few signature blocks
+- Enhancement / new feature → typically under 1,000 lines, with the largest code blocks reserved for new contracts and non-obvious algorithms
+- Bug-Exposes-Fallacy → similar to Enhancement; the Fallacy section is prose
+
+Plans well past these thresholds should be re-read for transcription smell. If the answer is "yes, the algorithm really is that complex" the size is justified — record that justification in Design Decisions. If the answer is "I was just writing out the diff," trim.
+
+Plan mode (the built-in `Shift+Tab` mode) gets brevity for free because it's read-only — it physically can't dump a 30-line code block. project-todos has no such constraint, so the discipline lives in this principle, the plan-reviewer's Pass B code-density check, and the orchestrator's own judgment.
+
 ### Decompose first
 
 Before drafting the plan in detail, ask: *Is this one plan or multiple?*
@@ -384,6 +412,7 @@ Status tracks **workflow position**, not verdict. Verdicts (Vetoed / Concerns / 
 8. **Skip with intent.** Conversational skip is fine, but record it. A skipped Plan Review six months later without context is a mystery.
 9. **Decompose into multiple plans, don't defer.** When work is bigger than one coherent plan, draft additional plan files (in this todo) or sibling todos up front. The act of creating the plan/todo file IS the capture mechanism — bullet-point "we'll come back to this" notes get lost. See "Multi-Plan Todos — Decompose Up Front, Don't Defer."
 10. **Worktree-aware.** If working in a git worktree, confirm `docs/todos/` and `docs/plans/` are tracked in the worktree before starting Step 3. The plan is the contract for fresh-context implementation — losing it because the worktree didn't include it costs a session.
+11. **The plan is the design, not the diff.** In high-effort mode the orchestrator drifts toward transcribing the implementation in markdown — full method bodies, before/after blocks, "Item 1's code, Item 2's code." Catch yourself: if a code block in the plan would be copied verbatim at Step 3 without thought, it's bloat. Use prose, file paths, signatures, and code only for non-obvious algorithms or interface contracts. See "Plan detail vs. implementation" in Step 1.
 
 ## Reference Files
 

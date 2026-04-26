@@ -133,6 +133,23 @@ For each plan section, apply its category's checks:
 **Skills section**
 - Is every framework the plan touches listed? (Missing skill → implementer doesn't load the guidance → pattern violations.)
 
+**Plan detail vs. implementation (code-density check)**
+The plan is the design, not the diff. Flag transcription smell — places where the plan dumps the implementation in markdown rather than describing the design. See project-todos SKILL "Plan detail vs. implementation."
+
+Do a quick scan with `Bash`:
+
+```bash
+awk 'BEGIN{ic=0;c=0;p=0} /^```/{ic=!ic;next} {if(ic)c++;else p++} END{print "code:",c,"prose:",p,"ratio:",c/(c+p+0.001)}' <plan-path>
+```
+
+Then flag:
+- **Total ratio** above ~0.40 (more code than prose) — likely transcription, especially in Enhancement plans without complex algorithms.
+- **Any single fenced block over ~25 lines** that isn't a non-obvious algorithm, an interface contract, pseudocode the implementer must follow exactly, or a single example of a recurring pattern. Read the block: if it's a trivial method body, before/after diff for a mechanical refactor, or full Razor markup, it's bloat.
+- **"Item 1: code, Item 2: code, Item 3: code" patterns** — sign of transcribing the diff in advance rather than describing the design once.
+- **Length far past the type's budget** (Bug ~300, Refactor ~600, Enhancement ~1,000) without a non-obvious-algorithm justification recorded in Design Decisions.
+
+Verdict impact: each transcription-smell finding is a CONCERNS-tier note, not REJECTED. The plan reviewer's job is to ask the orchestrator to trim — the design is usually fine, just over-specified. If the orchestrator confirms the algorithm really is that complex, they record the justification in Design Decisions and the reviewer accepts it on re-review.
+
 ### Step 4: Apply the Plan-Review Checklist
 
 Explicitly verify each item. Report any that fail:
@@ -151,6 +168,7 @@ Explicitly verify each item. Report any that fail:
 - [ ] **Every Companion Plans entry links to a real `docs/plans/{name}.md` (companion plan in this todo) or `docs/todos/{name}.md` (sibling todo) file that exists on disk** — see Step 4a below
 - [ ] **No phrases like "future phase," "Phase N+1," "later todo," "out of phase X," "deferred," "not in this todo," "follow-up" appear anywhere in the plan without a corresponding linked Companion Plans entry** — see Step 4a
 - [ ] Skills section lists every framework the implementation will touch
+- [ ] **Plan detail vs. implementation** — code-line ratio is reasonable for the todo type; no oversized fenced blocks that are transcription rather than design (see Step 3 code-density check)
 - [ ] For Bug-Exposes-Fallacy: the Fallacy section is present and the design flows from the corrected assumption, not the symptom
 
 ### Step 4a: Companion Plans Audit
@@ -215,6 +233,9 @@ Return a structured response:
 
 **Test Coverage Concerns**
 [Business rules without test scenarios, test tier mismatches, sacred tests at risk. "None" if clean.]
+
+**Plan Detail vs. Implementation**
+[Code-density measurement (code lines, prose lines, ratio) and any oversized blocks or transcription patterns. List specific blocks (line ranges, what they contain) that should be trimmed. "Plan detail is design-focused — no transcription smell" if clean.]
 
 ### Companion Plans
 [For each Companion Plans entry: file location in the plan body, what it covers, whether it's a plan-in-this-todo or sibling-todo, the linked path, and whether that file actually exists on disk. For each in-line deferral phrase found elsewhere in the plan: location and whether it points to a linked Companion Plans entry. Any unlinked, broken-linked, or orphan scope-cut forces CONCERNS minimum. "All scope-cuts captured as companion plans or sibling todos" only if confirmed.]
