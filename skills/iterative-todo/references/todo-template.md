@@ -10,7 +10,7 @@
 
 ## Goal
 
-[One paragraph. What success looks like in plain language. Inherits across every plan in this todo — plans do not duplicate this.]
+[One paragraph. What success looks like in plain language. Inherits across every plan in this todo — plans do not duplicate this. The Goal is durable: most discoveries don't touch it. Goal shifts are rare and require explicit user agreement; when they do happen, update this section and note the change in the same Discovery Log entry that triggered it.]
 
 ## Acceptance Criteria
 
@@ -74,9 +74,9 @@ Decision values: `Amend` / `Abandon` / `Defer` / `Re-split`. Re-split is used wh
 
 ## Sibling Todos
 
-[Todos created from work discovered during this todo, where the work belongs to its own goal rather than another plan in this todo. Empty if none.]
+[Capture-or-lose mechanism. Work that surfaced during this todo but does NOT advance this todo's Goal — yet is worth keeping rather than dropping. Rare; most discoveries get handled as Amend / Abandon / Defer / Re-split inside this todo. Empty if none.]
 
-- [ ] [Sibling Todo Title](../{sibling-name}/todo.md)
+- [ ] [Sibling Todo Title](../{sibling-name}/todo.md) — [one line: why this surfaced here, why it isn't part of this Goal]
 
 ---
 
@@ -121,7 +121,7 @@ Decision values: `Amend` / `Abandon` / `Defer` / `Re-split`. Re-split is used wh
 
 ## Results / Conclusions
 
-[Filled in at Step 9. Summary of what was learned across plans, key decisions captured in Discovery Log, the Plan Sequence Callout for the PR.]
+[Filled in at Step 9. Summary of what was learned across plans and key decisions captured in Discovery Log. The skill does not create commits or PRs — packaging the work into commits or PRs is the user's call.]
 
 ### Plan Sequence
 

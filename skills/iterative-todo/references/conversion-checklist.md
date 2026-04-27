@@ -1,21 +1,21 @@
-# Converting a project-todos Todo to iterative-todo
+# Converting an Older Flat-File Todo to the Iterative Folder Shape
 
-Use this checklist when an existing `project-todos` todo has turned out to be discovery-heavy mid-flight and the iterative shape would serve the remaining work better.
+Use this checklist when an existing flat-file todo (`docs/todos/{name}.md` with sibling `docs/plans/{name}.md`) needs to be migrated to the iterative folder shape (`docs/todos/{name}/todo.md` with `plans/` and `reviews/` subdirectories).
 
-The conversion is **structural and additive**. Existing plan content is preserved. New structure (Discovery Log, Plan Index, per-plan reviews folder) is overlaid.
+The conversion is **structural and additive**. Existing plan content is preserved. New structure (Discovery Log, Plan Index, per-plan reviews folder, Sibling Todos section) is overlaid.
 
 ## When to Convert
 
-Convert when all of these are true:
+Convert when:
 
-- The todo already has multiple plans (or the plan is being repeatedly amended).
-- Discoveries during implementation keep surfacing — the original plan's assumptions are eroding.
-- More plans are expected; the cost of trying to predict them is higher than the cost of drafting them on demand.
+- The todo lives in the older flat-file shape (`docs/todos/{name}.md` + `docs/plans/{name}.md`) and you want it on the iterative folder shape going forward.
+- Discoveries during implementation keep surfacing — the original plan's assumptions are eroding — and adding a Discovery Log on the todo would help.
+- More plans are likely; the cost of trying to predict them is higher than the cost of drafting them on demand.
 
 Do NOT convert if:
 
-- The todo is nearly done — finish it as `project-todos` and reach for `iterative-todo` on the next discovery-heavy todo.
-- The todo's scope is bounded and the original plan still holds — `project-todos` is fine.
+- The todo is nearly done — finish it as-is and use the iterative folder shape on the next todo.
+- The todo's scope is bounded, single-plan, and the original plan still holds.
 
 ## Conversion Steps
 
