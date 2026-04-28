@@ -8,6 +8,8 @@ tools:
   - Glob
   - Grep
   - Bash
+  - Write
+  - Edit
 ---
 
 # Test Reviewer

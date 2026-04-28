@@ -36,6 +36,8 @@ tools:
   - Glob
   - Grep
   - Bash
+  - Write
+  - Edit
 ---
 
 # Code Reviewer
