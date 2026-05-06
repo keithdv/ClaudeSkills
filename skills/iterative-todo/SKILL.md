@@ -1,6 +1,6 @@
 ---
 name: iterative-todo
-version: 0.3.0
+version: 0.5.0
 description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "resume the todo", or "grade the implementation". Use for multi-session, design-heavy work where the plan needs to outlive the conversation — bounded or exploratory. Plans are small working hypotheses; the todo is the durable container with a Discovery Log and Plan Index. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
@@ -67,12 +67,13 @@ This principle exists because the symmetric failure mode to over-prescribed plan
 
 **The iterative shape for tests:**
 
-1. **Plan-time test surface = Acceptance bullets.** Each acceptance bullet is a behavioral signal that should be pinned by at least one test after implementation lands. The plan does not list test files, test methods, or test tiers per rule.
-2. **Implementation tests cover what the code now does.** The implementer writes tests during implementation that exercise the Acceptance signals plus the obvious edge cases the keyboard surfaces. "Good enough but not ultimate" is allowed — `Done` means Acceptance signals pass and the new behavior has tests, not "every conceivable case is covered."
-3. **A post-implementation test-review loop closes coverage.** After the per-plan code review (Step 5), the orchestrator runs **`test-reviewer`** (Step 5b — mandatory by default). The agent surfaces gaps tiered must-cover / should-cover / nice-to-have, and splits them by source (plan-related vs. pre-existing tech-debt). The orchestrator addresses must-cover findings, re-invokes, and closes the loop at the tier the user is targeting for *this* plan. Tech-debt findings queue as their own Plan Index entries — never absorbed silently.
-4. **The user controls "good enough."** A spike or exploration may close at must-cover only. A production-bound plan may close at should-cover or higher. The skill defines the tiers; the user picks the closing bar per plan.
+1. **Plan-time test surface = Acceptance bullets, each tagged with a tier.** Each acceptance bullet is a behavioral signal that must be pinned by at least one test. **Every behavioral bullet ends with one tier tag** — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]`. Bare bullets are a draft-time validation error. The plan still does NOT enumerate test method names, test class names, or specific test scenarios — only *which tier* the signal gets pinned at. The tier decision is made once, at draft time, when the orchestrator can think clearly about what kind of evidence the signal actually needs (e.g., "Plan.Protocol stays null after load" requires `[database]` because nothing else proves persistence-or-its-absence).
+2. **Implementation writes tests at the declared tier.** The implementer writes tests during implementation that exercise each Acceptance signal at the tag's tier, plus obvious edge cases the keyboard surfaces. Writing only unit tests when a bullet declared `[integration]` is a tier mismatch — the bullet is **not pinned** until the right-tier test exists, even if the unit test passes.
+3. **Before invoking code-reviewer, the orchestrator fills in a Test Evidence map.** Every Acceptance bullet → the test method that pins it → tier confirmation. Bullets with no test are recorded as `MISSING — <reason>` rather than silently omitted. Code-reviewer is **not invoked until this map exists** in the plan body. This step is the load-bearing fix for the failure mode where prescribed test tiers got skipped without anyone noticing — the map turns "did I do it" from a vibes call into a checkable artifact.
+4. **A post-implementation test-review loop closes coverage.** After the per-plan code review (Step 5), the orchestrator runs **`test-reviewer`** (Step 5b — mandatory by default). The agent reads the Test Evidence map and the actual tests, surfaces remaining gaps tiered must-cover / should-cover / nice-to-have, and splits them by source (plan-related vs. pre-existing tech-debt). The orchestrator addresses must-cover findings, re-invokes, and closes the loop at the tier the user is targeting for *this* plan. Tech-debt findings queue as their own Plan Index entries — never absorbed silently.
+5. **The user controls "good enough."** A spike or exploration may close at must-cover only. A production-bound plan may close at should-cover or higher. The skill defines the tiers; the user picks the closing bar per plan.
 
-Why this matches how humans code: humans don't write tests from a frozen test plan. They write tests as they implement, ship when the code is right *and* the critical behaviors are pinned, then strengthen coverage in follow-up passes when reviewers or production teach them what they missed. Step 5b is the formalization of "show this to a colleague before you call it done" — bounded, discrete, and outside the implementation conversation so it actually catches things.
+Why this matches how humans code: humans don't write tests from a frozen test plan. They write tests as they implement, ship when the code is right *and* the critical behaviors are pinned, then strengthen coverage in follow-up passes when reviewers or production teach them what they missed. The tier-tag + Test Evidence map mechanism preserves that flow — the *which-tier* decision is plan-time (forces honesty), but *which-test-method* is keyboard-time (preserves discovery). Step 5b is the formalization of "show this to a colleague before you call it done" — bounded, discrete, and outside the implementation conversation so it actually catches things.
 
 ## Core Principle 3: The Todo Is the Durable Artifact
 
@@ -108,7 +109,7 @@ This means a discovery is never just a local question about the current plan. A 
 ## Directory Structure
 
 ```
-docs/todos/{todo-name}/
+docs/todos/{ID}-{todo-name}/
   todo.md                          # goal, acceptance, out-of-scope, Discovery Log, Plan Index
   plans/
     001-{short-name}.md
@@ -121,7 +122,7 @@ docs/todos/{todo-name}/
     documenter-review.md
 ```
 
-One folder per todo. Plan numbering is **monotonic** — abandoned plans keep their number so cross-references in the Discovery Log stay stable. Reviews live alongside the plan they cover.
+One folder per todo, prefixed with the 3–5 letter `{ID}` assigned at Step 1 (e.g. `OVL-office-visit-lifecycle-production-ready/`). Cross-references to plans use the `{ID}-{NNN}` form (e.g. `OVL-025`) — never bare `Plan 025`. Plan numbering is **monotonic** — abandoned plans keep their number so cross-references in the Discovery Log stay stable. Reviews live alongside the plan they cover.
 
 ## Sub-Agents
 
@@ -149,14 +150,23 @@ Before any file exists, the user and orchestrator define the goal. What problem 
 
 No empty-shell todos. If the goal isn't crisp, keep talking — don't open a todo just to have one.
 
-### Step 1 — Discovery & Initial Plan Split
+### Step 1 — Discovery, ID Assignment, & Initial Plan Split
 
 Analyze the affected code with the user. Trace the relevant aggregates, services, UI surfaces, and integration points. Identify the natural seams where the goal decomposes.
 
+**Assign a unique todo ID.** Every todo carries a 3–5 uppercase-letter ID that prefixes its folder/file name and is the canonical handle in cross-references (`OVL-025`, never bare `Plan 025`). Propose 2–3 candidate IDs derived from the todo name; the user picks. Verify uniqueness:
+
+- `glob docs/todos/{ID}-*` returns empty.
+- `glob docs/todos/completed/{ID}-*` returns empty.
+- If a project registry exists at `docs/todos/_ids.md`, no row carries the proposed ID (active or retired).
+
+If any check fails, propose a different ID. Retired IDs are never reused. If the project does not yet have `docs/todos/CONVENTIONS.md` or `docs/todos/_ids.md`, ask the user whether to bootstrap them — the convention works without the registry, but the registry makes uniqueness checks robust over time.
+
 Then draft the **initial plan split** — a guestimate of how the work breaks into pieces. Aim for 2–6 plan entries, each a single-paragraph Scope describing one focused chunk of the goal. The split is directional, not a contract; entries will be reordered, replaced, or abandoned as discoveries come in.
 
-Create the todo file in `docs/todos/{todo-name}/todo.md` using `references/todo-template.md`:
+Create the todo file at `docs/todos/{ID}-{kebab-name}/todo.md` (folder-based) or `docs/todos/{ID}-{kebab-name}.md` (single-file) using `references/todo-template.md`:
 
+- **ID** — the 3–5 letter ID assigned above.
 - **Goal** — one paragraph, written from the conversation.
 - **Acceptance Criteria** — observable, testable. The exit gate for the whole todo.
 - **Out of Scope** — bullets; what this todo will not touch.
@@ -164,6 +174,8 @@ Create the todo file in `docs/todos/{todo-name}/todo.md` using `references/todo-
 - **Discovery Log** — empty (the first entry comes during implementation).
 
 For each entry in the initial split, create a stub plan file in `plans/` with status `Draft`, the next monotonic number, and **only the Scope paragraph filled**. Other sections are left empty — they get filled at Step 2 when the plan's turn comes.
+
+If the project maintains `docs/todos/_ids.md`, add a row under **Active** with the new ID and folder/file name in the same change.
 
 Set Type, Status `In Progress`, Priority, today's date.
 
@@ -261,7 +273,11 @@ When the plan's Steps are complete and Acceptance is met, set plan status to `Do
 
 ### Step 5 — Per-Plan Code Review (Encouraged)
 
-Invoke **code-reviewer** with the plan and todo paths. Ask for a lightweight review focused on the plan's deliverable: did it land cleanly, are tests passing, are there obvious issues, is the shape right.
+**Pre-flight: fill in the plan's Test Evidence section.** Before invoking code-reviewer, the orchestrator MUST populate the plan's `## Test Evidence` table — one row per Acceptance bullet, with the cited test method and a confirmation that its tier matches the bullet's tier tag. Bullets with no test of the right tier are recorded as `MISSING — <one-line reason>`. Shipping with `MISSING` rows requires explicit user acknowledgement (and ideally a queued follow-up plan); silent omission is the failure mode this section eliminates.
+
+The orchestrator does NOT invoke code-reviewer until the Test Evidence table exists. This is a hard gate, not a soft preference. The map is the difference between "tests prescribed at draft → tests written at keyboard" being a checkable fact vs. a vibes call.
+
+Then invoke **code-reviewer** with the plan and todo paths. Ask for a lightweight review focused on the plan's deliverable: did it land cleanly, are tests passing, are there obvious issues, is the shape right. The reviewer reads the Test Evidence table, spot-checks that the cited test methods exist and pin the claimed signal, and grades Test Coverage against tier-match — see `references/rubric.md`.
 
 **Discovery at code review is welcome.** A reviewer finding "this should have been done differently" is the system working, not a planning failure. The plan-time decision was a working hypothesis; the reviewer has the actual code to look at and may see something the plan-time view missed. Treat reviewer suggestions as redirect signals, not as evidence the plan was bad.
 
@@ -354,7 +370,7 @@ Verify:
 - Plan Index status: every plan is `Done` or `Abandoned`.
 - Acceptance Criteria all checked.
 
-Set todo status to `Complete`. Move `docs/todos/{todo-name}/` to `docs/todos/completed/{todo-name}/`. The whole folder moves — plans, reviews, todo.md.
+Set todo status to `Complete`. Move `docs/todos/{ID}-{todo-name}/` to `docs/todos/completed/{ID}-{todo-name}/`. The whole folder moves — plans, reviews, todo.md. The `{ID}` prefix is preserved in the move so cross-references (like `OVL-025`) continue to resolve. If the project maintains `docs/todos/_ids.md`, move the row from the **Active** section to the **Complete / Withdrawn / Superseded** section in the same change.
 
 **The user decides when to commit and when to open PRs.** The orchestrator may *suggest* a commit at natural milestones — most commonly when a plan moves to `Done`, after a per-plan code review lands, or after the final graded review — but the suggestion is a question, not an action. The orchestrator does not commit, push, or open PRs without the user saying yes. PRs in particular are entirely the user's call; never assume a PR cadence (per plan, per todo, or otherwise).
 
@@ -391,7 +407,7 @@ If it advances the Goal, it's not a sibling — it's an in-todo response (Amend 
 
 The triggers that are **not** by themselves enough for a sibling: distinct branch sequencing, separate PR, "this is bigger than a plan." All of those can also be true of in-todo work. The deciding question is always whether the discovery moves *this* Goal forward.
 
-When you do open a sibling, it's its own folder under `docs/todos/{sibling-name}/` with its own goal, plans, Discovery Log, and graded review. Record the relationship in the parent todo's **Sibling Todos** section (one bullet per sibling, one line on why it surfaced here). The sibling's `todo.md` should mirror the back-reference. The sibling proceeds independently — the parent doesn't wait for it unless there's a real dependency, and even then dependencies are rare.
+When you do open a sibling, it's its own folder under `docs/todos/{ID}-{sibling-name}/` (with its own freshly-assigned ID per Step 1) with its own goal, plans, Discovery Log, and graded review. Record the relationship in the parent todo's **Sibling Todos** section (one bullet per sibling, one line on why it surfaced here). The sibling's `todo.md` should mirror the back-reference. The sibling proceeds independently — the parent doesn't wait for it unless there's a real dependency, and even then dependencies are rare.
 
 If the work isn't worth keeping, just drop it. Capturing every stray observation as a sibling is the noise the system is trying to avoid.
 
@@ -408,7 +424,7 @@ This split exists because internal contradictions usually look bigger before the
 
 Use when an existing `project-todos` todo has turned out to be discovery-heavy mid-flight. See `references/conversion-checklist.md` for the step-by-step. High points:
 
-1. Create the new folder structure (`docs/todos/{name}/plans/`, `reviews/`).
+1. Create the new folder structure (`docs/todos/{ID}-{name}/plans/`, `reviews/`) — assign an ID per Step 1 if the existing todo doesn't have one.
 2. Move the existing todo's content into the new `todo.md`, keeping Goal / Acceptance / Out of Scope; add empty Discovery Log and Plan Index.
 3. Move existing plan files into `plans/` with their original numbers preserved.
 4. Mark each existing plan with current status (`Done` / `In Progress` / `Abandoned`).

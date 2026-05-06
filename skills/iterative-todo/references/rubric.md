@@ -53,17 +53,32 @@ The reviewer should also spot-check each plan's individual Acceptance bullets to
 
 ## 2. Test Coverage
 
-Every plan has a recorded **closing tier** from its Step 5b test review, and the closing tiers across the todo are appropriate for the work's risk profile. The code-reviewer **does not re-do the test-reviewer's job** — it verifies that the test-review loop ran and that the closures hold up against the actual code.
+Coverage is graded against two artifacts: the per-plan **Test Evidence** map (filled before code-review per Step 5) and the per-plan **closing tier** record from Step 5b. The first proves the prescribed-tier tests actually got written; the second proves the post-implementation review loop ran. Code-reviewer **does not re-do the test-reviewer's job** — it verifies both artifacts exist, that the cited test methods exist and pin the claimed signal, and that the closing tier is appropriate for the work's risk profile.
+
+### Per-plan Test Evidence map (Step 5 pre-flight)
+
+Each plan's `## Test Evidence` table maps every Acceptance bullet to a test method at the bullet's tier-tag. The reviewer spot-checks:
+
+- **Every behavioral Acceptance bullet has a row.** Bullets without rows are gaps the orchestrator silently elided — automatic finding.
+- **Cited test methods exist.** Grep the test files; if `ProjectName.Tests.X.Y` is cited but doesn't exist, the row is a lie.
+- **Tier matches.** A bullet declared `[integration]` cited with a unit-only test is a tier mismatch — the bullet is **not pinned** at its declared tier even if the unit test passes.
+- **`MISSING` rows are explicit.** A `MISSING — <reason>` row is acceptable when the user accepted the gap; a missing row (no entry at all) is not.
+
+### Closing tier (Step 5b)
+
+Each Done plan has `reviews/{NNN}-test-review.md` with a closing tier. The reviewer checks the closing tier against the work's risk profile.
+
+### Grades
 
 | Grade | Criteria |
 |-------|----------|
-| A | Every plan in `plans/` (status `Done`) has a corresponding `reviews/{NNN}-test-review.md` with a closing tier. No plan-related must-cover findings remain unaddressed. No sacred test was gutted. The closing-tier picture matches what the orchestrator and user committed to in the todo. |
-| B | Test reviews exist for every Done plan, but 1–2 plans closed at a tier that looks light given the behavior changed (e.g., a load-bearing transition closed at must-cover only, with should-cover gaps the reviewer can name). No sacred test was gutted. |
-| C | One or more Done plans have no test review on file, OR a plan-related must-cover finding was silently deferred (no recorded "explicit accept with reason"), OR an existing (sacred) test was modified in a way that weakens its original intent. |
+| A | Every Done plan has a fully-populated Test Evidence table with all cited tests existing at the declared tier (or `MISSING` rows with explicit reasons), AND a `reviews/{NNN}-test-review.md` with a closing tier. No plan-related must-cover findings remain unaddressed. No sacred test was gutted. Closing-tier picture matches what the orchestrator and user committed to in the todo. |
+| B | Test Evidence and test-review records exist for every Done plan, but 1–2 minor gaps: one tier mismatch where the cited unit test materially exercises the behavior (close call), or one plan closed at a tier that looks light given the behavior changed. No sacred test was gutted, no `MISSING` rows lack explicit reasons. |
+| C | One or more Done plans have a missing or under-populated Test Evidence table (silent omissions, not explicit `MISSING` rows), OR cited tests don't exist or don't match the declared tier in a way that means the bullet isn't actually pinned, OR a plan-related must-cover finding was silently deferred (no recorded "explicit accept with reason"), OR an existing (sacred) test was modified in a way that weakens its original intent. |
 
 **"Sacred test" rule** (from CLAUDE.md): existing tests must never be gutted to make new code pass. Even one weakened existing test is automatic C in this category.
 
-**What this category is NOT:** an enumeration of every test scenario the reviewer would have written. The post-implementation `test-reviewer` loop already did that, against actual code, with the user picking the closing tier. Re-litigating tier choices at Step 7 is overreach unless the orchestrator and user clearly under-targeted (a high-stakes data-mutation plan closed at nice-to-have is the kind of thing to flag; a UI-text plan closed at must-cover-only is not).
+**What this category is NOT:** an enumeration of every test scenario the reviewer would have written from scratch. The post-implementation `test-reviewer` loop already evaluated coverage against actual code, with the user picking the closing tier. The code-reviewer's job is to verify *the artifacts the orchestrator committed to* (the tier tags in Acceptance, the Test Evidence map, the closing tier) are honest — not to re-run the test-review loop.
 
 ## 3. Design Alignment
 
@@ -182,7 +197,7 @@ The code-reviewer returns findings in this structure:
 | 003 | `plans/003-{name}.md` | Done | [Summary] |
 
 **Sibling Todos:**
-- `docs/todos/{name}/todo.md` — [why separate]
+- `docs/todos/{ID}-{name}/todo.md` — [why separate]
 
 (Or "No sibling todos." if none.)
 ```

@@ -1,6 +1,6 @@
 # Converting an Older Flat-File Todo to the Iterative Folder Shape
 
-Use this checklist when an existing flat-file todo (`docs/todos/{name}.md` with sibling `docs/plans/{name}.md`) needs to be migrated to the iterative folder shape (`docs/todos/{name}/todo.md` with `plans/` and `reviews/` subdirectories).
+Use this checklist when an existing flat-file todo (`docs/todos/{name}.md` with sibling `docs/plans/{name}.md`) needs to be migrated to the iterative folder shape (`docs/todos/{ID}-{name}/todo.md` with `plans/` and `reviews/` subdirectories — `{ID}` is the 3–5 letter unique todo ID assigned per SKILL.md Step 1).
 
 The conversion is **structural and additive**. Existing plan content is preserved. New structure (Discovery Log, Plan Index, per-plan reviews folder, Sibling Todos section) is overlaid.
 
@@ -27,14 +27,16 @@ Conversions touch durable working files. Confirm with the user before starting:
 
 On confirmation, continue.
 
-### 2. Create the new folder structure
+### 2. Assign an ID and create the new folder structure
+
+Assign a 3–5 letter unique todo ID per SKILL.md Step 1 (verify uniqueness against `docs/todos/{ID}-*`, `docs/todos/completed/{ID}-*`, and any project registry at `docs/todos/_ids.md`).
 
 ```bash
-mkdir -p docs/todos/{todo-name}/plans
-mkdir -p docs/todos/{todo-name}/reviews
+mkdir -p docs/todos/{ID}-{todo-name}/plans
+mkdir -p docs/todos/{ID}-{todo-name}/reviews
 ```
 
-The todo file moves to `docs/todos/{todo-name}/todo.md`.
+The todo file moves to `docs/todos/{ID}-{todo-name}/todo.md`. Add the `**ID:**` line near the top of the todo header.
 
 ### 3. Rewrite todo.md to the iterative shape
 
@@ -58,8 +60,8 @@ Remove:
 Plan numbering is **monotonic** — preserve the original numbers. If the original used names without numbers, assign monotonic numbers in the order plans were drafted (chronological by creation date).
 
 ```
-docs/plans/{plan-1}.md  →  docs/todos/{todo-name}/plans/001-{name}.md
-docs/plans/{plan-2}.md  →  docs/todos/{todo-name}/plans/002-{name}.md
+docs/plans/{plan-1}.md  →  docs/todos/{ID}-{todo-name}/plans/001-{name}.md
+docs/plans/{plan-2}.md  →  docs/todos/{ID}-{todo-name}/plans/002-{name}.md
 ```
 
 For each plan, decide its current iterative status:
@@ -137,7 +139,7 @@ Where work stands determines the resume point:
 
 After conversion, verify:
 
-- [ ] `docs/todos/{todo-name}/todo.md` exists and uses iterative-todo template
+- [ ] `docs/todos/{ID}-{todo-name}/todo.md` exists and uses iterative-todo template
 - [ ] Every plan from the original is in `plans/` with monotonic numbering preserved
 - [ ] Plan Index lists every plan with current status
 - [ ] Discovery Log has at least one entry per Plan Amendment and per abandoned plan

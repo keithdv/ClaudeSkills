@@ -1,5 +1,6 @@
 # [Title of Work]
 
+**ID:** XYZ ([3–5 uppercase letters; assigned at Step 1; unique across all todos active and completed; never reused. Plans referenced as `XYZ-NNN`. See project's `docs/todos/CONVENTIONS.md` if one exists.])
 **Type:** Enhancement | Bug | Bug-Exposes-Fallacy
 **Status:** In Progress | Complete | Blocked
 **Priority:** High | Medium | Low
