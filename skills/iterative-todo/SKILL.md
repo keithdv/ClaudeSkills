@@ -277,7 +277,22 @@ When the plan's Steps are complete and Acceptance is met, set plan status to `Do
 
 The orchestrator does NOT invoke code-reviewer until the Test Evidence table exists. This is a hard gate, not a soft preference. The map is the difference between "tests prescribed at draft → tests written at keyboard" being a checkable fact vs. a vibes call.
 
-Then invoke **code-reviewer** with the plan and todo paths. Ask for a lightweight review focused on the plan's deliverable: did it land cleanly, are tests passing, are there obvious issues, is the shape right. The reviewer reads the Test Evidence table, spot-checks that the cited test methods exist and pin the claimed signal, and grades Test Coverage against tier-match — see `references/rubric.md`.
+**Pre-flight: run build + test ONCE and pass the log paths to the reviewer.** Before invoking code-reviewer, the orchestrator runs the project's build and test commands (as documented in CLAUDE.md) **exactly once each**, redirects all output to log files, and passes those file paths into the reviewer's prompt. The reviewer is forbidden from running build or test itself — it greps the provided logs. This eliminates the failure mode where the reviewer issues multiple `dotnet test` invocations to get different output formats, racing the shared test database and inflating review time by 10-20 minutes.
+
+Suggested file layout (adapt commands to the project):
+
+```
+reviews/{NNN}-build.log   # full output of one build run
+reviews/{NNN}-test.log    # full output of one test run
+```
+
+Pass both paths into the code-reviewer invocation: "Build log: reviews/{NNN}-build.log. Test log: reviews/{NNN}-test.log. Do NOT run build or test yourself; grep the logs."
+
+**code-reviewer fails out if the log paths are missing.** The agent is instructed to return a one-line error and refuse to proceed rather than run build/test itself. If you see that error, run the pre-flight and re-invoke. Do not interpret the error as a reason to relax the rule — the fail-out is the protection working.
+
+If the build or test command surfaces a flaky / transient failure, the orchestrator re-runs sequentially (never in parallel), overwrites the log, and notes the re-run when invoking the reviewer.
+
+Then invoke **code-reviewer** with the plan and todo paths plus the log paths. Ask for a lightweight review focused on the plan's deliverable: did it land cleanly, are tests passing, are there obvious issues, is the shape right. The reviewer reads the Test Evidence table, spot-checks that the cited test methods exist and pin the claimed signal, and grades Test Coverage against tier-match — see `references/rubric.md`.
 
 **Discovery at code review is welcome.** A reviewer finding "this should have been done differently" is the system working, not a planning failure. The plan-time decision was a working hypothesis; the reviewer has the actual code to look at and may see something the plan-time view missed. Treat reviewer suggestions as redirect signals, not as evidence the plan was bad.
 
@@ -339,9 +354,9 @@ Before falling through, verify Acceptance Criteria on the todo. If any criterion
 
 ### Step 7 — Final Graded Review (Mandatory)
 
-Triggered when the last in-flight plan goes Done **and** the Plan Index has no queued plans. **The orchestrator prompts the user to confirm the todo's Acceptance Criteria are met.** On confirmation, fire the final review.
+Triggered when the last in-flight plan goes Done **and** the Plan Index has no queued plans. **The orchestrator prompts the user to confirm the todo's Acceptance Criteria are met.** On confirmation, run the same build+test pre-flight as Step 5 (once each, captured to `reviews/final-build.log` and `reviews/final-test.log`), then fire the final review.
 
-Invoke **code-reviewer** with the **whole arc** — the todo, every plan in `plans/`, the Discovery Log, and per-plan reviews. Ask for a graded review against the rubric: traces every Acceptance Criterion through real code, evaluates Discovery Log decisions, grades Scope Discipline against the todo's Out of Scope list.
+Invoke **code-reviewer** with the **whole arc** — the todo, every plan in `plans/`, the Discovery Log, per-plan reviews, **plus the build and test log paths**. Ask for a graded review against the rubric: traces every Acceptance Criterion through real code, evaluates Discovery Log decisions, grades Scope Discipline against the todo's Out of Scope list. The reviewer greps the provided logs for build/test signal; it does NOT run build or test itself.
 
 The rubric is `references/rubric.md`. Section 5 (Framework Correctness) is framework-agnostic in this user-skill — project-specific idiom checklists live in the project repo, typically at `<repo>/.claude/skills/iterative-todo/references/rubric-framework.md` or `<repo>/docs/code-review-rubric.md`. The reviewer adds those to its checks if found.
 

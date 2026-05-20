@@ -193,11 +193,27 @@ Every justification references a specific file, method, line, test name, or plan
 
 When tracing an Acceptance Criterion, read the code that implements it. Verify the logic matches the stated expected behavior. Don't assume that because a file is named correctly or a method exists, the criterion holds.
 
-### Run Tests Fresh — Full Suite
+### Consume the Build / Test Logs — Don't Re-Run
 
-Do not rely on the orchestrator's report. **You are the canonical full-suite gate.** Implementation runs scoped tests during the plan; the iterative-todo workflow makes full-suite optional during implementation precisely because Step 5 and Step 5b run a fresh, unfiltered full suite. If you trust the implementer's reported results, the gate doesn't exist.
+**The orchestrator runs build and test once each and passes the log file paths into your invocation prompt** (per iterative-todo Step 5 / Step 7 pre-flight). Grep those logs for build/test signal. Capture the actual count of passed/failed tests in the Build & Test Evidence section.
 
-Run the project's test command yourself, top-level (no filters), against a clean build. Use the command documented in CLAUDE.md. Capture the actual count of passed/failed tests in the Build & Test Evidence section. A test failure is automatic C in Build & Test Health regardless of whether it looks related to the plan — the user is the only one who can classify a failure as acceptable.
+A test failure is automatic C in Build & Test Health regardless of whether it looks related to the plan — the user is the only one who can classify a failure as acceptable.
+
+**Hard prohibition: do NOT run the project's build or test command yourself, for ANY reason.** Not for a different output format, not for a "quick sanity check," not to "verify the log is current," not after an edit. The orchestrator already ran it; everything you need is in the log. Want a different view → grep the file differently.
+
+**If the orchestrator did not provide log paths, FAIL OUT immediately.** Return a one-line error: `"Cannot review: orchestrator did not provide build.log and test.log paths. Per iterative-todo Step 5 / Step 7 pre-flight, the orchestrator must run build + test once each and pass the log paths in. Re-invoke after running the pre-flight."` Do NOT proceed with the rest of the review. Do NOT run the build or test command yourself "to be helpful," "to unblock," "to save a round trip," or for any other reason. Returning early with the error IS the correct, complete response. An aggressive instinct to succeed by filling the gap is the exact failure mode this rule exists to prevent.
+
+This rule exists because multiple test invocations race the shared test database (when the project uses one), produce false-negative failures, and have repeatedly turned 5-minute reviews into 20-minute reviews. The grep-the-same-log pattern handles every legitimate need.
+
+### No Git State Mutations — For ANY Reason
+
+Read-only git (`git log`, `git diff`, `git show`, `git status`) is fine. Do NOT run `git stash`, `git stash pop`, `git stash apply`, `git checkout <other-branch>`, `git checkout <file>`, `git reset`, `git restore`, `git clean`, `git revert`, `git rebase`, `git merge`, or anything else that modifies the working tree, index, or stash list. The branch is already checked out at the right commit.
+
+**Rationalizations that are NOT allowed to override this rule:**
+- "I want to check if the test failed on the previous commit." → No. Report the failure as it appears today.
+- "I want to compare behavior against `main` / `release` / the parent branch." → No. Use `git diff` for cross-branch context without mutating state.
+- "There's a stash that might be related." → No. Stashes are off-limits regardless of who put them there.
+- "I'll put it back the way I found it." → No. A prior reviewer once `git stash pop`-ed an unrelated branch's old stash into a review branch and corrupted 16 files with merge conflicts. That failure mode must not repeat.
 
 ### Don't Re-Litigate Closed Test Reviews
 
