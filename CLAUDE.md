@@ -11,6 +11,42 @@
 
 ---
 
+## ALWAYS Capture Build and Test Output to a File
+
+**Builds and tests produce large output that gets truncated when piped through `tail`, `grep`, or the harness's task-output buffer.** Re-running a build or test because you couldn't find the failure in truncated output is the single most expensive mistake you can make — it wastes minutes per cycle and trains the user to distrust you.
+
+**The rule:**
+
+```bash
+dotnet build > /tmp/build.log 2>&1
+dotnet test --no-build > /tmp/test.log 2>&1
+```
+
+Then `grep` the file for what you need:
+
+- Build errors: `grep -E "error CS|Build FAILED|Build succeeded|Error\(s\)" /tmp/build.log`
+- Test failures: `grep -E "\[FAIL\]|Failed " /tmp/test.log`
+- Failed test names with full message: `grep -B 1 -A 10 "\[FAIL\]" /tmp/test.log`
+- Summary footer: `tail -3 /tmp/test.log`
+
+**Why this matters:**
+
+- The harness's `task-output` file truncates to ~30 KB. A test run with hundreds of passing tests pushes the failure detail (which appears earlier) past the truncation point. By the time you `tail -N` the file, only the trailing stack trace and the summary footer remain.
+- Once the output is gone, the next instinct is to re-run the command. **Don't.** The output you need is still in the log file you redirected to — go grep it again with different patterns.
+- Test runs are slow (minutes per cycle). Re-running because of a tooling-truncation problem is pure waste.
+
+**This applies to:**
+
+- `dotnet build` — always `> /tmp/build.log 2>&1`
+- `dotnet test` — always `> /tmp/test.log 2>&1`
+- `mvn`, `gradle`, `npm test`, any other build/test command with verbose output
+
+Use unique filenames per invocation if you'll need to compare runs (`/tmp/test-before.log`, `/tmp/test-after.log`).
+
+**If a test/build is running in the background:** the harness writes its full output to a task-output file (whose path it tells you). That file *also* gets truncated to ~30 KB. Treat it the same as direct stdout — if the failure detail is past the truncation point, redirect to your own file on the next run; do NOT re-run just because the task-output was short.
+
+---
+
 #### NuGet Package Lookups
 
 - **ONLY use the listed/registration endpoints on `nuget.org`** (e.g., `https://api.nuget.org/v3/registration5-gz-semver2/...` or the package page at `https://www.nuget.org/packages/<id>`).
