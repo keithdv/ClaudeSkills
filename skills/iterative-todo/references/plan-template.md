@@ -5,14 +5,16 @@
 **Related Todo:** [Link to ../todo.md]
 **Status:** Draft
 **Last Updated:** YYYY-MM-DD
+**Plan-review opt-in:** [Yes/No (one-line reason — e.g., "Yes (production data migration)" or "No (mechanical refactor, narrow blast radius)")]
+**Code-review opt-in:** [Yes/No (one-line reason — opt in for behavior-changing plans; skip for mechanical ports, renames, doc-only)]
 
-<!-- Valid status values: Draft | In Progress | Done | Abandoned -->
+<!-- Valid status values: Draft | In Progress | Done | Abandoned | Retired -->
 
 ---
 
 ## A note on what this template wants
 
-A plan is a **prescription** — it describes **what** needs to be true and **why**, at the intent level. The plan is **not** the implementation; it does **not** describe what the code looks like. Specific identifiers, line numbers, exact method signatures, file-by-file edit lists, code fences longer than two lines, fallback branches, and pre-flight code reconnaissance all belong at the keyboard, not in the plan body.
+A plan is a **prescription** — it describes **what** needs to be true and **why**, at the intent level. The plan is **not** the implementation; it does **not** describe what the code looks like. Specific identifiers, line numbers, exact method signatures, file-by-file edit lists, code fences longer than two lines, and fallback branches all belong elsewhere: **code-level reality observed before implementation goes in the Current State section (filled at pre-flight, Step 3); code-level decisions made while editing go in Plan Amendments.** Scope, Intent, and Steps stay at the intent level.
 
 The plan is a **working hypothesis**, not a contract. It does not lock when implementation begins. Discoveries during implementation become Plan Amendments (small shifts), an Abandonment Reason (wrong path), or trigger a re-split of the parent todo's Plan Index (significant). Restructuring opportunities can be **named** in a step ("this seam will probably need to move onto the aggregate") but not **designed** — the implementer finds the right shape while editing.
 
@@ -103,9 +105,23 @@ Bare bullets — no tag — are a draft-time validation error. The plan is not r
 
 ---
 
+## Current State (Pre-Flight)
+
+[**Filled at Step 3, after draft and before the first edit.** The orchestrator walks the plan's Intent and Steps against the actual code at the seams this plan touches — no edits yet — and records what's actually there.
+
+This is the **sanctioned home for code-level detail**: line numbers, signatures, "the handler currently does X at `Foo.cs:142`," existing verb shapes, current test placement. It's allowed here because this section is a *record of reality*, not a prescription — keeping it here is what keeps Scope/Steps at intent level.
+
+Discoveries that shift the plan become Plan Amendments **before the first edit**. A stub that turns out stale (drafted against code that has since moved) gets reshaped here instead of mid-implementation. Keep it proportionate — minutes of walking for a contained plan, not a codebase re-review.]
+
+- [Seam: what's actually there today, with file/line citations as needed]
+- [Existing pattern the implementation should match (e.g., the codebase's established fetch-or-create verb shape)]
+- [Surprises → Plan Amendment references]
+
+---
+
 ## Test Evidence
 
-[**Filled in after implementation, before invoking `code-reviewer` (Step 5).** Maps every Acceptance bullet to the test method that pins it, at the tier the bullet declared. The orchestrator does NOT invoke code-reviewer until this section exists.
+[**Filled in after implementation, before invoking `test-reviewer` (Step 5 per-plan gate).** Maps every Acceptance bullet to the test method that pins it, at the tier the bullet declared. The orchestrator does NOT invoke the gate until this section exists.
 
 This is the artifact that makes "did I write the prescribed tests" a checkable fact instead of a vibes call. It is short — one row per Acceptance bullet — and lives in the plan body so reviewers can grep against it.
 
@@ -139,16 +155,13 @@ Empty if no amendments. Multiple amendments stack newest-first or oldest-first, 
 
 ---
 
-## Abandonment Reason
+## Abandonment / Retirement Reason
 
-<!-- ONLY filled in if Status: Abandoned. Remove or leave empty otherwise. -->
+<!-- ONLY filled in if Status: Abandoned or Retired. Remove or leave empty otherwise. -->
 
-[One paragraph. Required when the plan is abandoned. Capture:
-- What we believed when this plan was drafted
-- What turned out to be true (the discovery that abandoned this plan)
-- What the next plan should do differently
+[**Abandoned** (one paragraph, required): capture what we believed when this plan was drafted, what turned out to be true (the discovery that abandoned it), and what the next plan should do differently. This is what makes abandonment cheap — the next plan inherits the lesson instead of re-discovering it. The abandoned plan stays in the Plan Index with its number; never delete it.
 
-This is what makes abandonment cheap — the next plan inherits the lesson instead of re-discovering it. The abandoned plan stays in the Plan Index with its number; never delete it.]
+**Retired** (one line, required): where the work went — folded into {ID}-{NNN}, superseded by a re-split, or carved out to sibling todo {ID}. Retirement means the plan stopped being needed without failing; the Index row stays as a tombstone.]
 
 ---
 

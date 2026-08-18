@@ -31,21 +31,24 @@
 
 ## Plan Index
 
-[Monotonic numbering. Abandoned plans keep their number. Pre-populated at Step 1 with the **initial plan split** (the directional guestimate of how the goal decomposes — typically 2–6 entries, each backed by a stub plan file with only Scope filled). Index evolves as plans are drafted, completed, abandoned, or re-split. Status: `Draft` / `In Progress` / `Done` / `Abandoned`.]
+[Monotonic numbering. Abandoned and Retired plans keep their numbers. Pre-populated at Step 1 with the **initial plan split** — 2–6 stubs for contained todos, 6–12 for large restructures; growing 1.5–2× over the todo's life through this index is the system working. Status: `Draft` / `In Progress` / `Done` / `Abandoned` / `Retired`. Keep Status cells terse — a status word plus at most a few words; narrative lives in the plan or the Discovery Log, review verdicts live in `reviews/`.]
 
 | # | File | Title | Status |
 |---|------|-------|--------|
 | 001 | [001-{name}](./plans/001-{name}.md) | [short title] | Done |
 | 002 | [002-{name}](./plans/002-{name}.md) | [short title] | Abandoned |
 | 003 | [003-{name}](./plans/003-{name}.md) | [short title] | In Progress |
+| 004 | [004-{name}](./plans/004-{name}.md) | [short title] | Retired (folded into 003) |
 
 ---
 
 ## Discovery Log
 
-[Append-only. One entry per discovery during implementation. Terse, navigational — long-form context lives on the affected plan (Plan Amendments or Abandonment Reason).
+[Append-only. One entry per discovery during implementation. Terse, navigational — **budget ~100 words per entry**; long-form context lives on the affected plan (Plan Amendments or Abandonment Reason) and the entry points at it. Cite plans in `{ID}-{NNN}` form so entries stay greppable after the todo moves.
 
-Decision values: `Amend` / `Abandon` / `Defer` / `Re-split`. Re-split is used when the discovery is significant enough to change the Plan Index itself (reorder queued plans, drop ones that no longer apply, add new ones, or shift the goal). For Re-split, list the index changes inline.]
+**Review output never goes here** — test-review and code-review findings live in `reviews/{NNN}-*.md`; an entry may summarize a review's outcome in one line and link the file. PR descriptions and file-change enumerations don't belong here either.
+
+Decision values: `Amend` / `Abandon` / `Defer` / `Re-split`. Use the fields — when the taxonomy is skipped, decisions stop being greppable. Re-split changes the Plan Index itself (reorder, drop/`Retired`, add); list the index changes inline.]
 
 ### YYYY-MM-DD — Plan 003
 - **Finding:** [one sentence]
@@ -81,48 +84,35 @@ Decision values: `Amend` / `Abandon` / `Defer` / `Re-split`. Re-split is used wh
 
 ---
 
-## Final Graded Review
+## Close-Out Audit
 
-[Filled in at Step 7, when last in-flight plan goes Done and Plan Index has no queued plans, AND the user has confirmed Acceptance Criteria are met. Re-runs append; do not overwrite.]
+[Filled in at Step 7, when the last plan closes and the Plan Index has no queued work, AND the user has confirmed Acceptance Criteria are met. Findings-only — no grades. Re-runs append; do not overwrite.]
 
-### YYYY-MM-DD — Grade [A | B | C]
+### YYYY-MM-DD — Verdict: [CLEAN | CONCERNS]
 
-| Category | Grade | Justification |
-|----------|-------|---------------|
-| Requirements Coverage | A | [1-line] |
-| Test Coverage | A | [1-line] |
-| Design Alignment | A | [1-line] |
-| Code Quality | A | [1-line] |
-| Framework Correctness | A | [1-line] |
-| Build & Test Health | A | [1-line] |
-| Scope Discipline | A | [1-line] |
-
-**To reach A:** [Suggestions if not already A; "N/A" if already A]
+**Veto-tier findings:** [resolved items with one line each, or "None"]
+**Callouts:** [each with disposition — queued as {ID}-{NNN} / accepted with reason / fixed inline]
+**Deferred work carrying forward:** [one line per item, or "None — fully self-contained"]
 
 **User acknowledgment:** [Date — "Accepted" or "Addressing [specific items]"]
 
-**Full review:** [`reviews/final-graded-review.md`](./reviews/final-graded-review.md)
+**Full audit:** [`reviews/close-out-audit.md`](./reviews/close-out-audit.md)
 
 ---
 
-## Documentation Review
+## Docs & Retro
 
-[Filled in at Step 8.]
+[Filled in at Step 8 — Completion.]
 
-**Completed:** YYYY-MM-DD
-**Files updated:**
-- [file path] — [what changed]
+**Documentation:** [Confirmation that doc deltas shipped in the same PRs as the behavior they describe, per project rules. Internal-contradiction callouts reconciled: list each with the resolution. Remaining doc debt queued as: {ID}-{NNN} / sibling todo / "none".]
 
-**Developer deliverables** (source-code touch-ups requested by documenter):
-- [file path] — [what changed, by orchestrator]
-
-**Full review:** [`reviews/documenter-review.md`](./reviews/documenter-review.md)
+**Retro (one paragraph):** [What this todo taught about the *workflow itself* — a gate that misfired, a mechanic that got skipped, a convention that decayed. Route lessons to where they'll act: project CLAUDE.md, the iterative-todo skill backlog, or persistent memory. "Nothing notable" is a valid retro.]
 
 ---
 
 ## Results / Conclusions
 
-[Filled in at Step 9. Summary of what was learned across plans and key decisions captured in Discovery Log. The skill does not create commits or PRs — packaging the work into commits or PRs is the user's call.]
+[Filled in at Step 8. Summary of what was learned across plans and key decisions captured in Discovery Log. The skill does not create commits or PRs — packaging the work into commits or PRs is the user's call.]
 
 ### Plan Sequence
 
@@ -131,8 +121,9 @@ Plans for this todo (`docs/todos/completed/{todo-name}/todo.md`):
 - [x] 001-{name} — Done
 - [x] 002-{name} — Abandoned (see Abandonment Reason)
 - [x] 003-{name} — Done
+- [x] 004-{name} — Retired (folded into 003)
 
 Discovery Log: {N} entries across implementation.
-Final Graded Review: Grade {A/B/C} (acknowledged).
-Documentation: {N} rules added/changed.
+Close-Out Audit: {CLEAN | CONCERNS → resolved} (acknowledged).
+Documentation: {N} rules added/changed, shipped in-PR.
 ```

@@ -66,7 +66,7 @@ docs/plans/{plan-2}.md  →  docs/todos/{ID}-{todo-name}/plans/002-{name}.md
 
 For each plan, decide its current iterative status:
 
-- `Done` — plan was completed and moved to `plans/completed/` in the old shape, or has a passing graded review.
+- `Done` — plan was completed and moved to `plans/completed/` in the old shape, or has a passing review of any era (graded reviews from the pre-0.6 workflow count).
 - `In Progress` — plan was the active one when conversion started.
 - `Abandoned` — plan was started but explicitly stopped. Add an **Abandonment Reason** paragraph (the user provides this in conversation — what was learned, why it stopped).
 - `Draft` — plan was queued (e.g., a stub plan from the original "Multi-Plan Todos" pattern).
@@ -125,7 +125,7 @@ These are the natural starting points for the iterative phase.
 
 ### 9. Update the todo's Plan Sequence reference (if it had one)
 
-Old shape had a Plan Sequence Callout in Results. The iterative shape generates this at Step 9 from the Plan Index. Remove the old callout if it's stale.
+Old shape had a Plan Sequence Callout in Results. The iterative shape generates this at Step 8 (Completion & Retro) from the Plan Index. Remove the old callout if it's stale.
 
 ### 10. Resume
 
@@ -133,7 +133,7 @@ Where work stands determines the resume point:
 
 - An `In Progress` plan exists → resume at Step 4 (Implement) of the iterative workflow.
 - All plans `Done` or `Abandoned` and queued `Draft` plans exist → resume at Step 2 (draft next plan — flesh out the next Draft).
-- All plans `Done` or `Abandoned` and Plan Index empty → prompt user to confirm Acceptance Criteria → Step 7 (Final Graded Review).
+- All plans `Done` or `Abandoned` and Plan Index empty → prompt user to confirm Acceptance Criteria → Step 7 (Close-Out Audit).
 
 ## Verification
 

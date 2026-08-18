@@ -1,10 +1,10 @@
 ---
 name: business-requirements-documenter
 description: |
-  Use this agent at Step 8 of the iterative-todo workflow, after the final graded review (Step 7) has been acknowledged. Updates project business requirements documentation to reflect what was implemented across the whole arc — new rules, changed rules, filled gaps — AND reconciles internal-contradiction callouts surfaced earlier by reviewers, which the iterative-todo workflow defers to this step on purpose.
+  Use this agent ad hoc at iterative-todo close (Step 8 — Completion & Retro), after the close-out audit (Step 7) has been acknowledged. It is no longer a standing workflow step — doc deltas normally ship in the same PR as the behavior they describe, and the orchestrator reconciles callouts at close. Invoke this agent when the remaining documentation debt at todo close is large enough to warrant a dedicated pass: it updates project business requirements documentation across the whole arc — new rules, changed rules, filled gaps — AND reconciles internal-contradiction callouts surfaced earlier by reviewers.
 
   <example>
-  Context: Final graded review acknowledged. Plans across the todo introduced new behavior. Now documenting.
+  Context: Close-out audit acknowledged. Doc debt across the todo is substantial. Now documenting.
   user: "Review acknowledged. Document."
   assistant: "Invoking business-requirements-documenter to update the project's requirements docs and reconcile any deferred callouts."
   <commentary>
@@ -13,7 +13,7 @@ description: |
   </example>
 
   <example>
-  Context: A plan-reviewer or business-requirements-reviewer flagged an internal contradiction during Step 3, marked callout-tier, parked for Step 8. The implementation has now settled.
+  Context: A plan-reviewer or business-requirements-reviewer flagged an internal contradiction during plan review, marked callout-tier, parked for todo close. The implementation has now settled and the orchestrator wants a dedicated reconciliation pass.
   user: "Document and reconcile."
   assistant: "Invoking the documenter. It'll pick up the callout from reviews/{NNN}-plan-review.md and reconcile based on what the implementation actually did."
   <commentary>
@@ -49,10 +49,10 @@ Read (paths provided in spawn prompt):
    - **Abandoned plans:** read the *Abandonment Reason*. Don't document what an abandoned plan tried to assert (the implementation didn't actually make those things true). Do note any **lessons** captured in the Abandonment Reason if they correct a documented rule that was previously believed.
 2. **The parent `todo.md`** — Goal, Acceptance Criteria, Out of Scope, Discovery Log, Sibling Todos. The Discovery Log is especially important: every entry represents a decision the implementation settled, and many of those settle into documented rules.
 3. **Every per-plan review** under `reviews/` — code reviews and test reviews. **Specifically scan for internal-contradiction callouts** (typically in plan reviews). Each callout the orchestrator parked for Step 8 is your responsibility to reconcile here.
-4. **The Final Graded Review** at `reviews/final-graded-review.md` — for any documentation-relevant findings raised during the final review.
+4. **The Close-Out Audit** at `reviews/close-out-audit.md` — for any documentation-relevant findings raised during the audit.
 5. **The implementation summary** (provided in spawn prompt) — what was actually built across the arc.
 
-**If the spawn prompt does not indicate that the final graded review is complete and acknowledged, STOP** and report: "Cannot proceed — final graded review has not been completed or acknowledged."
+**If the spawn prompt does not indicate that the close-out audit is complete and acknowledged, STOP** and report: "Cannot proceed — close-out audit has not been completed or acknowledged."
 
 ### Step 2: Discover Business Requirements Location
 
@@ -98,7 +98,7 @@ Return a structured response:
 ## Documentation Update — [YYYY-MM-DD]
 
 **Todo:** [path]
-**Final Graded Review:** [grade, acknowledgment date]
+**Close-Out Audit:** [verdict, acknowledgment date]
 
 ### Files Updated
 - [file path] — [what changed]

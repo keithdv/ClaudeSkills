@@ -270,7 +270,7 @@ The coupling concerns DDD raises are real — they apply to coupling *across* ag
 | `IsSelfModified` | bool | This object's own properties changed (excludes children, excludes IsNew) |
 | `IsValid` | bool | This object and all children pass validation |
 | `IsSelfValid` | bool | This object (only) passes validation |
-| `IsSavable` | bool | `IsValid && IsModified && !IsBusy && !IsChild` |
+| `IsSavable` | bool | `IsValid && IsModified && !IsBusy` |
 | `IsNew` | bool | Not yet persisted. Set true by Create, set false by Fetch/Insert. Implies `IsModified`. |
 | `IsDeleted` | bool | Marked for deletion |
 | `RuleManager` | IRuleManager | Access to validation rules |
