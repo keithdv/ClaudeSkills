@@ -47,6 +47,23 @@ Use unique filenames per invocation if you'll need to compare runs (`/tmp/test-b
 
 ---
 
+#### A Windowed Read Proves Presence, Never Absence
+
+**`head`, `tail`, `sed -n '1,120p'`, `grep -A 20` and friends answer "is this here?" — they cannot answer "is this all of it?" or "does this file say anything about X?"** The window you chose is not evidence about what lies outside it, and once the output is on screen a partial read looks exactly like a complete one.
+
+**The rule:** before writing *entire*, *only*, *never*, *both*, *no way to*, or any other closed-world claim — read the whole file, or grep for the specific thing being denied.
+
+**What it looks like when it goes wrong.** Two from one session, hours apart:
+
+- `grep -A 40 "enum LaserFault"` stopped before the last two members. Reported as "the **entire** fault vocabulary is three values." It was five, and the two that fell outside the window were the two the reader needed.
+- `sed -n '1,70p'` of a 210-line README. Reported as that component's architecture. The section refuting it sat 85 lines further down, under a heading named for the exact question being answered.
+
+Both were stated confidently, both were wrong the same way, and in both cases the text outside the window *was* the correction.
+
+**Presence claims are fine from a window** — "the service logs `Laser State:`" needs one matching line and nothing more. It is absence and completeness claims, the ones that sound most authoritative, that a window can never support.
+
+---
+
 #### NuGet Package Lookups
 
 - **ONLY use the listed/registration endpoints on `nuget.org`** (e.g., `https://api.nuget.org/v3/registration5-gz-semver2/...` or the package page at `https://www.nuget.org/packages/<id>`).
