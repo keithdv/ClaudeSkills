@@ -117,11 +117,9 @@ reviews/001-code-review.md      # if plan 001 had a Graded Review
 
 If reviews are too entangled to map cleanly, create `reviews/historical.md` with the original content verbatim and note the mapping is approximate.
 
-### 8. Carry deferred work as queued Draft plans
+### 8. Triage deferred work — punchlist, dismiss, or Draft
 
-Any "Companion Plans" entry, "Deferred Scope" item, or "future plan" reference from the original becomes a new `Draft` plan in the Plan Index. Create a stub plan file with status `Draft`, fill in just the Scope paragraph from what the original noted, leave Steps empty.
-
-These are the natural starting points for the iterative phase.
+Any "Companion Plans" entry, "Deferred Scope" item, or "future plan" reference from the original goes through the 0.8.0 discovery protocol: which Acceptance Criterion does it serve, is it reachable, how big is it. Most become a one-line **Punchlist** row or a one-line **Dismissed** row on the todo. Only plan-sized items that serve a criterion become a `Draft` stub (Scope paragraph only), and they count against the plan cap declared in the todo header.
 
 ### 9. Update the todo's Plan Sequence reference (if it had one)
 
@@ -131,9 +129,9 @@ Old shape had a Plan Sequence Callout in Results. The iterative shape generates 
 
 Where work stands determines the resume point:
 
-- An `In Progress` plan exists → resume at Step 4 (Implement) of the iterative workflow.
-- All plans `Done` or `Abandoned` and queued `Draft` plans exist → resume at Step 2 (draft next plan — flesh out the next Draft).
-- All plans `Done` or `Abandoned` and Plan Index empty → prompt user to confirm Acceptance Criteria → Step 7 (Close-Out Audit).
+- **Check the Acceptance Criteria first.** Every criterion met or accepted as a gap → Step 7 (Close-Out Audit), regardless of queued Drafts — they move to the Follow-on list.
+- Otherwise, an `In Progress` plan exists → resume at Step 4 (Implement).
+- Otherwise, a queued `Draft` serves an unmet criterion → resume at Step 2 (draft it).
 
 ## Verification
 
@@ -145,7 +143,7 @@ After conversion, verify:
 - [ ] Discovery Log has at least one entry per Plan Amendment and per abandoned plan
 - [ ] Each abandoned plan has an Abandonment Reason paragraph
 - [ ] Existing reviews are in `reviews/` (or `reviews/historical.md`)
-- [ ] Deferred work is queued as `Draft` plans in Plan Index
+- [ ] Deferred work is triaged: Punchlist row, Dismissed row, or `Draft` plan against the cap
 - [ ] Old `docs/plans/{name}.md` and `docs/plans/completed/{name}.md` files are removed (or moved into the new structure)
 - [ ] Original `docs/todos/{name}.md` is removed (replaced by the new folder)
 
@@ -154,3 +152,14 @@ After conversion, verify:
 - **Conversion is a one-time event per todo.** Do not convert mid-plan — finish the in-flight plan first if reasonable, or abandon it explicitly with a reason and start fresh in the iterative shape.
 - **The conversion itself is not a plan.** It's a structural rewrite. Don't create `plans/000-conversion.md` — just do the conversion in conversation with the user and note the conversion date in the todo's Last Updated field.
 - **If the original was a sibling of other todos, leave the siblings alone.** Conversion is per-todo; siblings can stay on `project-todos` if their shape suits.
+
+## Converting a 0.7.0-era iterative todo to 0.8.0
+
+Lighter than the flat-file conversion — the folder shape is unchanged. Four moves, in conversation with the user:
+
+1. **Check the Acceptance Criteria.** If every criterion is met or accepted, stop converting and run Step 7 now; queued Drafts become the Follow-on list.
+2. **Add the Punchlist and Dismissed sections** to `todo.md`. Any inherited ledger becomes one-line Punchlist rows (or Dismissed rows); the essay behind a row, if worth keeping, is already in the plan or review file it cites.
+3. **Triage every queued `Draft`** through the discovery protocol: criterion number → reachability → size. Most become Punchlist or Dismissed rows. Plans in a "gates run, findings addressed" limbo are marked Done with their leftovers punched or accepted in a Gate Record.
+4. **Declare the cap** at the current issued count in the todo header, with a one-line Discovery Log entry noting the conversion date. Any further plan is a stop-and-ask.
+
+Do not rewrite history: existing Discovery Log entries, plan prose, and reviews stay as they are. Budgets apply from the conversion forward.

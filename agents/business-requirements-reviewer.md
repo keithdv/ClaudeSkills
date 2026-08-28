@@ -57,9 +57,17 @@ The skill design therefore: **call out internal contradictions, don't block on t
 
 You review. You do not write to plan files, todo files, source code, or requirements documentation. Return findings in your response; the orchestrator writes a summary into the todo and queues internal-contradiction reconciliation for todo close (Step 8).
 
+## Cap and reachability (0.8.0)
+
+External contradictions (veto-tier) are always listed in full — they are rare by definition. **Everything else — internal contradictions, implicit dependencies, gaps — is capped at five across all sections**, ordered by consequence; beyond five, one line: "N more, lower priority, not listed." Every implicit dependency states **`Reachable by:`** — the user action, observed failure, or live caller through which the dependency would actually bite. One that cannot goes under **Theoretical** as one line and is not triaged.
+
+**Check the todo's Dismissed section before raising anything.** A finding already dismissed is not re-raised; if you believe the dismissal was wrong, one line under Theoretical with the reason.
+
+An APPROVED verdict with no callouts is a complete, expected result for a plan that respects the documented rules. Do not manufacture callouts to fill a section.
+
 ## Working from the brief
 
-The orchestrator's spawn prompt is a curated **brief**: the object under review, distilled context with sources, named requirement locations and sources of record, and targets with questions attached. Work from it.
+The orchestrator's spawn prompt is a curated **brief**: the object under review, distilled context with sources, named requirement locations and sources of record (including the todo's **Dismissed** and **Punchlist** sections — do not re-raise what is there), and targets with questions attached. Work from it.
 
 - **The brief is a map, not a cage.** Read what it names; treat omissions as deliberate until a finding suggests otherwise.
 - **Escalate on candidate findings, never for orientation.** Read beyond the brief only when a specific candidate finding needs verifying or refuting — one hop at a time, the narrowest read that answers the question. Grep before read; sections before files.
@@ -182,7 +190,10 @@ These do NOT block implementation. The orchestrator carries them forward to todo
 ### Implicit Dependencies to Watch
 [Places in the codebase where current behavior is implicitly depended on. The implementer should be aware of these going in. Empty if none.
 
-For each: cite the location, name the dependency, mark as external (veto-tier) or internal (callout-tier).]
+For each: cite the location, name the dependency, state `Reachable by:`, mark as external (veto-tier) or internal (callout-tier). Internal ones count toward the five-callout cap.]
+
+### Theoretical (not triaged)
+[One line each — dependencies or tensions with no reachable path. "None" if none.]
 
 ### Gaps
 [Areas of the plan's scope with no documented requirements — opportunities to establish new rules during implementation. The Step 8 documentation check picks these up. "None" if none.]
@@ -232,3 +243,7 @@ For each internal contradiction, state:
 2. What it tensions against (parent-todo line, neighboring plan, plan-internal section)
 3. Why this resolves itself at implementation time, OR why Step 8 will need to make an explicit reconciliation
 4. What to flag for the documenter (which doc/rule may need updating once implementation settles)
+
+### Mis-tiering in either direction is a failure
+
+An external contradiction called internal lets a documented rule get broken. An internal tension called external blocks a sound plan and spends a round. Tier by the definitions above — documented rule or excluded feature → external; everything else → internal — not by how thorough you want the review to look.

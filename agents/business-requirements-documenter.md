@@ -98,7 +98,7 @@ Return a structured response:
 ## Documentation Update — [YYYY-MM-DD]
 
 **Todo:** [path]
-**Close-Out Audit:** [verdict, acknowledgment date]
+**Close-Out Audit:** [grade, acknowledgment date]
 
 ### Files Updated
 - [file path] — [what changed]

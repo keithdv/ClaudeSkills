@@ -1,76 +1,76 @@
 ---
 name: iterative-todo
-version: 0.7.0
-description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "resume the todo", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation — bounded or exploratory. Plans are small working hypotheses; the todo is the durable container with a Discovery Log and Plan Index. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
+version: 0.8.0
+description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "resume the todo", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
-# Iterative Todo, Plans, and Discovery Workflow
+# Iterative Todo, Plans, Punchlist, and Discovery Workflow
 
-Manage exploratory, discovery-heavy project work as a durable **todo** containing many small **plans**. Plans are cheap, possibly wrong, and possibly abandoned. The todo carries cumulative learning across plans via an append-only Discovery Log.
+Manage multi-session project work as a durable **todo** with a bounded set of small **plans** and a **punchlist** of one-line items. The todo exits when its Goal is met — not when its queue is empty.
 
-## When to Use This Workflow
+## Why 0.8.0 exists
 
-Use for any multi-session design-heavy work where the plan needs to outlive the conversation: exploratory work where gotchas are expected, bounded work large enough to span sessions, work where attempts may be abandoned, work with documented business rules to check against. A bounded todo may have two plans and no abandonments; an exploratory todo may have ten plans and three abandonments. Both are the same shape.
+0.7.0 produced todos that never ended. One 20-day todo issued 41 plan numbers; eight of its nine Acceptance Criteria were met on day 7, and every plan after that came from a reviewer finding, not from the Goal. Reviews returned *more* findings as the code matured, because reviewing an edge-case plan yields edge-cases-of-edge-cases. The causes were structural: the loop exited on "queue empty" while the gates were queue producers; every discovery option produced work and none dismissed; reviewers had findings as their only success shape; and the skill itself called 2× index growth "the system working." 0.8.0 changes the exit condition, adds a tier below plans, adds Dismiss, caps plans and findings, gives reviewers a positive verdict, and restores a close-out grade without the old ratchet.
 
-Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (`Shift+Tab`).
+## When to Use
 
-## Core Principle 1: Plans Are Prescriptions, Not Implementations. Discovery Is Welcome at Every Stage.
+Multi-session, design-heavy work where the plan needs to outlive the conversation — bounded or exploratory. Skip for single-session tasks, trivial fixes, or anything that fits built-in plan mode (`Shift+Tab`).
 
-A plan describes **what** needs to be true and **why** — the business outcome, the framework patterns to follow, the invariants to preserve, the acceptance signals that prove it worked. A plan does **not** describe what the code looks like.
+## Three Tiers
 
-**This is the failure mode the skill exists to prevent:** writing what looks like a thorough plan but is actually pre-implementation reconnaissance dressed up as design — line numbers, exact method signatures, file-by-file edit tables, fallback branches. That kind of plan is wrong as often as it is right, and the right parts could only be settled at the keyboard anyway. It locks the implementer onto a frozen wrong-shape and makes mid-implementation discoveries feel like "deviating from the plan" instead of the normal way work happens.
+| Tier | Size | Form | Gate |
+|---|---|---|---|
+| **Todo** | the Goal | Goal, Acceptance Criteria, Out of Scope, Plan Index, Punchlist, Dismissed, Discovery Log | close-out audit + grade |
+| **Plan** | hours to a day | `references/plan-template.md` | Step 5 gate, two rounds max |
+| **Punchlist item** | minutes to an hour | **one line** — what · where · done-when → `[x]` + commit | none |
 
-The refined rule, learned from real usage: **detail written *before* the design conversation kills plans; detail *recording* a settled conversation or a code walk is fine — but it lives in its own labeled home, never in Scope or Steps.** That home is the plan's **Current State** section, filled at pre-flight (Step 3), where line numbers and signatures are explicitly allowed because they're a record of reality, not a prescription.
+Punchlist items are worked inline. One that needs a moment's design gets built-in plan mode (`Shift+Tab`) — a plan that lives in the conversation and dies with it. No file, no review, no log entry. Plan-scoped items live in the plan's Punchlist; cross-plan items in the todo's. Work inherited from a prior arc is seeded into the Punchlist at Step 1, one line per item — never as a ledger of paragraphs.
 
-**Plans are not locked when implementation starts.** The plan is a working hypothesis that survives contact with code by being amendable. When something surprises the implementer: **stop and ask** when the surprise changes intent, contradicts a constraint, or threatens an acceptance signal; **amend the plan** when it changes details but not intent; **keep going** when it's purely mechanical. Restructuring opportunities can be **named** in a plan ("this seam will probably need to move onto the aggregate") but not **designed** — the implementer finds the right shape while editing.
+**Most findings are punchlist items or dismissals.** A finding becomes a plan only if it passes the sizing test in the discovery protocol.
 
-### What belongs in a plan
+## Core Principle 1: Plans Are Prescriptions, Not Implementations
 
-- Business outcomes and observable behavior changes — the **intent**.
-- Framework patterns and architectural rules being applied — named, not reproduced.
-- Invariants and constraints the change must preserve.
-- High-level seams the work touches (aggregate X, handler Y, factory Z).
-- Acceptance signals a reviewer can check by exercising the system or running tests.
+A plan describes **what** needs to be true and **why** — the business outcome, the framework patterns to follow, the invariants to preserve, the acceptance signals that prove it worked. It does **not** describe what the code looks like. Line numbers, signatures, file-by-file edit tables, fallback branches: none of it belongs in Scope, Intent, or Steps. Code-level reality observed at pre-flight goes in **Current State**; code-level decisions made at the keyboard go in **Plan Amendments**. If a step reads like code, compress it to intent.
 
-### What does NOT belong in Scope / Steps / Intent
+Plans are not locked when implementation starts. When something surprises the implementer: **stop and ask** when it changes intent, contradicts a constraint, or threatens an acceptance signal; **amend** when it changes details but not intent; **keep going** when it's mechanical.
 
-Line numbers, exact method signatures, parameter lists, method bodies, code fences longer than two lines, fallback branches ("if A doesn't compile, fall back to B"), file-by-file edit tables. **Heuristic:** if a step contains a type name with a colon and a line number, or specifies a parameter list, the step is too detailed — compress to intent. Code-level reality discovered at pre-flight goes in **Current State**; code-level decisions made at the keyboard go in **Plan Amendments**.
+## Core Principle 2: Tests Are Iterative Too
 
-## Core Principle 2: Tests Are Iterative Too. Coverage Is a Loop, Not a Plan-Time Prescription.
-
-Plans don't enumerate test cases. Plans name **behavioral acceptance signals**, and that's the test surface they're responsible for. Plan-time test enumeration fails symmetrically: over-generous lists get silently trimmed; under-generous lists ship features under-tested. Either way the list lies. The fix is the same as for plans: stop pretending we know the answer at design time.
-
-**The iterative shape for tests:**
-
-1. **Plan-time test surface = Acceptance bullets, each tagged with a tier.** Every behavioral bullet ends with one tier tag — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]`. Bare bullets are a draft-time validation error. The plan does NOT name test methods or classes — only *which tier* pins each signal, decided once at draft time when the orchestrator can think clearly about what kind of evidence the signal needs.
-2. **Implementation writes tests at the declared tier.** A unit test where the bullet declared `[integration]` is a tier mismatch — the bullet is **not pinned** until the right-tier test exists.
-3. **Before the per-plan gate, the orchestrator fills the Test Evidence map.** Every Acceptance bullet → the test method that pins it → tier confirmation. Bullets with no test are recorded as `MISSING — <reason>` rather than silently omitted. The gate is not invoked until this map exists. This map has proven itself the single most successful mechanic in the workflow — including catching its own corruption (a self-honest re-walk exposing quarantined tests that were cited as evidence).
-4. **The test-reviewer closes coverage.** After implementation, `test-reviewer` reads the map and the actual tests, surfaces gaps tiered must-cover / should-cover / nice-to-have, split plan-related vs. pre-existing tech-debt. The independent eye is not optional ceremony: a self-authored evidence map cannot catch false coverage (a vacuous `Assert.All` over an empty enumerable passes and pins nothing — a real catch from this loop).
-5. **The user controls "good enough."** The skill defines the tiers; the user picks the closing bar per plan.
+Plans don't enumerate test cases. Every behavioral Acceptance bullet carries one tier tag — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]` — and that is the plan's whole test surface. Implementation writes tests at the declared tier. Before the gate, the orchestrator fills the **Test Evidence** map: every bullet → the test that pins it → tier confirmed, or `MISSING — <reason>`. The test-reviewer checks that the map is honest — cited tests exist, assert the behavior, sit at the declared tier. The user picks the closing bar. This map has been the single most successful mechanic in the workflow; it stays.
 
 ## Core Principle 3: The Todo Is Durable. The Conversation Is Not.
 
-The todo's files outlive the conversation — and they need to, because long sessions get summarized and compacted, and the work spans sessions anyway. Write discoveries, amendments, and status changes to disk **promptly at natural checkpoints**, not at session end; anything that exists only in conversation may not survive. After resuming a session — or after a mid-session context compaction — re-read `todo.md`, the active plan, and the last few Discovery Log entries before continuing. The Discovery Log and Plan Index carry the narrative so abandoned attempts inform future ones instead of being forgotten.
+Write decisions, amendments, and status changes to disk at natural checkpoints. After a session break or a context compaction, re-read `todo.md`, the active plan, and the last few Discovery Log entries before continuing. The files are the source of truth.
 
-## Core Principle 4: The Todo Is the Goal. Plans Are Pieces of It.
+## Core Principle 4: The Goal Is the Exit
 
-A todo has one focused goal, defined **before** the todo file exists. Plans are how the goal gets tackled, with the order itself a working hypothesis. A discovery is never just a local question about the current plan — it brings the **entire todo** back into scope: does the Plan Index still hold? Should queued plans be reordered, dropped, or added? The discovery protocol's **Re-split** option is the explicit hook for this whole-todo re-evaluation.
+The todo's Acceptance Criteria are the exit gate. **When every criterion is met or explicitly accepted as a gap, the todo goes to close-out — regardless of what is queued.** Queued Drafts at that moment become the Follow-on list (one line each); if anyone wants them, they are a new todo. A queue never keeps a todo open.
 
-Plan IDs (`{ID}-{NNN}`, e.g. `OVL-025`) are the canonical cross-reference form — never bare `Plan 025`. The ID form is what keeps references greppable and unambiguous after todos move to `completed/`, after plans get carved out to sibling todos, and across code comments that outlive the todo. The habit decays without reinforcement; hold the line.
+Every plan and every discovery must name the **Acceptance Criterion number** it serves. None → it is not this todo's work: dismiss it, or (rarely) open a sibling. "It advances the Goal" is not an answer; "it serves AC-4" is.
+
+Plan IDs (`{ID}-{NNN}`, e.g. `OVL-025`) are the canonical cross-reference form — never bare `Plan 025`.
+
+## Core Principle 5: Findings Are Cheap; Plans Are Not
+
+A reviewer finding costs the reviewer nothing. A plan costs a draft, a pre-flight, an implementation, a gate, and a review file. The workflow's job is to make sure the second is only paid when it is worth paying — and the default answer is that it is not.
+
+**Dismiss is the expected outcome for most findings**, and it is recorded in one line so the next reviewer does not re-raise it. **Theoretical findings are not triaged at all.** A finding must name a user-reachable path, an observed failure, or a live caller; one that cannot is listed under "Theoretical" by the reviewer and goes no further.
+
+**The orchestrator is the biggest source of findings** — most of a todo's discoveries are the orchestrator noticing things while implementing. Apply the criterion test and the reachability test *before writing anything down*, not after. Do not open a Discovery Log entry to think; think in conversation and log the decision. Do not justify a plan's existence with prose — if it takes four hundred words to defend, it should not exist.
 
 ### What the Orchestrator Does
 
-Authors all todo and plan content; drafts each plan as the smallest viable next step at the **intent** level; runs reconnaissance and pre-flights; implements in conversation with the user; logs every discovery; decides (with the user) to amend / abandon / defer / re-split; invokes gate agents and writes their findings into `reviews/`; reconciles internal contradictions at todo close.
+Authors all todo and plan content; drafts each plan as the smallest viable next step at the intent level; runs recon and pre-flights; implements in conversation with the user; triages every finding (dismiss / punch / amend / queue / abandon / re-split) and records the decision; assembles reviewer briefs and writes their findings into `reviews/`; declares the plan cap and stops when it is hit.
 
 ### What Agents Do
 
-Review and audit; surface external contradictions (against documented rules) as gating findings and internal contradictions as callouts; return findings; never write to todo or plan files; never set status.
+Review and audit; return a verdict and a capped set of findings, each with reachability stated; never write to todo or plan files; never set status; never re-raise a dismissed finding.
 
 ## Directory Structure
 
 ```
 docs/todos/{ID}-{todo-name}/
-  todo.md                          # goal, acceptance, out-of-scope, Discovery Log, Plan Index
+  todo.md                          # goal, criteria, out-of-scope, Plan Index, Punchlist, Dismissed, Discovery Log
   plans/
     001-{short-name}.md
     002-{short-name}.md            # may be Abandoned or Retired — kept with reason
@@ -82,31 +82,30 @@ docs/todos/{ID}-{todo-name}/
     close-out-audit.md             # at the end
 ```
 
-One folder per todo, prefixed with the 3–5 letter `{ID}` assigned at Step 1. Plan numbering is **monotonic** — abandoned and retired plans keep their numbers so cross-references stay stable. **All review-gate output lives in `reviews/`** — never inlined into the Discovery Log or the Plan Index Status column. A todo that skips a gate records the skip in Skipped Steps; a todo that runs a gate gets a review file.
+Plan numbering is monotonic; abandoned and retired plans keep their numbers. **All review output lives in `reviews/`** — never inlined into the Discovery Log or a Status cell.
 
 ## Sub-Agents
 
-- **`test-reviewer`** — **the mandatory per-plan gate** (Step 5). Reads the Test Evidence map and the actual tests; surfaces tiered coverage gaps split plan-related vs. tech-debt; drives the add-tests → re-review loop. Skip only for trivial plans (test-only, comment-only, mechanical rename), recorded in Skipped Steps.
-- **`plan-reviewer`** — opt-in at Step 2, for sharp edges (cross-aggregate, schema migration, public API, security, irreversible changes). **Calibration: its diagnoses are reliable; its prescriptions are advisory.** The reviewer names the problem; the orchestrator and keyboard pick the fix. (Real usage: the diagnoses caught bugs the planned tests would have falsely passed; the one bad outcome came from adopting a prescribed remedy wholesale.)
-- **`business-requirements-reviewer`** — opt-in at Step 2 when the plan's intent touches documented business rules or excluded features. External contradictions are VETO; internal contradictions are callouts reconciled at todo close.
-- **`code-reviewer`** — two findings-only modes, **no letter grades**: an opt-in per-plan review (Step 5, for behavior-changing plans) and the mandatory **close-out audit** (Step 7, whole arc). Findings are veto-tier or callout-tier.
-- **`business-requirements-documenter`** — no longer a workflow step (doc deltas ship in the same PR as the behavior change, per project rules). Available ad hoc at todo close when documentation debt is large enough to warrant a dedicated pass.
+Every reviewer returns **a verdict plus a capped list of findings**. Veto-tier findings are always listed in full — they are rare by definition. Callouts are capped at **five**; anything beyond is one line: *"N more, lower priority, not listed."* Each finding states `Reachable by:` (user action / observed failure / live caller); findings that cannot go under **Theoretical** and are not triaged. A clean verdict is a complete, expected result — reviewers do not manufacture findings to fill a section.
+
+**Veto-tier means exactly two things:** the work contradicts a documented rule or excluded feature, or it breaks the build / a sacred test / any test. Everything else is a callout, and **callouts never block**.
+
+- **`test-reviewer`** — the mandatory Step 5 gate. Checks that every Acceptance bullet has a real test at its declared tier, that cited tests assert the behavior rather than pass vacuously, that no sacred test was weakened, and that the logs are green. It does **not** hunt for edge cases the plan did not name. Returns CLEAN / CONCERNS. Skip only for trivial plans (test-only, comment-only, mechanical rename), recorded in Skipped Steps.
+- **`plan-reviewer`** — opt-in at Step 2 for sharp edges (cross-aggregate, schema migration, public API, security, irreversible). Its diagnoses are reliable; its prescriptions are advisory.
+- **`business-requirements-reviewer`** — opt-in at Step 2 when the plan's intent touches documented business rules or excluded features.
+- **`code-reviewer`** — opt-in per-plan pass at Step 5 for behavior-changing plans (CLEAN / CONCERNS), and the mandatory **close-out audit** at Step 7, which produces the grade.
 
 ## The Review Brief
 
-Every reviewer invocation is assembled by the orchestrator as a **brief**. The brief is the balance point between two failure modes seen in real usage: front-loading (a fat reading list burned ~130k tokens and crowded out the codebase walk that produces findings) and free discovery (the reviewer re-derives context the orchestrator already holds, or re-litigates settled decisions). Five parts:
+Every reviewer invocation is a **brief** assembled by the orchestrator — the balance between front-loading (a fat reading list crowds out the walk that produces findings) and free discovery (the reviewer re-derives what the orchestrator already holds). Five parts:
 
-1. **The object under review** — plan, diff, or evidence map. Read fully; it is small by design.
-2. **Distilled context, cited, background-only** — facts the review is *not* checking, stated as prose with sources named. **Never launder the object's own claims into this block**: context is what the review stands on; claims are what it stands over. For Step 5 gates, the plan's Current State section already *is* this block — point at it rather than rewriting it.
-3. **Sources of record the object must agree with** — the Discovery Log, the Plan Index, prior review files. Named, not summarized: cross-reference findings live there, and they are grep-cheap. (Real usage: a plan review caught a silently dropped case group only because the parent Discovery Log was named reading and disagreed with the plan. Distilling it would have transmitted the orchestrator's own blind spot.)
-4. **Code targets with questions attached** — "is the port-configurability claim plausible from Program.cs?" directs a grep; "read Program.cs" directs two hundred lines. The question is the budget.
+1. **The object under review** — plan, diff, or evidence map. Read fully.
+2. **Distilled context, cited, background-only** — facts the review is not checking. Never launder the object's own claims into this block. For Step 5 gates, the plan's Current State section already is this block — point at it.
+3. **Sources of record the object must agree with** — the Discovery Log, the Plan Index, prior review files, **and the todo's Dismissed and Punchlist sections**, so the reviewer does not re-raise what has been decided. Named, not summarized.
+4. **Code targets with questions attached** — the question is the budget.
 5. **Log paths** (Steps 5 and 7) — reviewers grep them, never re-run builds.
 
-**Front-load pointers and distillations, not documents.** If the one-line reason a reviewer needs a document cannot be stated, the document does not go on the list. Whole files "for context" are the anti-pattern: distill the context, or name the section.
-
-**State the budget: `tight` (default) or `deep`.** Deep is for safety-seam or irreversible plans — the reviews a project's rules *require* are the ones that deserve more reading, not less. The close-out audit is exempt from `tight`: whole-arc reading is its definition, and budget discipline there governs *how* (greps, spot-checks) rather than *whether*.
-
-**Close the loop.** Reviewers end with a read report — what they pulled beyond the brief and why, and which named items went unused. The next brief trims the unused and promotes the pulled. Calibration becomes data, not vibes.
+State the budget: `tight` (default) or `deep` (safety-seam or irreversible plans). The close-out audit is exempt from `tight`. Reviewers end with a read report — what they pulled beyond the brief and what went unused — and the next brief trims accordingly.
 
 ## Status Values
 
@@ -114,184 +113,205 @@ Every reviewer invocation is assembled by the orchestrator as a **brief**. The b
 
 **Plan:** `Draft` · `In Progress` · `Done` · `Abandoned` · `Retired`
 
-- **Abandoned** — this path was wrong; the Abandonment Reason captures the lesson. Never deleted.
-- **Retired** — the plan stopped being needed without failing: folded into another plan, superseded by a re-split, or carved out to a sibling todo. One-line reason in the plan; Index row kept as a tombstone.
-- **Stub deletion (the one sanctioned delete):** a stub created and killed **within the same working session**, that never got past a Scope paragraph and was never implemented against, may be deleted outright — provided the Discovery Log entry recording the re-split names the killed stub. Anything that reached drafting or implementation is never deleted; it goes `Abandoned` or `Retired` and stays.
+- **Abandoned** — wrong path; the Abandonment Reason captures the lesson. Never deleted.
+- **Retired** — stopped being needed without failing: folded, superseded, or carved out. One-line reason; Index row kept as a tombstone.
+- **Stub deletion** — a stub created and killed within one working session, never past a Scope paragraph, may be deleted if the Discovery Log entry recording the re-split names it.
 
-Verdicts and findings live in review files, not in status fields. Keep Plan Index Status cells to a status word plus at most a few words — narrative belongs in the plan or the Discovery Log.
+**A Status cell is a status word plus at most five words.** There is no "In Progress — gates run, findings addressed" status: after two gate rounds a plan is Done, or the user has accepted its leftovers and it is Done. Limbo is a violation, not a state.
+
+## Prose Budgets
+
+These are draft-time validation errors, the same as a bare Acceptance bullet:
+
+| Thing | Budget |
+|---|---|
+| Plan title | ≤ 8 words |
+| Plan file when it enters implementation | ≤ 200 lines (Scope one paragraph; Steps ≤ 10; Acceptance ≤ 8) |
+| Todo Goal | one paragraph, ≤ 150 words |
+| Acceptance Criterion | one sentence, no parentheticals |
+| Status cell | status word + ≤ 5 words |
+| Discovery Log entry | ≤ 60 words |
+| Punchlist / Dismissed / Follow-on row | one line |
+
+A plan that passes 300 lines with amendments should have been two plans. A criterion that needs a paragraph is being renegotiated — renegotiate it in one Discovery Log entry and rewrite the sentence. Over-budget prose is the rabbit hole showing up on disk.
 
 ## Workflow
 
 ### Prerequisite — Define the Goal (Conversational)
 
-Before any file exists, the user and orchestrator define the goal: what problem, what success looks like, what's in and out of scope. No empty-shell todos — if the goal isn't crisp, keep talking.
+Before any file exists, the user and orchestrator define the goal: what problem, what success looks like, what is in and out of scope. No empty-shell todos.
 
-### Step 1 — Reconnaissance, ID Assignment & Initial Plan Split
+### Step 1 — Reconnaissance, ID, Initial Split, Plan Cap
 
-**Reconnaissance first.** Before splitting, map the affected code — and use agents to do the sweeping. Fan out read-only Explore agents (or equivalent) to answer: what are the seams this goal touches? What patterns does the codebase already use at those seams (verb shapes, factory patterns, naming conventions)? What looks risky or surprising? Recon agents return **seams, existing patterns, and open questions** — not edit scripts. The orchestrator still reads the load-bearing files itself where the split depends on them; agent summaries inform the split, they don't replace familiarity. (For sweep-shaped todos — codebase-wide audits — a multi-agent workflow is an option if the user opts in.)
+**Reconnaissance first.** Fan out read-only Explore agents to map the seams the goal touches, the patterns the codebase already uses there, and what looks risky. Recon returns seams, patterns, and open questions — not edit scripts. The orchestrator still reads the load-bearing files itself.
 
-Why this step earns its cost: the recon-shaped failures in real usage — plans drafted against a verb shape the codebase didn't use, splits built on a wrong inventory of what already existed, stubs gone stale against moved code — were all caught whenever someone did recon, and only cost rework when nobody did.
+**Assign a unique todo ID** — 3–5 uppercase letters; propose 2–3, the user picks. Verify uniqueness against `docs/todos/{ID}-*`, `docs/todos/completed/{ID}-*`, and `docs/todos/_ids.md` if it exists. Retired IDs are never reused.
 
-**Assign a unique todo ID.** Every todo carries a 3–5 uppercase-letter ID prefixing its folder and anchoring cross-references. Propose 2–3 candidates; the user picks. Verify uniqueness: `glob docs/todos/{ID}-*` and `docs/todos/completed/{ID}-*` return empty, and no row in `docs/todos/_ids.md` (if it exists) carries the ID. Retired IDs are never reused. If the project lacks `docs/todos/CONVENTIONS.md` / `_ids.md`, ask the user whether to bootstrap them.
+**Draft the initial split.** Contained todos decompose into **2–6** plan stubs; large restructures **6–12**. Each stub is a plan file with the next monotonic number, status `Draft`, and only the Scope paragraph filled. Every stub names the criterion number(s) it serves.
 
-**Draft the initial plan split.** Contained todos decompose into **2–6** plan stubs; large restructures legitimately start at **6–12**. Expect the index to grow 1.5–2× over the todo's life — growth through the Plan Index, with Discovery Log entries, is the system working, not scope creep. Each stub is a plan file with the next monotonic number, status `Draft`, and **only the Scope paragraph filled**.
+**Declare the plan cap** in the todo header: `cap = max(ceil(N × 1.5), N + 2)` where N is the initial split. The cap counts plan numbers *issued*, including abandoned and retired ones — churn is what it measures. Issuing a number above the cap is a stop-and-ask: close the todo on what is done, or raise the cap with a one-line reason in the Discovery Log. Do not raise it silently.
 
-Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`: Goal, Acceptance Criteria, Out of Scope, Plan Index (populated with the split), empty Discovery Log. Add the `_ids.md` row in the same change. The split is a guestimate, not a commitment.
+**Seed the Punchlist** with any inherited items from prior arcs, one line each. Inherited items that pass the sizing test become Draft stubs and count toward N.
+
+Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`. Add the `_ids.md` row in the same change.
 
 ### Step 2 — Draft Next Plan
 
-Pick the next `Draft` row whose Scope is still a stub. Flesh it out using `references/plan-template.md`: **Scope** (one paragraph, including what it does NOT do), **Intent**, **Framework & Architectural Alignment** (patterns named, not reproduced), **Constraints & Invariants**, **Steps** (intent-bearing bullets, cap ~10), **Acceptance** (behavioral signals, every bullet tier-tagged). A plan covers one concrete deliverable — typically hours of work. New plans discovered while drafting get a fresh stub and an Index row first — no orphan plan files.
+Pick the next `Draft` stub. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
 
-**Declare the review opt-ins in the plan header**, each with a one-line reason:
+**Declare the review opt-ins** in the header with a one-line reason each: `Plan-review opt-in` (cross-aggregate, schema, public API, security, irreversible; name `business-requirements-reviewer` when the plan touches documented rules) and `Code-review opt-in` (behavior-changing plans; skip for mechanical work).
 
-- `Plan-review opt-in: Yes/No (reason)` — opt in for cross-aggregate behavior, schema migration, public API or contract change, security-sensitive or irreversible work. When the plan touches documented business rules or excluded features, opt in with `business-requirements-reviewer` specifically.
-- `Code-review opt-in: Yes/No (reason)` — opt in for behavior-changing plans; skip for mechanical ports, renames, doc-only work.
-
-When a plan review runs, assemble the invocation per **The Review Brief** and write the outcome to `reviews/{NNN}-plan-review.md`. Veto-tier findings (external contradictions, direction errors) are addressed before implementation. Callouts are recorded and carried. **Read the review with the calibration in mind: trust the diagnosis, treat the prescribed fix as one option.** Skips need no file — the header field with its reason is the record.
+When a plan review runs, brief it per **The Review Brief** and write the outcome to `reviews/{NNN}-plan-review.md`. Veto-tier findings are addressed before implementation. Callouts are triaged — dismissed, punched, or amended into the plan — and never carried as open prose.
 
 ### Step 3 — Current-State Pre-Flight
 
-Before the first edit, the orchestrator walks the plan's Intent and Steps against the **actual code** at the seams the plan touches — no edits yet. Record what's actually there in the plan's **Current State** section: this is the sanctioned home for line numbers, signatures, and "the code currently does X" observations. Discoveries that shift the plan become Plan Amendments **before the first edit**; a stub that turns out stale (drafted against code that has since moved) gets reshaped here instead of mid-implementation.
-
-This step exists because real usage invented it independently three times. It is deliberately the orchestrator's own walk, not an agent's — the orchestrator is about to edit these files and needs the tactile familiarity. Keep it proportionate: minutes for a contained plan, not a re-review of the codebase.
+Before the first edit, walk the plan's Intent and Steps against the actual code — no edits yet. Record what is there in the plan's **Current State** section, the sanctioned home for line numbers and signatures. Surprises that shift the plan become Plan Amendments before the first edit. Keep it proportionate: minutes, not a re-review of the codebase.
 
 ### Step 4 — Implement
 
-Work the plan's Steps in order, in conversation with the user.
+Work the Steps in order, in conversation with the user. Run scoped tests at natural checkpoints; the full suite runs once at the Step 5 pre-flight.
 
-**Testing during implementation: scope-bounded, not testing-free.** Run scoped tests continuously at natural checkpoints — the test files covering the changed code plus obviously adjacent ones. Full-suite runs during implementation are optional: the Step 5 gate runs a fresh full suite by design, and doubling it is insurance theater. Opt in to a mid-implementation full-suite run for cross-aggregate changes, schema migrations, or when a scoped run surfaces something whose spread you need to know now.
+**Discovery protocol.** When something surprises you, answer three questions *before writing anything*:
 
-**The plan is not locked.** When something surprises you, apply the **discovery protocol**. First question: **does this advance the todo's Goal?**
+1. **Which Acceptance Criterion does it serve?** Name the number. None → **Dismiss**, or (rarely) a sibling todo.
+2. **Is it reachable?** A user action, an observed failure, or a live caller. No → **Dismiss**. "Hardening against a subscriber nobody has written yet" is a dismiss.
+3. **How big is it?** Under about half a day, doesn't change a criterion, doesn't open a seam no plan touches → **Punch**. Otherwise it is plan-sized.
 
-- **Yes** — pick an in-todo response below.
-- **No, but worth keeping** — open a **sibling todo** (rare). Otherwise drop it.
+Then record the decision:
 
-**In-todo responses** (always: append a Discovery Log entry — date, plan ID, one-sentence finding, decision, follow-up — then choose with the user):
+- **Dismiss** — one line in the todo's Dismissed section: finding, reason. No log entry.
+- **Punch** — one line in the plan's or todo's Punchlist. Work it inline (plan mode if it needs thought). No log entry.
+- **Amend** — the current plan's details change, not its intent. Plan Amendments entry + Discovery Log entry. *The most common logged decision.*
+- **Queue** — plan-sized and it passed the criterion test: a new `Draft` stub and Index row, against the cap. Discovery Log entry.
+- **Abandon** — the current plan is the wrong path. Status `Abandoned`, reason filled, replacement drafted. Discovery Log entry.
+- **Re-split** — the Plan Index itself changes: reorder, retire, add. Discovery Log entry with `Index changes:`.
 
-- **Amend** — small correction; entry in the plan's Plan Amendments; plan continues. *Most common.*
-- **Abandon** — wrong path; status `Abandoned`, Abandonment Reason filled; draft a replacement with the next number.
-- **Defer** — finish as scoped; queue a follow-up `Draft` row.
-- **Re-split** — the Plan Index itself needs to change: reorder, drop (`Retired`), add. Record the index edits in the same Discovery Log entry (`Index changes:`).
+Only Amend, Queue, Abandon, and Re-split get Discovery Log entries. There is no "Note" decision — an entry that records no decision is a journal, and the log is not a journal.
 
-**When the Goal itself shifts (rare):** stop and ask explicitly — sometimes the right move is a sibling todo, not a Goal rewrite. If the Goal genuinely shifts, update Goal and Acceptance Criteria together, note it in the triggering Discovery Log entry, and re-verify queued plans.
+**When the Goal itself shifts (rare):** stop and ask. Sometimes the right move is a sibling todo. If the Goal genuinely shifts, update Goal and Acceptance Criteria together, note it in the triggering entry, and re-verify queued plans.
 
-**Stop and ask** any time a discovery threatens intent, an invariant, or an acceptance signal. Don't silently expand scope or downgrade an Acceptance bullet to make it pass. Every decision is recorded.
+### Step 5 — Per-Plan Gate: Test Evidence + Test Review (Mandatory, Two Rounds Max)
 
-When Steps are complete and Acceptance is met, the plan is ready for the gate.
+**Pre-flight 1 — fill the plan's Test Evidence table.** One row per Acceptance bullet: cited test, tier confirmed, or `MISSING — <reason>`. The gate is not invoked until this exists.
 
-### Step 5 — Per-Plan Gate: Test Evidence + Test Review (Mandatory)
+**Pre-flight 2 — run build + test ONCE and pass log paths.** Redirect full output to `reviews/{NNN}-build.log` / `reviews/{NNN}-test.log`. Reviewers grep the logs; they never run build or test themselves.
 
-This is the single mandatory per-plan gate. Skip only for trivial plans (test-only, comment-only, mechanical rename), recorded in Skipped Steps.
+**Invoke `test-reviewer`** with a brief. It returns CLEAN or CONCERNS with must-cover findings (an Acceptance bullet unpinned, a cited test that asserts nothing, a sacred test weakened, a red log), should-cover findings (a reachable plan-introduced path with no test), and tech-debt (one line each, untiered, capped). Then:
 
-**Pre-flight 1 — fill the plan's Test Evidence table.** One row per Acceptance bullet: cited test method, tier confirmation. No test at the right tier → `MISSING — <reason>`. Shipping with `MISSING` rows requires explicit user acknowledgement (ideally with a queued follow-up). The gate is not invoked until this table exists — hard gate, not preference.
+1. **Round 1.** Must-cover plan-related findings are addressed. Should-cover: the user picks. Tech-debt: triaged — punchlist, dismissed, or (rarely, if plan-sized) queued.
+2. **Round 2** re-invokes to confirm must-cover closed. **Round 2 is the last round.** Anything still open is punched or accepted with a one-line reason. The plan is Done.
+3. Write `reviews/{NNN}-test-review.md` (closing tier, what was added, what was punched, what was accepted and why) and the plan's **Gate Record** — one line per round.
 
-**Pre-flight 2 — run build + test ONCE and pass log paths.** Run the project's build and test commands exactly once each, redirect full output to `reviews/{NNN}-build.log` / `reviews/{NNN}-test.log`, and pass those paths to every reviewer invoked this step. **Reviewers grep the logs; they never run build or test themselves** — repeated invocations race shared test databases and have cost 10–20 minutes per false cycle. Reviewers fail out if log paths are missing; that fail-out is the protection working. On a flaky failure, re-run sequentially, overwrite the log, note the re-run.
+**If the plan opted into code review**, invoke `code-reviewer` for a findings-only pass on the same logs (CLEAN / CONCERNS). Veto-tier findings are fixed before Done; callouts are triaged the same way. Write `reviews/{NNN}-code-review.md`.
 
-**Invoke `test-reviewer`** with a brief per **The Review Brief**: the plan (its Test Evidence table and Current State are the object and context), the changed files and test directories as code targets with the questions that matter, and the log paths. It returns tiered findings (must-cover / should-cover / nice-to-have) split plan-related vs. pre-existing tech-debt. Then loop:
-
-1. **Tier the response with the user.** Must-cover plan-related findings are addressed before the plan is Done. Should-cover / nice-to-have: user picks. **Tech-debt at any tier queues as its own Plan Index entry** — absorbing it silently is scope creep; keep it visible.
-2. **Add the chosen tests**, re-invoke, repeat until must-cover is closed (or explicitly accepted with a recorded reason — rare) and the user is satisfied with the rest.
-3. Write the summary to `reviews/{NNN}-test-review.md` with the closing tier: tier picture at close, what was added, what was queued, explicit accepts with reasons.
-
-**If the plan opted into code review**, invoke `code-reviewer` (briefed per **The Review Brief**) for a findings-only pass (veto/callout, no grade) on the same logs — focused on whether the deliverable landed cleanly, the shape is right, and no framework rules or sacred tests were violated. Veto-tier findings are fixed before Done; material callouts queue as Index entries. Write to `reviews/{NNN}-code-review.md`. Discovery here is welcome — a reviewer redirecting on shape is the system working, not a planning failure.
-
-A plan reaches `Done` only after this gate closes.
+A plan reaches `Done` when the gate closes or its leftovers are accepted. Not before, and not later.
 
 ### Step 6 — Loop or Fall Through
 
-Check the Plan Index: queued `Draft` plans → back to Step 2. Only `Done` / `Abandoned` / `Retired` plans and unmet Acceptance Criteria → draft another plan. All criteria covered → Step 7.
+**Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list.
 
-### Step 7 — Close-Out Audit (Mandatory)
+Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all.
 
-Triggered when the last plan closes and the Index has no queued work. The orchestrator prompts the user to confirm the todo's Acceptance Criteria are met, runs the build+test pre-flight once each (`reviews/final-build.log`, `reviews/final-test.log`), then invokes **code-reviewer** in close-out mode with the **whole arc** — the todo, every plan, the Discovery Log, every review file, plus the log paths. (The Review Brief's `tight` default does not apply here — whole-arc reading is the audit's definition; its budget discipline is greps and spot-checks, not scope cuts.)
+### Step 7 — Close-Out Audit and Grade (Mandatory)
 
-The audit is **findings-only — no letter grades**. (Grading was dropped after real usage showed final grades were always confirmation, never discovery; the audit's verification content is what earns the step.) Per `references/close-out-audit.md`, the auditor:
+Run build + test once each (`reviews/final-build.log`, `reviews/final-test.log`) and invoke **code-reviewer** in close-out mode with the whole arc — the todo, every plan, every review file, the log paths. Per `references/close-out-audit.md`, the auditor traces every Acceptance Criterion to code, walks container integrity, spot-checks Test Evidence honesty, greps the logs, and returns a **grade**:
 
-- Traces every todo-level Acceptance Criterion to specific code.
-- Audits container integrity: Plan Index ↔ `plans/` reconciliation, monotonic numbering, Abandonment/Retirement Reasons present, every deferral phrase in any plan body traced to an Index entry, `MISSING` Test Evidence rows acknowledged.
-- Spot-checks Test Evidence honesty (cited tests exist, at the declared tier) and closing tiers against risk.
-- Checks framework rules per the project's CLAUDE.md and any project-local overlay; greps the logs for build/test health.
-- Produces the **Deferred Work Carrying Forward** table — every deferral, where it's queued, what it costs — so debt doesn't accumulate invisibly across todos.
+- **A** — every criterion traced to code with evidence; no veto-tier findings.
+- **B** — every criterion traced or explicitly accepted as a gap with a reason; no veto-tier findings; gaps on the Follow-on list.
+- **C** — a criterion neither met nor accepted, or a veto-tier finding open.
 
-Veto-tier findings are fixed before completion; callouts queue as plans or are accepted with recorded reasons. Write to `reviews/close-out-audit.md`; re-invoke after fixes (append, don't overwrite).
+**A and B close the todo.** C does not — and C is not "keep iterating": the user picks one of fix-the-named-thing, accept-the-gap (→ B), or close as `Blocked`. There is no "to reach A" list. The grade is a statement about what was done, not a target for what is left.
+
+Write to `reviews/close-out-audit.md`; a re-audit after fixes appends.
 
 ### Step 8 — Completion & Retro
 
-Verify: close-out audit exists and the user acknowledged it; every plan is `Done` / `Abandoned` / `Retired`; Acceptance Criteria all checked.
+Verify: the audit exists with grade A or B and the user acknowledged it; every plan is `Done` / `Abandoned` / `Retired`; the Punchlist is all `[x]` or moved to Follow-on; every Follow-on row is one line.
 
-**Documentation check (replaces the old documenter step):** confirm doc deltas shipped in the same PRs as the behavior they describe (per project rules). Reconcile any internal-contradiction callouts parked by reviewers — the implementation has settled, so the right resolution is usually obvious now; update the documented rules to match. If documentation debt remains, queue it as a plan or sibling todo, or invoke `business-requirements-documenter` ad hoc for a dedicated pass.
+**Documentation check:** confirm doc deltas shipped with the behavior they describe. Reconcile any internal-contradiction callouts parked by reviewers. Remaining doc debt goes on the Follow-on list or, if large, to `business-requirements-documenter` ad hoc.
 
-**Cross-todo deferrals:** if this todo closes partial, every deferred commitment (un-skipped tests, inherited acceptance bullets) must land as **acceptance bullets in the successor todo's plans** — not as prose. Prose-level inheritance has had to be re-traced by hand; bullets survive.
+**Follow-on list:** everything this todo did not do — queued Drafts, accepted gaps, unpinned tests. One line each. It is a list, not a commitment; a successor todo that adopts an item writes it as an acceptance bullet there.
 
-**Retro (one paragraph):** what did this todo teach about the *workflow itself* — a gate that misfired, a mechanic that got skipped, a convention that decayed? Route lessons to where they'll act: the project's CLAUDE.md, this skill's backlog, or persistent memory. The best improvements to this workflow all came from retro moments; capture them while they're fresh.
+**Retro (one paragraph):** what this todo taught about the workflow itself. Route lessons to the project's CLAUDE.md, this skill's backlog, or persistent memory. Include the numbers: plans issued vs. cap, findings dismissed vs. punched vs. queued.
 
-Set todo status `Complete`. Move the whole folder to `docs/todos/completed/{ID}-{todo-name}/` (the `{ID}` prefix preserves cross-references) and move the `_ids.md` row in the same change.
+Set status `Complete`. Move the folder to `docs/todos/completed/{ID}-{todo-name}/` and move the `_ids.md` row in the same change.
 
-**The user decides when to commit and when to open PRs.** Suggest commits at natural milestones; never commit, push, or open PRs without an explicit yes. Never assume a PR cadence.
+**The user decides when to commit and when to open PRs.**
 
 ## Discovery Log Format
 
-The Discovery Log is the anti-forgetting mechanism — searchable and navigational, not a journal.
-
 ```
-### YYYY-MM-DD — {ID}-{NNN}
+### YYYY-MM-DD — {ID}-{NNN} · serves AC-{n}
 - **Finding:** [one sentence]
-- **Decision:** [Amend | Abandon | Defer | Re-split]
-- **Index changes:** [Re-split only — plans added/dropped/reordered; else omit]
+- **Decision:** [Amend | Queue | Abandon | Re-split]
+- **Index changes:** [Re-split / Queue only; else omit]
 - **Follow-up:** [{ID}-{NNN} or "n/a"]
 ```
 
-**Budget: ~100 words per entry.** The long form lives on the affected plan (Plan Amendments or Abandonment Reason) — the log entry points at it. PR descriptions, file-change enumerations, and reviewer findings do not belong here: **review output goes to `reviews/`, always** — a log entry may summarize a review's outcome in one line and link the file. Cite plans in `{ID}-{NNN}` form so entries stay greppable after the todo moves. When the template's decision taxonomy is skipped, the decisions stop being greppable — use the fields.
+**≤ 60 words.** The long form lives on the affected plan; the entry points at it. No review output, no PR descriptions, no file-change lists. Dismissed and punched findings do not get entries — they have their own one-line homes.
+
+## Punchlist, Dismissed, Follow-on Formats
+
+```
+## Punchlist
+- [ ] <what> · <where> · done when <observable>            (open)
+- [x] <what> · <where> · <commit or PR>                     (closed)
+
+## Dismissed
+- {ID}-{NNN} · <finding, ≤ 15 words> · <reason, ≤ 15 words>
+
+## Follow-on   (close-out only)
+- <item, one line> · <origin: {ID}-{NNN} or review file>
+```
 
 ## Plan Amendments, Abandonment, Retirement
 
-- **Plan Amendments** (append-only) — a discovery led to **Amend**. Original Scope/Intent/Steps stay frozen; each amendment records what changed and why. The visible record that the plan was a hypothesis, not a contract.
-- **Abandonment Reason** (one paragraph, required when `Abandoned`) — what we believed at draft, what turned out true, what the next plan should do differently. This is what makes abandonment cheap: the next plan inherits the lesson. Never delete an abandoned plan.
-- **Retirement note** (one line, required when `Retired`) — where the work went (folded into {ID}-{NNN}, superseded by re-split, carved out to sibling {ID}).
+- **Plan Amendments** (append-only) — what changed and why. Original Scope/Intent/Steps stay frozen.
+- **Abandonment Reason** (one paragraph, required when `Abandoned`) — what we believed, what turned out true, what the next plan should do differently.
+- **Retirement note** (one line, required when `Retired`) — where the work went.
 
 ## Sibling Todos
 
-A sibling todo is the **capture-or-lose** mechanism for work that surfaced here but doesn't advance this todo's Goal — yet is worth keeping. The test is narrow: *does the discovery advance this Goal?* No, and worth keeping → sibling. Yes → in-todo response. Most discoveries are in-todo; siblings are rare. A sibling gets its own folder and ID per Step 1; record the relationship in both todos' Sibling Todos sections. If it isn't worth keeping, drop it — capturing every stray observation is the noise the system avoids.
+For work that surfaced here, does not serve any of this todo's criteria, and is worth keeping. Rare. Gets its own folder and ID per Step 1; the relationship is recorded in both todos. If it is not worth keeping, dismiss it.
 
 ## Internal vs. External Contradictions
 
-- **External contradiction** — plan contradicts a documented business rule or touches an excluded feature. **Veto-tier.** Address before implementation, or get explicit user sign-off to change the documented rule.
-- **Internal contradiction** — tension with the parent todo's intent, the plan's own sections, or neighboring plans. **Callout-tier.** Record and keep implementing; reconcile at Step 8 when the implementation has settled and the right resolution is usually obvious. Internal contradictions look bigger before the code is written than after — forcing plan-time reconciliation produces guesses.
-
-## Converting an Older Todo
-
-To convert a flat-file or `project-todos`-era todo to this shape, follow `references/conversion-checklist.md`.
+- **External** — plan contradicts a documented business rule or touches an excluded feature. Veto-tier. Address before implementation or get explicit sign-off to change the rule.
+- **Internal** — tension with the parent todo's intent, the plan's own sections, or neighboring plans. Callout-tier. Record, keep implementing, reconcile at Step 8.
 
 ## Resuming Mid-Workflow
 
-Read `todo.md` and the Plan Index; find the latest `In Progress` or `Draft` plan. This applies after a session break **and** after a mid-session context compaction — the files are the source of truth, not the conversation.
+Read `todo.md`, the Plan Index, and the Punchlist; find the latest `In Progress` or `Draft` plan. The files are the source of truth, not the conversation.
 
 | Plan Status | Next Step |
 |-------------|-----------|
-| Draft (stub) | Step 2 (draft) |
-| Draft (drafted, pre-flight not done) | Step 3 (pre-flight) |
-| In Progress | Step 4 (continue) |
-| Done, no test review | Step 5 (per-plan gate) |
-| Done, gate closed | Step 6 (loop or fall through) |
-| Abandoned / Retired | Step 2 (next plan, next monotonic number) |
+| Draft (stub) | Step 2 |
+| Draft (drafted, pre-flight not done) | Step 3 |
+| In Progress | Step 4 |
+| Done, no test review | Step 5 |
+| Done, gate closed | Step 6 |
+| Abandoned / Retired | Step 2, next number (against the cap) |
 
-All plans closed, no queued work → Step 7 (confirm Acceptance Criteria, run the close-out audit).
+All criteria met → Step 7.
+
+## Converting an Older Todo
+
+Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: adding Punchlist / Dismissed sections; triaging every queued Draft through the discovery protocol (most become punchlist rows or dismissals); declaring the cap at the current issued count; and checking the Acceptance Criteria — if they are met, go to Step 7 now.
 
 ## Best Practices
 
-1. **Plans describe intent; Current State holds reality; Amendments hold keyboard decisions.** When a Step starts reading like code, compress it and ask which of the other two homes the detail belongs in.
-2. **Keep plans small.** More than a day of draft-plus-execution means split it.
-3. **Log every discovery — briefly.** One ~100-word entry, ID-form citation, pointer to the long form.
-4. **Abandonment is normal; retirement is normal.** The reason is the deliverable; the next plan is the reward.
-5. **Don't amend a Done plan.** Post-`Done` findings go in a follow-up plan.
-6. **The todo's Acceptance Criteria are the exit gate** — not "all listed plans done." Plans come and go.
-7. **Review output lives in `reviews/`.** The Discovery Log links it; the Index Status cell stays terse.
-8. **Project-specific framework idioms live in the project repo**, not this skill: `<repo>/.claude/skills/iterative-todo/references/rubric-framework.md` or `<repo>/docs/code-review-rubric.md` (audit overlay), `<repo>/docs/code-review-calibration.md` (what clean means for this project).
+1. **Plans describe intent; Current State holds reality; Amendments hold keyboard decisions.**
+2. **Name the criterion number.** For every plan, every discovery, every finding you keep.
+3. **Dismiss freely; punch by default; queue rarely.** The cap is there to be felt.
+4. **Two gate rounds, then Done.** Leftovers are punched or accepted, never carried as a status.
+5. **Don't amend a Done plan.** A post-Done finding is a punchlist item or a Follow-on row.
+6. **Review output lives in `reviews/`.** The Index cell stays terse.
+7. **Project-specific framework idioms live in the project repo**, not this skill: `<repo>/docs/code-review-calibration.md` (what clean means here) and `<repo>/docs/code-review-rubric.md` (audit overlay).
 
 ## Reference Files
 
-- `references/todo-template.md` — todo template (Discovery Log + Plan Index + Sibling Todos)
-- `references/plan-template.md` — plan template (Scope, Intent, Alignment, Constraints, Steps, Acceptance, Current State, Test Evidence, Amendments)
-- `references/close-out-audit.md` — findings-only audit checklist for Step 7
+- `references/todo-template.md` — todo template (Punchlist, Dismissed, Plan Index, Discovery Log, Follow-on)
+- `references/plan-template.md` — plan template (Scope, Intent, Alignment, Constraints, Steps, Acceptance, Current State, Test Evidence, Punchlist, Amendments)
+- `references/close-out-audit.md` — audit checklist and the grade for Step 7
 - `references/conversion-checklist.md` — convert an older todo to this shape
 - `references/plan-template-neatoo.md` — Domain Model Behavioral Design addendum for Neatoo projects
