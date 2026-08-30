@@ -1,6 +1,6 @@
 # Close-Out Audit — iterative-todo Step 7
 
-The code-reviewer runs this over the **whole arc** — the todo, every plan, every review file, the logs. It returns a **grade** and a capped set of findings. The grade is a statement about what was done, not a target for what is left: **there is no "to reach A" section.**
+The code-reviewer runs this over the **whole arc** — on the arc branch with every plan PR merged: the todo, every plan, every review file, the logs. It returns a **grade** and a capped set of findings. The grade is a statement about what was done, not a target for what is left: **there is no "to reach A" section.**
 
 ## The Grade
 
@@ -61,6 +61,7 @@ Walk it all; each miss is a callout unless noted:
 6. Punchlist rows are one line; every open row is on the Follow-on list.
 7. Out of Scope respected; a change to it has an authorizing Discovery Log entry.
 8. Prose budgets: plans ≤ 200 lines at implementation entry (≤ 300 with amendments), Goal ≤ 150 words, log entries ≤ 60 words. Over-budget → callout, one line naming the worst offender.
+9. Every Done plan's Plan Index row carries a merged PR number into the arc, and no plan or punchlist branch is unmerged (`gh pr list --state open --base {arc}` is empty). An open PR is a miss, not an input.
 
 ## Output Format
 
@@ -92,6 +93,7 @@ Walk it all; each miss is a callout unless noted:
 - Status cells over budget: [n]
 - Untraced deferrals: [list or "None"]
 - Prose over budget: [worst offender or "None"]
+- Open PRs into the arc: [None | #n …]
 
 ### Follow-on (draft for Step 8)
 [One line each: queued Drafts at close, accepted gaps, open punchlist rows, unpinned tests, doc debt. "None — fully self-contained."]

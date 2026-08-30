@@ -19,7 +19,7 @@ description: |
   user: "Criteria are met. Run the close-out audit."
   assistant: "Invoking code-reviewer in close-out mode against the whole arc."
   <commentary>
-  The audit traces every Acceptance Criterion to code, walks container integrity (cap respected, no limbo statuses, deferrals traced, prose budgets), spot-checks Test Evidence honesty, greps the logs, and returns a grade. A and B close the todo. There is no "to reach A" list.
+  The audit traces every Acceptance Criterion to code, walks container integrity (cap respected, no limbo statuses, deferrals traced, prose budgets, every plan PR merged into the arc), spot-checks Test Evidence honesty, greps the logs, and returns a grade. A and B close the todo. There is no "to reach A" list.
   </commentary>
   </example>
 

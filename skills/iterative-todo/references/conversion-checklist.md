@@ -163,3 +163,12 @@ Lighter than the flat-file conversion — the folder shape is unchanged. Four mo
 4. **Declare the cap** at the current issued count in the todo header, with a one-line Discovery Log entry noting the conversion date. Any further plan is a stop-and-ask.
 
 Do not rewrite history: existing Discovery Log entries, plan prose, and reviews stay as they are. Budgets apply from the conversion forward.
+
+## Picking up 0.9.0 (the branch model) on a 0.8.0-era todo
+
+The folder shape is unchanged; only the branch records are new. In conversation with the user:
+
+1. **Record the arc** in the todo header as `**Arc branch:**`, whatever it is actually called — `lcr-rewrite`, `tsp/arc`. A todo that has been living on `main` cuts `{id}-arc` from `main` now and pushes it.
+2. **Add the PR column** to the Plan Index and fill it from `gh pr list --state merged --base {arc} --limit 200 --json number,title,headRefName`, matching `{ID}-{NNN}` in the title or branch name. A Status cell that carried "merged in PR #n" loses it — the column holds it now.
+3. **Add `Branch:` and `PR:`** to the header of any `In Progress` plan. Done plans are not touched.
+4. **Open PRs** stay where they are. From here on, per SKILL.md: the next plan branches from the arc after `/closeBranch`.

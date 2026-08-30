@@ -8,6 +8,8 @@
 **Last Updated:** YYYY-MM-DD
 **Plan-review opt-in:** [Yes/No (one-line reason — cross-aggregate, schema, public API, security, irreversible; name `business-requirements-reviewer` when documented rules are touched)]
 **Code-review opt-in:** [Yes/No (one-line reason — behavior-changing plans; skip for mechanical work)]
+**Branch:** {id}-{NNN}-{short-name} — cut from the arc at Step 2
+**PR:** — [#n once opened at Done, into the arc, titled `{ID}-{NNN}: <title>`; the user merges]
 
 <!-- Status: Draft | In Progress | Done | Abandoned | Retired. A status is a word plus at most five words; there is no "gates run, findings addressed" state. -->
 

@@ -8,6 +8,7 @@
 **Last Updated:** YYYY-MM-DD
 **Initial split:** N plans
 **Plan cap:** max(ceil(N × 1.5), N + 2) — counts plan numbers *issued*, including Abandoned and Retired. Issuing a number above the cap is a stop-and-ask: close on what is done, or raise the cap with a one-line Discovery Log reason.
+**Arc branch:** {id}-arc — cut from main at Step 1; every plan and punchlist branch PRs into it; it PRs into main at Step 8. This line wins over the default name. A sibling todo names the parent's arc here.
 
 ---
 
@@ -33,14 +34,14 @@
 
 ## Plan Index
 
-[Monotonic numbering; Abandoned and Retired plans keep their numbers. Pre-populated at Step 1 with the initial split — 2–6 stubs for contained todos, 6–12 for large restructures. Every row names the criteria it serves. **Status cell = status word + at most five words.** Narrative lives in the plan; review output lives in `reviews/`. There is no "gates run, findings addressed" state — after two gate rounds a plan is Done.]
+[Monotonic numbering; Abandoned and Retired plans keep their numbers. Pre-populated at Step 1 with the initial split — 2–6 stubs for contained todos, 6–12 for large restructures. Every row names the criteria it serves. **Status cell = status word + at most five words.** Narrative lives in the plan; review output lives in `reviews/`. There is no "gates run, findings addressed" state — after two gate rounds a plan is Done. **PR** is the number once merged into the arc (`—` until then); the Status cell does not carry it.]
 
-| # | File | Title (≤ 8 words) | Serves | Status |
-|---|------|-------|--------|--------|
-| 001 | [001-{name}](./plans/001-{name}.md) | [title] | AC-1 | Done |
-| 002 | [002-{name}](./plans/002-{name}.md) | [title] | AC-2 | Abandoned |
-| 003 | [003-{name}](./plans/003-{name}.md) | [title] | AC-1, AC-3 | In Progress |
-| 004 | [004-{name}](./plans/004-{name}.md) | [title] | AC-2 | Retired — folded into 003 |
+| # | File | Title (≤ 8 words) | Serves | Status | PR |
+|---|------|-------|--------|--------|----|
+| 001 | [001-{name}](./plans/001-{name}.md) | [title] | AC-1 | Done | #12 |
+| 002 | [002-{name}](./plans/002-{name}.md) | [title] | AC-2 | Abandoned | — |
+| 003 | [003-{name}](./plans/003-{name}.md) | [title] | AC-1, AC-3 | In Progress | — |
+| 004 | [004-{name}](./plans/004-{name}.md) | [title] | AC-2 | Retired — folded into 003 | — |
 
 ---
 
@@ -91,7 +92,7 @@
 
 ## Sibling Todos
 
-[Work that surfaced here, serves none of this todo's criteria, and is worth keeping. Rare. One line each with a link.]
+[Work that surfaced here, serves none of this todo's criteria, and is worth keeping. Rare. One line each with a link. Their branches PR into this todo's arc.]
 
 - 
 
@@ -137,4 +138,5 @@
 Plans: {issued} issued of {cap} cap — {done} Done, {abandoned} Abandoned, {retired} Retired.
 Punchlist: {closed} closed. Dismissed: {n}. Follow-on: {n}.
 Close-Out Audit: Grade {A|B} (acknowledged YYYY-MM-DD).
+Arc: {arc} → main, PR #{n}.
 ```

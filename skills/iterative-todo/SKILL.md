@@ -1,16 +1,18 @@
 ---
 name: iterative-todo
-version: 0.8.0
-description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "resume the todo", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
+version: 0.9.0
+description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "resume the todo", "cut the arc branch", "open this plan's PR", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
 # Iterative Todo, Plans, Punchlist, and Discovery Workflow
 
 Manage multi-session project work as a durable **todo** with a bounded set of small **plans** and a **punchlist** of one-line items. The todo exits when its Goal is met — not when its queue is empty.
 
-## Why 0.8.0 exists
+## Why 0.8.0 exists, and what 0.9.0 adds
 
 0.7.0 produced todos that never ended. One 20-day todo issued 41 plan numbers; eight of its nine Acceptance Criteria were met on day 7, and every plan after that came from a reviewer finding, not from the Goal. Reviews returned *more* findings as the code matured, because reviewing an edge-case plan yields edge-cases-of-edge-cases. The causes were structural: the loop exited on "queue empty" while the gates were queue producers; every discovery option produced work and none dismissed; reviewers had findings as their only success shape; and the skill itself called 2× index growth "the system working." 0.8.0 changes the exit condition, adds a tier below plans, adds Dismiss, caps plans and findings, gives reviewers a positive verdict, and restores a close-out grade without the old ratchet.
+
+**0.9.0 adds the branch model.** A todo lives on one **arc branch**; every plan and every punchlist branch PRs into it; the arc PRs into `main` once, when the todo closes. It is the shape LCR ran for forty-five PRs on `lcr-rewrite`, written down so the templates and `/closeBranch` know about it.
 
 ## When to Use
 
@@ -84,6 +86,27 @@ docs/todos/{ID}-{todo-name}/
 
 Plan numbering is monotonic; abandoned and retired plans keep their numbers. **All review output lives in `reviews/`** — never inlined into the Discovery Log or a Status cell.
 
+## Branches and PRs
+
+A todo lives on one **arc branch**. Code reaches the arc only by PR, and the arc reaches `main` by one PR at the end.
+
+| Branch | Name | Cut from | PRs into | Lives from |
+|---|---|---|---|---|
+| **Arc** | `{id}-arc` | `main` | `main` | Step 1 to Step 8 |
+| **Plan** | `{id}-{NNN}-{short-name}` | the arc | the arc | Step 2 to Done |
+| **Punchlist** | `{id}-{short-name}` | the arc | the arc | while its rows are worked |
+
+`{id}` is the todo ID in lowercase. The todo header records the arc's actual name, and the header wins over the default — `lcr-rewrite` is LCR's arc.
+
+- **Plan branch.** Cut from the freshly pulled arc when the stub is picked up at Step 2, so the draft, the pre-flight, the implementation, the gate record, and every `todo.md` edit the plan causes land in one PR. Plan-scoped punchlist rows ride it. Two small plans on one seam may share a branch — name it after the lower number and title the PR with both.
+- **Punchlist branch.** For todo-level rows worked between plans. Several rows may ride one branch; each closes with the PR number.
+- **PR title:** `{ID}-{NNN}: <plan title>`; `{ID}: <what>` for a punchlist PR; `{ID}: <todo title>` for the arc. The body says what landed, what the gates found, and what is deliberately still open — it links the plan file rather than repeating it.
+- **The orchestrator opens PRs; the user merges them.** A plan's PR opens at Done — after the gate, never before. AZM-007's PR merged before either gate ran, and the gate then found a sacred-test mapping that had been claimed rather than shown.
+- **After every merge, `/closeBranch`.** It follows the PR's base: closing a plan branch lands on the arc, freshly pulled, and the next plan branches from there; closing the arc lands on `main`. The next plan waits for that — stacking on an unmerged plan branch is the user's call, not a default.
+- **The arc takes direct commits for the container only** — the Step 1 creation, a Dismissed row or Follow-on edit between plans, the Step 8 completion commit. Code arrives by PR.
+- **The arc need not be deployable between plans; `main` always is.** No plan is shaped to keep an intermediate arc shippable.
+- **Sibling todos land on the parent's arc:** `{sibling-id}-{NNN}-{name}` → parent arc, recorded in the sibling's header. RIG's plans landed on `lcr-rewrite`.
+
 ## Sub-Agents
 
 Every reviewer returns **a verdict plus a capped list of findings**. Veto-tier findings are always listed in full — they are rare by definition. Callouts are capped at **five**; anything beyond is one line: *"N more, lower priority, not listed."* Each finding states `Reachable by:` (user action / observed failure / live caller); findings that cannot go under **Theoretical** and are not triaged. A clean verdict is a complete, expected result — reviewers do not manufacture findings to fill a section.
@@ -155,9 +178,11 @@ Before any file exists, the user and orchestrator define the goal: what problem,
 
 Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`. Add the `_ids.md` row in the same change.
 
+**Cut the arc branch** from `main` — `{id}-arc`, pushed with `-u` — and record it in the todo header. The Step 1 commit (folder, stubs, `_ids.md` row) is the arc's first, made directly.
+
 ### Step 2 — Draft Next Plan
 
-Pick the next `Draft` stub. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
+Pick the next `Draft` stub. **Cut its branch from the freshly pulled arc** — `{id}-{NNN}-{short-name}` — and record it in the plan header; everything this plan touches lands there. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
 
 **Declare the review opt-ins** in the header with a one-line reason each: `Plan-review opt-in` (cross-aggregate, schema, public API, security, irreversible; name `business-requirements-reviewer` when the plan touches documented rules) and `Code-review opt-in` (behavior-changing plans; skip for mechanical work).
 
@@ -180,7 +205,7 @@ Work the Steps in order, in conversation with the user. Run scoped tests at natu
 Then record the decision:
 
 - **Dismiss** — one line in the todo's Dismissed section: finding, reason. No log entry.
-- **Punch** — one line in the plan's or todo's Punchlist. Work it inline (plan mode if it needs thought). No log entry.
+- **Punch** — one line in the plan's or todo's Punchlist. Work it inline (plan mode if it needs thought) — plan-scoped rows on the plan branch, todo-level rows on a punchlist branch. No log entry.
 - **Amend** — the current plan's details change, not its intent. Plan Amendments entry + Discovery Log entry. *The most common logged decision.*
 - **Queue** — plan-sized and it passed the criterion test: a new `Draft` stub and Index row, against the cap. Discovery Log entry.
 - **Abandon** — the current plan is the wrong path. Status `Abandoned`, reason filled, replacement drafted. Discovery Log entry.
@@ -206,15 +231,19 @@ Only Amend, Queue, Abandon, and Re-split get Discovery Log entries. There is no 
 
 A plan reaches `Done` when the gate closes or its leftovers are accepted. Not before, and not later.
 
+**Then open the PR** into the arc — `{ID}-{NNN}: <title>` — and record the number in the plan header and the Plan Index's PR column. The user merges; `/closeBranch` follows.
+
 ### Step 6 — Loop or Fall Through
 
 **Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list.
 
 Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all.
 
+Step 2 starts from the arc, freshly pulled — after the previous PR has merged and `/closeBranch` has run.
+
 ### Step 7 — Close-Out Audit and Grade (Mandatory)
 
-Run build + test once each (`reviews/final-build.log`, `reviews/final-test.log`) and invoke **code-reviewer** in close-out mode with the whole arc — the todo, every plan, every review file, the log paths. Per `references/close-out-audit.md`, the auditor traces every Acceptance Criterion to code, walks container integrity, spot-checks Test Evidence honesty, greps the logs, and returns a **grade**:
+**On the arc branch, with every plan PR merged** — an open plan PR is a container miss, not an audit input. Run build + test once each (`reviews/final-build.log`, `reviews/final-test.log`) and invoke **code-reviewer** in close-out mode with the whole arc — the todo, every plan, every review file, the log paths. Per `references/close-out-audit.md`, the auditor traces every Acceptance Criterion to code, walks container integrity, spot-checks Test Evidence honesty, greps the logs, and returns a **grade**:
 
 - **A** — every criterion traced to code with evidence; no veto-tier findings.
 - **B** — every criterion traced or explicitly accepted as a gap with a reason; no veto-tier findings; gaps on the Follow-on list.
@@ -222,7 +251,7 @@ Run build + test once each (`reviews/final-build.log`, `reviews/final-test.log`)
 
 **A and B close the todo.** C does not — and C is not "keep iterating": the user picks one of fix-the-named-thing, accept-the-gap (→ B), or close as `Blocked`. There is no "to reach A" list. The grade is a statement about what was done, not a target for what is left.
 
-Write to `reviews/close-out-audit.md`; a re-audit after fixes appends.
+Write to `reviews/close-out-audit.md`; a re-audit after fixes appends. C-grade fixes go on a punchlist branch and PR into the arc like anything else.
 
 ### Step 8 — Completion & Retro
 
@@ -234,9 +263,9 @@ Verify: the audit exists with grade A or B and the user acknowledged it; every p
 
 **Retro (one paragraph):** what this todo taught about the workflow itself. Route lessons to the project's CLAUDE.md, this skill's backlog, or persistent memory. Include the numbers: plans issued vs. cap, findings dismissed vs. punched vs. queued.
 
-Set status `Complete`. Move the folder to `docs/todos/completed/{ID}-{todo-name}/` and move the `_ids.md` row in the same change.
+Set status `Complete`. Move the folder to `docs/todos/completed/{ID}-{todo-name}/` and move the `_ids.md` row in the same change. That commit is the arc's last. **Open the arc's PR into `main`** — `{ID}: <todo title>` — the user merges, and `/closeBranch` on the arc lands on `main`.
 
-**The user decides when to commit and when to open PRs.**
+**The user decides when to commit and merges every PR; the orchestrator opens them.**
 
 ## Discovery Log Format
 
@@ -272,7 +301,7 @@ Set status `Complete`. Move the folder to `docs/todos/completed/{ID}-{todo-name}
 
 ## Sibling Todos
 
-For work that surfaced here, does not serve any of this todo's criteria, and is worth keeping. Rare. Gets its own folder and ID per Step 1; the relationship is recorded in both todos. If it is not worth keeping, dismiss it.
+For work that surfaced here, does not serve any of this todo's criteria, and is worth keeping. Rare. Gets its own folder and ID per Step 1; the relationship is recorded in both todos, and the sibling's branches PR into this todo's arc. If it is not worth keeping, dismiss it.
 
 ## Internal vs. External Contradictions
 
@@ -282,6 +311,8 @@ For work that surfaced here, does not serve any of this todo's criteria, and is 
 ## Resuming Mid-Workflow
 
 Read `todo.md`, the Plan Index, and the Punchlist; find the latest `In Progress` or `Draft` plan. The files are the source of truth, not the conversation.
+
+Then `git branch --show-current`. An `In Progress` plan should be on the branch its header names; between plans you should be on the arc. On the arc with a plan `In Progress` → check `gh pr list` before switching — the PR may have merged with the header not yet updated.
 
 | Plan Status | Next Step |
 |-------------|-----------|
@@ -296,7 +327,7 @@ All criteria met → Step 7.
 
 ## Converting an Older Todo
 
-Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: adding Punchlist / Dismissed sections; triaging every queued Draft through the discovery protocol (most become punchlist rows or dismissals); declaring the cap at the current issued count; and checking the Acceptance Criteria — if they are met, go to Step 7 now.
+Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: adding Punchlist / Dismissed sections; triaging every queued Draft through the discovery protocol (most become punchlist rows or dismissals); declaring the cap at the current issued count; and checking the Acceptance Criteria — if they are met, go to Step 7 now. A 0.8.0-era todo picks up 0.9.0 by recording its arc branch in the header and adding the PR column to the Plan Index — the checklist's last section.
 
 ## Best Practices
 
@@ -307,6 +338,7 @@ Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: addin
 5. **Don't amend a Done plan.** A post-Done finding is a punchlist item or a Follow-on row.
 6. **Review output lives in `reviews/`.** The Index cell stays terse.
 7. **Project-specific framework idioms live in the project repo**, not this skill: `<repo>/docs/code-review-calibration.md` (what clean means here) and `<repo>/docs/code-review-rubric.md` (audit overlay).
+8. **One arc; one PR per plan; `/closeBranch` after every merge.** Code reaches the arc by PR only, and the arc reaches `main` once.
 
 ## Reference Files
 
