@@ -87,6 +87,8 @@ Every user interaction in a Neatoo app follows three sequential, non-overlapping
 
 **The phases don't cross.** Business methods never open transactions, call repositories, or raise factory events. Factory methods never call business methods or reach back into phase 1 logic. What factory methods need to read, they read from state that phase 1 set.
 
+**A business verb may invoke a factory-generated seam** — `Save`, an `[Execute]`, a command delegate — **never a repository or a transaction.** The seam is the boundary the framework generates (it carries the `[Service]` injection, authorization, transaction and save cascade); a verb that calls it passes through that boundary without owning any of it, exactly as a ViewModel does. So a verb that saves and returns its own successor, or hands a validated value to a command delegate, is inside the three phases, not a carve-out. What stays forbidden is unchanged: reaching a repository, opening a transaction, raising a factory event, taking a service as a parameter. (Project ruling: zTreatment DR-0087 D-6, 2026-08-24.)
+
 ### Factory Method vs. Business Method Boundary
 
 | Factory methods own | Business methods own |
