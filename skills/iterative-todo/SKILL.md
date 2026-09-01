@@ -1,18 +1,20 @@
 ---
 name: iterative-todo
-version: 0.9.0
-description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "resume the todo", "cut the arc branch", "open this plan's PR", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
+version: 0.10.0
+description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "run the punchlist sweep", "resume the todo", "cut the arc branch", "open this plan's PR", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
 # Iterative Todo, Plans, Punchlist, and Discovery Workflow
 
 Manage multi-session project work as a durable **todo** with a bounded set of small **plans** and a **punchlist** of one-line items. The todo exits when its Goal is met — not when its queue is empty.
 
-## Why 0.8.0 exists, and what 0.9.0 adds
+## Why 0.8.0 exists, and what later versions add
 
 0.7.0 produced todos that never ended. One 20-day todo issued 41 plan numbers; eight of its nine Acceptance Criteria were met on day 7, and every plan after that came from a reviewer finding, not from the Goal. Reviews returned *more* findings as the code matured, because reviewing an edge-case plan yields edge-cases-of-edge-cases. The causes were structural: the loop exited on "queue empty" while the gates were queue producers; every discovery option produced work and none dismissed; reviewers had findings as their only success shape; and the skill itself called 2× index growth "the system working." 0.8.0 changes the exit condition, adds a tier below plans, adds Dismiss, caps plans and findings, gives reviewers a positive verdict, and restores a close-out grade without the old ratchet.
 
 **0.9.0 adds the branch model.** A todo lives on one **arc branch**; every plan and every punchlist branch PRs into it; the arc PRs into `main` once, when the todo closes. It is the shape LCR ran for forty-five PRs on `lcr-rewrite`, written down so the templates and `/closeBranch` know about it.
+
+**0.10.0 schedules the punchlist.** 0.8.0 assumed punchlist rows are worked inline at the moment of discovery, but on TSR/TSP roughly 80% were born at Step 5 gates — after the plan's diff was under review, which is exactly when working an unrelated row would muddy it — so "inline" never triggered for them. The loop consulted only the Acceptance Criteria and the Plan Index, close-out merely carried open rows forward, and the result was rows surviving whole todos untouched (a one-minute file deletion outlived four gated plans; one row crossed two todos). 0.10.0 gives rows two scheduled moments — Step 2's pull-in triage and one Step 6 sweep — **without** putting the punchlist in the exit condition, which would rebuild the 0.7.0 ratchet: the gates are row producers.
 
 ## When to Use
 
@@ -28,6 +30,8 @@ Multi-session, design-heavy work where the plan needs to outlive the conversatio
 
 Punchlist items are worked inline. One that needs a moment's design gets built-in plan mode (`Shift+Tab`) — a plan that lives in the conversation and dies with it. No file, no review, no log entry. Plan-scoped items live in the plan's Punchlist; cross-plan items in the todo's. Work inherited from a prior arc is seeded into the Punchlist at Step 1, one line per item — never as a ledger of paragraphs.
 
+**Inline has a limit.** Most rows are born at Step 5 gates, after the inline window has closed, so a row that misses its moment is not a failure — it waits for one of its two scheduled moments: Step 2's triage pulls rows lying in the next plan's path down onto that plan, and the Step 6 **sweep** works or dismisses everything still open, once, before the todo's last plan or close-out.
+
 **Most findings are punchlist items or dismissals.** A finding becomes a plan only if it passes the sizing test in the discovery protocol.
 
 ## Core Principle 1: Plans Are Prescriptions, Not Implementations
@@ -39,6 +43,8 @@ Plans are not locked when implementation starts. When something surprises the im
 ## Core Principle 2: Tests Are Iterative Too
 
 Plans don't enumerate test cases. Every behavioral Acceptance bullet carries one tier tag — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]` — and that is the plan's whole test surface. Implementation writes tests at the declared tier. Before the gate, the orchestrator fills the **Test Evidence** map: every bullet → the test that pins it → tier confirmed, or `MISSING — <reason>`. The test-reviewer checks that the map is honest — cited tests exist, assert the behavior, sit at the declared tier. The user picks the closing bar. This map has been the single most successful mechanic in the workflow; it stays.
+
+`[ui]` is the one tag that does not invent its own criteria. It is the browser/bench tier, and a `[ui]` bullet **cites a user-confirmed use case** from the catalogue rather than writing acceptance for itself (Core Principle 6). If the bullet needs a case the catalogue does not hold, that is a proposal to the user — not something the plan authors on its own. A `[ui]` bullet citing a Rare Edge Case does not gate the plan.
 
 ## Core Principle 3: The Todo Is Durable. The Conversation Is Not.
 
@@ -67,6 +73,29 @@ Authors all todo and plan content; drafts each plan as the smallest viable next 
 ### What Agents Do
 
 Review and audit; return a verdict and a capped set of findings, each with reachability stated; never write to todo or plan files; never set status; never re-raise a dismissed finding.
+
+## Core Principle 6: Use Cases Are the User's, and Tiers Bound the Search
+
+The orchestrator does not decide what counts as a use case, and does not decide what blocks. **Regular, repeatable use cases belong to the user**: the orchestrator proposes, the user confirms, and only then is the case captured in the project's **use-case catalogue** — the durable, cross-plan record of how the application is actually used. *(In zTreatment that catalogue is `docs/production-validation/`.)* A catalogue entry the orchestrator filed on its own authority is a gate nobody asked for.
+
+Every catalogue entry carries exactly one tier:
+
+| Tier | What it means | Gates? | Run when |
+|---|---|---|---|
+| **Happy Path** | Must work for the application to be operational. If it fails, the application cannot achieve its goal in day-to-day use. | **Yes** | Every run |
+| **Edge Case** | The user might not even notice these — they surface only on a certain mistake or usage pattern. Failing one is a **user-experience failure**. | **Yes** | Every run |
+| **Rare Edge Case** | Technical-only concerns. The user wouldn't know how to describe them. | **No** | **Skipped by default.** The orchestrator may *recommend* including them when a change is significant or lands in their area; the user decides. |
+
+**The tiers do two jobs with one mechanism.**
+
+- **They contain the search.** The confirmed catalogue is the boundary of what a validation run looks for. The orchestrator does not widen it mid-run, does not promote something it found into a gate, and does not treat a self-generated concern as blocking. A Happy Path or Edge Case failure stops the work that provoked the run; a Rare Edge Case failure is recorded and routed, and stops nothing.
+- **They capture use cases across plans.** A use case outlives the plan that discovered it. Confirmed cases accumulate in the catalogue instead of scattering through individual plans' acceptance bullets, where they die when the plan closes.
+
+**What the catalogue holds.** Browser-driven cases and hardware/bench cases — the application as a person actually uses it, something a human could be handed and asked to perform. **Unit, integration and database cases do not go in the catalogue**; they stay in the plans' Test Evidence tiers (Core Principle 2). The two are complementary, not alternatives.
+
+**A run is boxed before it starts and runs to the end.** The charter names the entries it will execute — by default every Happy Path and Edge Case in the area, Rare Edge Cases only when the user has said so. A finding, even a real and reachable one, is written into the run record and **the run continues to the next entry**. Whether a finding blocks is the user's call, made at the debrief with the whole run in view. A new case that suggests itself mid-run is raised at the debrief and enters the catalogue only after confirmation — never inserted into the run that thought of it.
+
+**Why this principle exists.** A five-entry bench run stopped after two because the orchestrator kept promoting its own findings to blockers; told to stop doing that, it then closed the arc on its own judgment. Same substitution of the orchestrator's call for the user's, in both directions. Neither the search nor the gate was bounded by anything the user had confirmed.
 
 ## Directory Structure
 
@@ -99,7 +128,7 @@ A todo lives on one **arc branch**. Code reaches the arc only by PR, and the arc
 `{id}` is the todo ID in lowercase. The todo header records the arc's actual name, and the header wins over the default — `lcr-rewrite` is LCR's arc.
 
 - **Plan branch.** Cut from the freshly pulled arc when the stub is picked up at Step 2, so the draft, the pre-flight, the implementation, the gate record, and every `todo.md` edit the plan causes land in one PR. Plan-scoped punchlist rows ride it. Two small plans on one seam may share a branch — name it after the lower number and title the PR with both.
-- **Punchlist branch.** For todo-level rows worked between plans. Several rows may ride one branch; each closes with the PR number.
+- **Punchlist branch.** For todo-level rows worked between plans, and for the Step 6 sweep. Several rows may ride one branch; each closes with the PR number.
 - **PR title:** `{ID}-{NNN}: <plan title>`; `{ID}: <what>` for a punchlist PR; `{ID}: <todo title>` for the arc. The body says what landed, what the gates found, and what is deliberately still open — it links the plan file rather than repeating it.
 - **The orchestrator opens PRs; the user merges them.** A plan's PR opens at Done — after the gate, never before. AZM-007's PR merged before either gate ran, and the gate then found a sacred-test mapping that had been claimed rather than shown.
 - **After every merge, `/closeBranch`.** It follows the PR's base: closing a plan branch lands on the arc, freshly pulled, and the next plan branches from there; closing the arc lands on `main`. The next plan waits for that — stacking on an unmerged plan branch is the user's call, not a default.
@@ -182,7 +211,9 @@ Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`
 
 ### Step 2 — Draft Next Plan
 
-Pick the next `Draft` stub. **Cut its branch from the freshly pulled arc** — `{id}-{NNN}-{short-name}` — and record it in the plan header; everything this plan touches lands there. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
+Pick the next `Draft` stub. **Cut its branch from the freshly pulled arc** — `{id}-{NNN}-{short-name}` — and record it in the plan header; everything this plan touches lands there.
+
+**Triage the todo's Punchlist against this plan's path.** Any open todo-level row this plan's Steps will touch anyway moves down into the plan's own Punchlist and rides the plan branch — proximity is how cheap rows actually get done, and it should be a rule, not luck. Rows outside this plan's path stay put for the Step 6 sweep. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
 
 **Declare the review opt-ins** in the header with a one-line reason each: `Plan-review opt-in` (cross-aggregate, schema, public API, security, irreversible; name `business-requirements-reviewer` when the plan touches documented rules) and `Code-review opt-in` (behavior-changing plans; skip for mechanical work).
 
@@ -201,6 +232,7 @@ Work the Steps in order, in conversation with the user. Run scoped tests at natu
 1. **Which Acceptance Criterion does it serve?** Name the number. None → **Dismiss**, or (rarely) a sibling todo.
 2. **Is it reachable?** A user action, an observed failure, or a live caller. No → **Dismiss**. "Hardening against a subscriber nobody has written yet" is a dismiss.
 3. **How big is it?** Under about half a day, doesn't change a criterion, doesn't open a seam no plan touches → **Punch**. Otherwise it is plan-sized.
+4. **Is it a use case the user confirmed?** If the finding is about how the application behaves for a person using it, check the catalogue (Core Principle 6). A confirmed Happy Path or Edge Case entry gates. A Rare Edge Case entry does not. **Something the orchestrator generated that is in no catalogue entry gates nothing** — propose it at the debrief and let the user decide whether it becomes one. Discovering a plausible failure does not make it a blocker; only the user does.
 
 Then record the decision:
 
@@ -233,11 +265,13 @@ A plan reaches `Done` when the gate closes or its leftovers are accepted. Not be
 
 **Then open the PR** into the arc — `{ID}-{NNN}: <title>` — and record the number in the plan header and the Plan Index's PR column. The user merges; `/closeBranch` follows.
 
-### Step 6 — Loop or Fall Through
+### Step 6 — Loop, Sweep, or Fall Through
 
-**Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list.
+**Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **the punchlist sweep below, then Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list.
 
-Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all.
+Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all. **If the plan about to be drafted is the todo's last** — nothing else queued and no unmet criterion beyond its Serves — run the sweep first: its rows are about to lose their final in-path chance, and one of them may gate that plan.
+
+**The punchlist sweep — once per todo.** Cut a punchlist branch and **work or dismiss every open todo-level row** in one batch: no per-row gate, one PR, each row closed with the PR number (a run of related rows may share a short commit). A row only the remaining plan can close (rig evidence, an artifact that does not exist yet) records that explicitly and survives; nothing else does. The sweep is deliberately late — after it, the punchlist stops being a queue and Step 8's "all `[x]` or moved to Follow-on" check is a verification rather than a triage.
 
 Step 2 starts from the arc, freshly pulled — after the previous PR has merged and `/closeBranch` has run.
 
@@ -255,7 +289,7 @@ Write to `reviews/close-out-audit.md`; a re-audit after fixes appends. C-grade f
 
 ### Step 8 — Completion & Retro
 
-Verify: the audit exists with grade A or B and the user acknowledged it; every plan is `Done` / `Abandoned` / `Retired`; the Punchlist is all `[x]` or moved to Follow-on; every Follow-on row is one line.
+Verify: the audit exists with grade A or B and the user acknowledged it; every plan is `Done` / `Abandoned` / `Retired`; the Punchlist is all `[x]` or moved to Follow-on — the Step 6 sweep is what made that true, and arriving here with open rows and no sweep is a container miss; every Follow-on row is one line.
 
 **Documentation check:** confirm doc deltas shipped with the behavior they describe. Reconcile any internal-contradiction callouts parked by reviewers. Remaining doc debt goes on the Follow-on list or, if large, to `business-requirements-documenter` ad hoc.
 
@@ -333,7 +367,7 @@ Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: addin
 
 1. **Plans describe intent; Current State holds reality; Amendments hold keyboard decisions.**
 2. **Name the criterion number.** For every plan, every discovery, every finding you keep.
-3. **Dismiss freely; punch by default; queue rarely.** The cap is there to be felt.
+3. **Dismiss freely; punch by default; queue rarely.** The cap is there to be felt. A punch is a deferral to a scheduled moment — Step 2's triage or the Step 6 sweep — not a write-off.
 4. **Two gate rounds, then Done.** Leftovers are punched or accepted, never carried as a status.
 5. **Don't amend a Done plan.** A post-Done finding is a punchlist item or a Follow-on row.
 6. **Review output lives in `reviews/`.** The Index cell stays terse.
