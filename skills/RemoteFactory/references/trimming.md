@@ -129,6 +129,39 @@ The `Trim="true"` attribute on the `RuntimeHostConfigurationOption` is critical 
 - **.NET 9 or later** — `[FeatureSwitchDefinition]` was introduced in .NET 9
 - **`dotnet publish`** — Trimming runs during publish, not during `dotnet build` or `dotnet run`
 
+## What Gets Trimmed, By Factory Shape
+
+The guarantee is not uniform across factory shapes. What follows is measured against a published trimmed assembly, not inferred from the mechanism.
+
+| Shape | `[Remote]`/handler bodies removed? |
+|---|---|
+| Static factory (`[Execute]`) | Yes, from v1.7.0 |
+| `[FactoryEventHandler<T>]` | Yes, from v1.7.0 |
+| Class factory | Yes, from v1.7.0 — synchronous operations were always removed; `async` ones needed the same release |
+| Class-level `[Execute]` | Yes, from v1.7.0 — emitted `async` always, so it needed the same fix |
+| Interface factory | **Not established.** No leak has been observed, but the leg reaches its implementation through interfaces, so a client-side test reads "absent" whether or not the body survives. Treat it as unverified rather than proven. |
+
+### Why the fix was needed
+
+The generator emits `[assembly: NeatooFactoryRegistrar(typeof(X))]` so factory registration survives trimming. That attribute carries `[DynamicallyAccessedMembers]`, which preserves **every method on the type it names, method bodies included**.
+
+Two distinct problems followed from that, both fixed in v1.7.0:
+
+1. **Static factories and `[FactoryEventHandler<T>]` classes had no generated type to name.** The generator re-opens *your* partial class to host the registrar, so the attribute named your class and preservation covered your `[Remote]` bodies. They shipped to the browser.
+2. **Class factories named `{X}Factory`, which was generated but not small.** It hosts every `Local*` method, so naming it preserved all of them, bodies included. Naming a generated type was never the point — naming a type with exactly *one* method is.
+
+Both are fixed by emitting a single-method forwarding holder for the attribute to point at.
+
+`async` class-factory operations needed a second fix on top. Inside an `async` method the compiler lowers the `IsServerRuntime` guard into the state machine's `MoveNext`, within the builder's own protected region; the trimmer folds the switch there but does not remove the unreachable remainder. So guarded `async` operations are now emitted as a non-async wrapper carrying the guard, forwarding to a private async core.
+
+No action needed on your side; it is automatic. If you are on an earlier version and ship `[Execute]` commands, event handlers, or `async` factory operations to a Blazor WASM client, upgrade — those bodies are in your published output today.
+
+One behaviour change to be aware of: the server-only guard now throws **synchronously** from the factory entry point rather than surfacing as a faulted `Task`. Code that awaited the call and caught the exception still works; code that called without awaiting and inspected the returned `Task` will now see the throw at the call site.
+
+### `[Remote]` is decorative on `[Execute]`
+
+Static factories are exempt from the NF0105 `[Remote] public` check, and the generator emits both remote and local registrations regardless, guarding only the local one with `IsServerRuntime`. Trimming of an `[Execute]` body follows from that guard, not from `[Remote]`. Keep `[Remote]` for intent — it reads consistently with class factories — but do not rely on it as the thing that makes the body trimmable.
+
 ## Verifying Results
 
 After publishing, confirm server-only types were removed:
@@ -140,6 +173,14 @@ dotnet publish -c Release
 # Search for server-only type names (should return no matches)
 grep -aob "YourRepositoryClassName" bin/Release/net9.0/publish/YourApp.dll
 ```
+
+**Searching for a string literal takes an extra step.** Type and method *names* are UTF-8 in assembly metadata, so `grep -a` finds them. String *literals* from method bodies are UTF-16, so `grep -a` cannot match them — it reports "absent" for text that is sitting in the file. Strip the nulls first:
+
+```bash
+tr -d '\000' < bin/Release/net9.0/publish/YourApp.dll | grep -c "SELECT * FROM"
+```
+
+Before trusting a clean result, run the same check against the **non-published** build output, where the server-only code definitely still exists. If it reports "absent" there too, your check is broken rather than your code being clean.
 
 If server-only type names still appear:
 1. Confirm `TrimMode` is `full` (not `partial` or omitted)
@@ -176,10 +217,10 @@ The generator walks factory method return types, unwrapping `Task<T>`, nullable 
 
 ### Factory event preservation
 
-Factory event records inherit `FactoryEventBase`, which carries two annotations with `Inherited = true`:
+Factory event records inherit `FactoryEventBase`. Two mechanisms make them work under trimming:
 
-- `[FactoryEvent]` — used by the runtime `FactoryEventTypeRegistry` to discover descendants via attribute scan
-- `[DynamicallyAccessedMembers(PublicConstructors | PublicProperties)]` — preserves every descendant's public constructors and public properties through trimming
+- `[FactoryEvent]` on the base (inherited at runtime) — used by the runtime `FactoryEventTypeRegistry` to discover descendants via attribute scan
+- The source generator discovers every concrete, accessible `FactoryEventBase` descendant declared in a compilation and emits a per-assembly event-preservation registrar that preserves the event's constructors/properties and its nested property graph. (The `[DynamicallyAccessedMembers]` annotation on the base does NOT do this — DAM does not flow to derived types under ILLink.)
 
 Net effect: if a record inherits `FactoryEventBase`, its constructors and properties survive `PublishTrimmed=true` automatically. No per-event annotation, no `[FactoryEventHandler<T>]` declaration, and no manual `DtoConstructorRegistry` call is required for the event type itself.
 
@@ -236,7 +277,7 @@ Direct calls with a concrete type (`_factoryEvents.Raise(new OrderCheckoutComple
 
 ### What you need to know
 
-If you return a plain DTO from a factory method, or declare a `FactoryEventBase` descendant in a project with a direct `Neatoo.RemoteFactory` `PackageReference`, the type and its constructors and properties are automatically trimming-safe. Nested complex property types reachable from events that are NOT used elsewhere in the API may need explicit preservation.
+If you return a plain DTO from a factory method, carry a DTO as a `[Factory]` entity property, or declare a `FactoryEventBase` descendant in a project with a direct `Neatoo.RemoteFactory` `PackageReference`, the type and its constructors and properties are automatically trimming-safe. Nested property types reachable from events are walked and preserved automatically too. One boundary: private/protected/file-scoped nested event records cannot be preserved (the generated registrar cannot reference them) — declare wire-crossing events as top-level or internal/public nested types.
 
 ## IFactorySaveMeta Preservation
 
