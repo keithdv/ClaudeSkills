@@ -21,7 +21,7 @@ A plan is a **prescription** — what needs to be true and why, at the intent le
 
 A plan is a **working hypothesis**. It does not lock at implementation. Surprises become Amendments (details change), an Abandonment Reason (wrong path), or — most often — a Punchlist row or a Dismiss on the todo.
 
-**Budget: ≤ 200 lines when this plan enters implementation.** Scope one paragraph; Steps ≤ 10; Acceptance ≤ 8. If the plan does not fit, it is two plans. If a section is defending why the plan exists, the plan should not exist.
+**Budget: Scope one paragraph; Steps ≤ 10; Acceptance ≤ 8.** Aim for ~200 lines when this plan enters implementation — a recommendation, not a rule. Crossing it is the cue to ask whether this is two plans; answer that question rather than trimming to fit. If a section is defending why the plan exists, the plan should not exist.
 
 ---
 
@@ -64,7 +64,7 @@ Bad: *Add `Task RegenerateRecommended()` to `ITreatmentV2`; in `StandardTreatmen
 
 ## Acceptance
 
-[≤ 8 observable, behavioral bullets — verifiable by exercising the system or running tests, not by diffing. **Every behavioral bullet ends with one tier tag**; a bare bullet is a draft-time error.
+[≤ 8 observable, behavioral bullets — verifiable by exercising the system or running tests, not by diffing. **Every behavioral bullet ends with one tier tag and one priority word** (`· Must` / `· Should` / `· Could`); a bare bullet is a draft-time error. The word defaults to the highest among this plan's Serves; write it on every bullet anyway so the Test Evidence map reads at a glance, and lower it where a bullet is clearly lesser than its criterion. Proposed by the orchestrator, confirmed by the user.
 
 - `[unit]` — pure logic, no DI/DB/I/O.
 - `[integration]` — full RemoteFactory client/server round-trip with stubbed repositories; real Save, real rules.
@@ -74,9 +74,9 @@ Bad: *Add `Task RegenerateRecommended()` to `ITreatmentV2`; in `StandardTreatmen
 
 Tag what the signal *needs*, not what is cheapest. Do not name test methods here — that is Test Evidence, filled after implementation.]
 
-- [ ] [behavior] `[tier]`
-- [ ] [behavior] `[tier]`
-- [ ] Build/test green `[explicit-skip: meta-bullet]`
+- [ ] [behavior] `[tier]` · Must
+- [ ] [behavior] `[tier]` · Should
+- [ ] Build/test green `[explicit-skip: meta-bullet]` · Must
 
 ---
 
@@ -90,30 +90,30 @@ Tag what the signal *needs*, not what is cheapest. Do not name test methods here
 
 ## Punchlist
 
-[Plan-scoped small items discovered during this plan — **one line each**: what · where · done-when. Worked inline (plan mode if it needs thought); no gate, no log entry. Cross-plan items go on the todo's Punchlist instead. Anything still open when this plan goes Done moves to the todo's Punchlist or is dismissed.]
+[Plan-scoped small items discovered during this plan — **one line each**: what · where · done-when · AC-n · word. Worked inline (plan mode if it needs thought); no gate, no log entry. Cross-plan items go on the todo's Punchlist instead. Anything still open when this plan goes Done moves to the todo's Punchlist or is dismissed.]
 
-- [ ] <what> · <where> · done when <observable>
-- [x] <what> · <where> · <commit>
+- [ ] <what> · <where> · done when <observable> · AC-n · <word>
+- [x] <what> · <where> · <commit> · AC-n · <word>
 
 ---
 
 ## Test Evidence
 
-[**Filled after implementation, before invoking `test-reviewer`.** One row per Acceptance bullet: the test that pins it, at the declared tier — or `MISSING — <reason>`. The gate is not invoked until this exists. A tier mismatch is a MISSING. Shipping with MISSING rows requires the user's recorded acceptance.]
+[**Filled after implementation, before invoking `test-reviewer`.** One row per Acceptance bullet: the test that pins it, at the declared tier — or `MISSING — <reason>`. The gate is not invoked until this exists. A tier mismatch is a MISSING. Shipping with MISSING rows requires the user's recorded acceptance — and a Must bullet is never accepted as MISSING: pin it, or demote it in the Gate Record with the reason first.]
 
-| Acceptance bullet (short) | Tier declared | Test method | Tier confirmed |
-|---|---|---|---|
-| | `[unit]` | `Project.Tests.Class.Method` | ✓ |
-| | `[integration]` | MISSING — accepted, see Gate Record | ✗ |
+| Acceptance bullet (short) | Priority | Tier declared | Test method | Tier confirmed |
+|---|---|---|---|---|
+| | Must | `[unit]` | `Project.Tests.Class.Method` | ✓ |
+| | Could | `[integration]` | MISSING — accepted, see Gate Record | ✗ |
 
 ---
 
 ## Gate Record
 
-[Filled at Step 5 close. **Two rounds maximum.** One line per round; leftovers are punched or accepted here, not carried as a status.]
+[Filled at Step 5 close. **Two rounds maximum.** One line per round; leftovers are punched or accepted here, not carried as a status. A Must bullet is never a leftover: it is pinned, or demoted here (`bullet 3: Must → Should — <reason>`) and then accepted.]
 
 - Round 1 (YYYY-MM-DD): [CLEAN | CONCERNS — n must-cover addressed, n should-cover punched, n tech-debt dismissed] — `reviews/{NNN}-test-review.md`
-- Round 2 (YYYY-MM-DD): [CLEAN | leftovers accepted: <one line each with reason>] — Done
+- Round 2 (YYYY-MM-DD): [CLEAN | leftovers accepted: <one line each with word and reason; any demotion named>] — Done
 
 ---
 

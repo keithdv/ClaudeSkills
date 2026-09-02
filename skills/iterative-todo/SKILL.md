@@ -1,6 +1,6 @@
 ---
 name: iterative-todo
-version: 0.10.0
+version: 0.11.0
 description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "run the punchlist sweep", "resume the todo", "cut the arc branch", "open this plan's PR", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
@@ -16,6 +16,8 @@ Manage multi-session project work as a durable **todo** with a bounded set of sm
 
 **0.10.0 schedules the punchlist.** 0.8.0 assumed punchlist rows are worked inline at the moment of discovery, but on TSR/TSP roughly 80% were born at Step 5 gates — after the plan's diff was under review, which is exactly when working an unrelated row would muddy it — so "inline" never triggered for them. The loop consulted only the Acceptance Criteria and the Plan Index, close-out merely carried open rows forward, and the result was rows surviving whole todos untouched (a one-minute file deletion outlived four gated plans; one row crossed two todos). 0.10.0 gives rows two scheduled moments — Step 2's pull-in triage and one Step 6 sweep — **without** putting the punchlist in the exit condition, which would rebuild the 0.7.0 ratchet: the gates are row producers.
 
+**0.11.0 adds priority, and makes it the user's.** Everything that survived triage arrived as an equal: the reviewer tiers say how *wrong* a thing is, the discovery protocol asks *which* criterion and *whether* it is reachable, and nothing said how much it mattered to the Goal — so five callouts read as five equals, and the user, who alone knows the timeline, had to read all five to find the one that counted. 0.11.0 puts one word — Must / Should / Could — on every Acceptance Criterion and plan bullet, proposed by the orchestrator and set by the user, and lets every finding, punchlist row, missing test, and queued plan inherit it through the AC-n it already names. It also demotes the 200-line plan budget from a validation error to a recommendation: crossing it is the cue to ask whether the plan is two plans, not a rule to trim to.
+
 ## When to Use
 
 Multi-session, design-heavy work where the plan needs to outlive the conversation — bounded or exploratory. Skip for single-session tasks, trivial fixes, or anything that fits built-in plan mode (`Shift+Tab`).
@@ -26,7 +28,7 @@ Multi-session, design-heavy work where the plan needs to outlive the conversatio
 |---|---|---|---|
 | **Todo** | the Goal | Goal, Acceptance Criteria, Out of Scope, Plan Index, Punchlist, Dismissed, Discovery Log | close-out audit + grade |
 | **Plan** | hours to a day | `references/plan-template.md` | Step 5 gate, two rounds max |
-| **Punchlist item** | minutes to an hour | **one line** — what · where · done-when → `[x]` + commit | none |
+| **Punchlist item** | minutes to an hour | **one line** — what · where · done-when · AC-n · word → `[x]` + commit | none |
 
 Punchlist items are worked inline. One that needs a moment's design gets built-in plan mode (`Shift+Tab`) — a plan that lives in the conversation and dies with it. No file, no review, no log entry. Plan-scoped items live in the plan's Punchlist; cross-plan items in the todo's. Work inherited from a prior arc is seeded into the Punchlist at Step 1, one line per item — never as a ledger of paragraphs.
 
@@ -42,7 +44,7 @@ Plans are not locked when implementation starts. When something surprises the im
 
 ## Core Principle 2: Tests Are Iterative Too
 
-Plans don't enumerate test cases. Every behavioral Acceptance bullet carries one tier tag — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]` — and that is the plan's whole test surface. Implementation writes tests at the declared tier. Before the gate, the orchestrator fills the **Test Evidence** map: every bullet → the test that pins it → tier confirmed, or `MISSING — <reason>`. The test-reviewer checks that the map is honest — cited tests exist, assert the behavior, sit at the declared tier. The user picks the closing bar. This map has been the single most successful mechanic in the workflow; it stays.
+Plans don't enumerate test cases. Every behavioral Acceptance bullet carries one tier tag — `[unit]`, `[integration]`, `[database]`, `[ui]`, or `[explicit-skip: <reason>]` — and one priority word (Core Principle 7), and that is the plan's whole test surface. Implementation writes tests at the declared tier. Before the gate, the orchestrator fills the **Test Evidence** map: every bullet → the test that pins it → tier confirmed, or `MISSING — <reason>`. The test-reviewer checks that the map is honest — cited tests exist, assert the behavior, sit at the declared tier. The user picks the closing bar, and the priority word on each bullet is what makes that pick fast: a `MISSING` on a Could bullet is a Follow-on line; on a Should bullet it is the user's call; on a Must bullet it is never accepted — the bullet is demoted first, in the Gate Record, or the test gets written. This map has been the single most successful mechanic in the workflow; it stays.
 
 `[ui]` is the one tag that does not invent its own criteria. It is the browser/bench tier, and a `[ui]` bullet **cites a user-confirmed use case** from the catalogue rather than writing acceptance for itself (Core Principle 6). If the bullet needs a case the catalogue does not hold, that is a proposal to the user — not something the plan authors on its own. A `[ui]` bullet citing a Rare Edge Case does not gate the plan.
 
@@ -53,6 +55,8 @@ Write decisions, amendments, and status changes to disk at natural checkpoints. 
 ## Core Principle 4: The Goal Is the Exit
 
 The todo's Acceptance Criteria are the exit gate. **When every criterion is met or explicitly accepted as a gap, the todo goes to close-out — regardless of what is queued.** Queued Drafts at that moment become the Follow-on list (one line each); if anyone wants them, they are a new todo. A queue never keeps a todo open.
+
+What may be accepted as a gap is governed by the criterion's priority word (Core Principle 7): a Could gap is one line; a Should gap is one line with a reason; **a Must criterion is never accepted as a gap** — it is demoted first, in a `Reprioritize` Discovery Log entry saying why, and then accepted. The record must show that a Must was consciously let go, never that it quietly slipped.
 
 Every plan and every discovery must name the **Acceptance Criterion number** it serves. None → it is not this todo's work: dismiss it, or (rarely) open a sibling. "It advances the Goal" is not an answer; "it serves AC-4" is.
 
@@ -68,11 +72,11 @@ A reviewer finding costs the reviewer nothing. A plan costs a draft, a pre-fligh
 
 ### What the Orchestrator Does
 
-Authors all todo and plan content; drafts each plan as the smallest viable next step at the intent level; runs recon and pre-flights; implements in conversation with the user; triages every finding (dismiss / punch / amend / queue / abandon / re-split) and records the decision; assembles reviewer briefs and writes their findings into `reviews/`; declares the plan cap and stops when it is hit.
+Authors all todo and plan content; drafts each plan as the smallest viable next step at the intent level; runs recon and pre-flights; implements in conversation with the user; presents findings as a triage table and triages every one (dismiss / punch / amend / queue / abandon / re-split / reprioritize), recording the decision; proposes priority words and never sets them; assembles reviewer briefs and writes their findings into `reviews/`; declares the plan cap and stops when it is hit.
 
 ### What Agents Do
 
-Review and audit; return a verdict and a capped set of findings, each with reachability stated; never write to todo or plan files; never set status; never re-raise a dismissed finding.
+Review and audit; return a verdict and a capped set of findings, each with reachability and the criterion it affects stated; never write to todo or plan files; never set status; never re-raise a dismissed finding.
 
 ## Core Principle 6: Use Cases Are the User's, and Tiers Bound the Search
 
@@ -96,6 +100,22 @@ Every catalogue entry carries exactly one tier:
 **A run is boxed before it starts and runs to the end.** The charter names the entries it will execute — by default every Happy Path and Edge Case in the area, Rare Edge Cases only when the user has said so. A finding, even a real and reachable one, is written into the run record and **the run continues to the next entry**. Whether a finding blocks is the user's call, made at the debrief with the whole run in view. A new case that suggests itself mid-run is raised at the debrief and enters the catalogue only after confirmation — never inserted into the run that thought of it.
 
 **Why this principle exists.** A five-entry bench run stopped after two because the orchestrator kept promoting its own findings to blockers; told to stop doing that, it then closed the arc on its own judgment. Same substitution of the orchestrator's call for the user's, in both directions. Neither the search nor the gate was bounded by anything the user had confirmed.
+
+## Core Principle 7: Priority Is the User's, and Everything Inherits It
+
+The reviewer tiers say how *wrong* a thing is; the discovery protocol says *which* criterion it serves and *whether* it is reachable. Neither says how much it matters to the Goal — and the only person who knows the timeline is the user. So every Acceptance Criterion on the todo and every Acceptance bullet on a plan carries **one priority word**, proposed by the orchestrator and set by the user:
+
+| Word | Meaning | Under timeline pressure |
+|---|---|---|
+| **Must** | The Goal is not met without it. | Done, or demoted with a reason — never an accepted gap. |
+| **Should** | The Goal is met but worse without it. | Done if time allows; otherwise accepted with a one-line reason. |
+| **Could** | Real and reachable, but the Goal is fine without it. | Follow-on by default. |
+
+**Everything else inherits.** A finding, a punchlist row, a `MISSING` test, a queued Draft already has to name the AC-n it serves (Core Principle 4); its priority is that criterion's word, written on the row so it reads at a glance. A plan's priority is the highest among its Serves. Nothing gets its own priority ceremony — the label derives from a decision the user already made.
+
+**The orchestrator proposes; it never sets.** At Goal definition it proposes a word per criterion and the user confirms — a Goal where every criterion is Must is worth one question, then it is the user's call. When a finding's consequence is worse than its criterion's word implies, the orchestrator proposes the higher word in the triage table (`Could ↑ Must`) and says why; the user decides. Priority never changes what veto-tier means: a red build, a weakened sacred test, a contradicted rule block regardless of the word.
+
+**Priority is not a substitute for Dismiss.** The criterion test and the reachability test run first, unchanged; a word is assigned only to what survives them. A Could that goes to Follow-on is not a dismissal — it passed both tests — and a Must the user wants to let go is a `Reprioritize` entry, so the record shows the demotion rather than a gap that appeared on its own.
 
 ## Directory Structure
 
@@ -138,11 +158,11 @@ A todo lives on one **arc branch**. Code reaches the arc only by PR, and the arc
 
 ## Sub-Agents
 
-Every reviewer returns **a verdict plus a capped list of findings**. Veto-tier findings are always listed in full — they are rare by definition. Callouts are capped at **five**; anything beyond is one line: *"N more, lower priority, not listed."* Each finding states `Reachable by:` (user action / observed failure / live caller); findings that cannot go under **Theoretical** and are not triaged. A clean verdict is a complete, expected result — reviewers do not manufacture findings to fill a section.
+Every reviewer returns **a verdict plus a capped list of findings**. Veto-tier findings are always listed in full — they are rare by definition. Each finding states `Reachable by:` (user action / observed failure / live caller) and `Affects: AC-n (word)` — the criterion it bears on and that criterion's priority (Core Principle 7); findings that cannot state reachability go under **Theoretical** and are not triaged. Callouts affecting a **Must** criterion are listed in full, ordered by consequence — if there are more than five, the reviewer leads with that fact, because it means the plan was not ready for the gate. Callouts affecting Should or Could criteria are capped at **five** together; anything beyond is one line: *"N more, lower priority, not listed."* A clean verdict is a complete, expected result — reviewers do not manufacture findings to fill a section.
 
 **Veto-tier means exactly two things:** the work contradicts a documented rule or excluded feature, or it breaks the build / a sacred test / any test. Everything else is a callout, and **callouts never block**.
 
-- **`test-reviewer`** — the mandatory Step 5 gate. Checks that every Acceptance bullet has a real test at its declared tier, that cited tests assert the behavior rather than pass vacuously, that no sacred test was weakened, and that the logs are green. It does **not** hunt for edge cases the plan did not name. Returns CLEAN / CONCERNS. Skip only for trivial plans (test-only, comment-only, mechanical rename), recorded in Skipped Steps.
+- **`test-reviewer`** — the mandatory Step 5 gate. Checks that every Acceptance bullet has a real test at its declared tier, that cited tests assert the behavior rather than pass vacuously, that no sacred test was weakened, and that the logs are green. Its must-cover / should-cover split keys to the bullet's priority word: an unpinned Must bullet is must-cover; an unpinned Should or Could bullet is should-cover, carrying the word. It does **not** hunt for edge cases the plan did not name. Returns CLEAN / CONCERNS. Skip only for trivial plans (test-only, comment-only, mechanical rename), recorded in Skipped Steps.
 - **`plan-reviewer`** — opt-in at Step 2 for sharp edges (cross-aggregate, schema migration, public API, security, irreversible). Its diagnoses are reliable; its prescriptions are advisory.
 - **`business-requirements-reviewer`** — opt-in at Step 2 when the plan's intent touches documented business rules or excluded features.
 - **`code-reviewer`** — opt-in per-plan pass at Step 5 for behavior-changing plans (CLEAN / CONCERNS), and the mandatory **close-out audit** at Step 7, which produces the grade.
@@ -158,6 +178,25 @@ Every reviewer invocation is a **brief** assembled by the orchestrator — the b
 5. **Log paths** (Steps 5 and 7) — reviewers grep them, never re-run builds.
 
 State the budget: `tight` (default) or `deep` (safety-seam or irreversible plans). The close-out audit is exempt from `tight`. Reviewers end with a read report — what they pulled beyond the brief and what went unused — and the next brief trims accordingly.
+
+## Presenting Findings — the Triage Table
+
+Findings reach the user as **one table, not prose** — whether they came from a reviewer, a pre-flight, or the orchestrator's own noticing. One row per finding that survived the criterion and reachability tests:
+
+```
+| # | Finding (≤ 15 words) | Affects | Priority | Size | Proposed |
+|---|---|---|---|---|---|
+| 1 | Save ignores a stale ETag on the visit aggregate | AC-2 | Must | punch | punch now |
+| 2 | Recommended-list regeneration has no integration test | AC-5 | Could ↑ Should | punch | punch — reachable from the dashboard |
+| 3 | Handler catches and swallows a serialization fault | AC-1 | Must | plan | queue |
+| 4 | Fixture file left behind by 004 | AC-3 | Could | punch | Follow-on |
+```
+
+- **Affects / Priority** — the criterion and its word, inherited (Core Principle 7). An arrow marks the orchestrator's proposal to escalate, with the reason in the Proposed cell; it is a proposal, and the word is the user's to set.
+- **Size** — `punch` or `plan`, from the sizing question in the discovery protocol.
+- **Proposed** — one disposition per row: dismiss / punch now / punch (todo-level) / amend / queue / Follow-on / accept.
+
+The user answers by row number. Must rows are never buried under Could rows: order is Must, Should, Could, then by consequence. Veto-tier findings sit above the table, because they are not up for triage.
 
 ## Status Values
 
@@ -178,20 +217,21 @@ These are draft-time validation errors, the same as a bare Acceptance bullet:
 | Thing | Budget |
 |---|---|
 | Plan title | ≤ 8 words |
-| Plan file when it enters implementation | ≤ 200 lines (Scope one paragraph; Steps ≤ 10; Acceptance ≤ 8) |
+| Plan file when it enters implementation | Scope one paragraph; Steps ≤ 10; Acceptance ≤ 8 |
 | Todo Goal | one paragraph, ≤ 150 words |
-| Acceptance Criterion | one sentence, no parentheticals |
+| Acceptance Criterion | one sentence, no parentheticals, one priority word |
+| Priority word | Must / Should / Could — nothing else, no qualifiers |
 | Status cell | status word + ≤ 5 words |
 | Discovery Log entry | ≤ 60 words |
 | Punchlist / Dismissed / Follow-on row | one line |
 
-A plan that passes 300 lines with amendments should have been two plans. A criterion that needs a paragraph is being renegotiated — renegotiate it in one Discovery Log entry and rewrite the sentence. Over-budget prose is the rabbit hole showing up on disk.
+**Plan length is a recommendation, not a validation error: ~200 lines at implementation entry, ~300 with amendments.** Crossing 200 is the signal to stop and evaluate whether this is two plans. Sometimes it is — Re-split. Sometimes one deliverable genuinely needs the room — keep going. Passing 300 with amendments is the same question asked louder. A criterion that needs a paragraph is being renegotiated — renegotiate it in one Discovery Log entry and rewrite the sentence. Over-budget prose is the rabbit hole showing up on disk.
 
 ## Workflow
 
 ### Prerequisite — Define the Goal (Conversational)
 
-Before any file exists, the user and orchestrator define the goal: what problem, what success looks like, what is in and out of scope. No empty-shell todos.
+Before any file exists, the user and orchestrator define the goal: what problem, what success looks like, what is in and out of scope. Each Acceptance Criterion gets its priority word here — the orchestrator proposes Must / Should / Could per criterion with a one-clause reason, the user confirms or changes it (Core Principle 7). No empty-shell todos.
 
 ### Step 1 — Reconnaissance, ID, Initial Split, Plan Cap
 
@@ -213,7 +253,7 @@ Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`
 
 Pick the next `Draft` stub. **Cut its branch from the freshly pulled arc** — `{id}-{NNN}-{short-name}` — and record it in the plan header; everything this plan touches lands there.
 
-**Triage the todo's Punchlist against this plan's path.** Any open todo-level row this plan's Steps will touch anyway moves down into the plan's own Punchlist and rides the plan branch — proximity is how cheap rows actually get done, and it should be a rule, not luck. Rows outside this plan's path stay put for the Step 6 sweep. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
+**Triage the todo's Punchlist against this plan's path.** Any open todo-level row this plan's Steps will touch anyway moves down into the plan's own Punchlist and rides the plan branch — proximity is how cheap rows actually get done, and it should be a rule, not luck. Rows outside this plan's path stay put for the Step 6 sweep. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged and carrying a priority word — proposed from the criteria the plan serves, confirmed by the user). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
 
 **Declare the review opt-ins** in the header with a one-line reason each: `Plan-review opt-in` (cross-aggregate, schema, public API, security, irreversible; name `business-requirements-reviewer` when the plan touches documented rules) and `Code-review opt-in` (behavior-changing plans; skip for mechanical work).
 
@@ -229,7 +269,7 @@ Work the Steps in order, in conversation with the user. Run scoped tests at natu
 
 **Discovery protocol.** When something surprises you, answer three questions *before writing anything*:
 
-1. **Which Acceptance Criterion does it serve?** Name the number. None → **Dismiss**, or (rarely) a sibling todo.
+1. **Which Acceptance Criterion does it serve?** Name the number. None → **Dismiss**, or (rarely) a sibling todo. The criterion's priority word is the finding's, unless the consequence argues for a higher one — then propose it, with the reason, in the triage table.
 2. **Is it reachable?** A user action, an observed failure, or a live caller. No → **Dismiss**. "Hardening against a subscriber nobody has written yet" is a dismiss.
 3. **How big is it?** Under about half a day, doesn't change a criterion, doesn't open a seam no plan touches → **Punch**. Otherwise it is plan-sized.
 4. **Is it a use case the user confirmed?** If the finding is about how the application behaves for a person using it, check the catalogue (Core Principle 6). A confirmed Happy Path or Edge Case entry gates. A Rare Edge Case entry does not. **Something the orchestrator generated that is in no catalogue entry gates nothing** — propose it at the debrief and let the user decide whether it becomes one. Discovering a plausible failure does not make it a blocker; only the user does.
@@ -237,13 +277,14 @@ Work the Steps in order, in conversation with the user. Run scoped tests at natu
 Then record the decision:
 
 - **Dismiss** — one line in the todo's Dismissed section: finding, reason. No log entry.
-- **Punch** — one line in the plan's or todo's Punchlist. Work it inline (plan mode if it needs thought) — plan-scoped rows on the plan branch, todo-level rows on a punchlist branch. No log entry.
+- **Punch** — one line in the plan's or todo's Punchlist, ending with `AC-n · <word>`. Work it inline (plan mode if it needs thought) — plan-scoped rows on the plan branch, todo-level rows on a punchlist branch. No log entry.
 - **Amend** — the current plan's details change, not its intent. Plan Amendments entry + Discovery Log entry. *The most common logged decision.*
 - **Queue** — plan-sized and it passed the criterion test: a new `Draft` stub and Index row, against the cap. Discovery Log entry.
 - **Abandon** — the current plan is the wrong path. Status `Abandoned`, reason filled, replacement drafted. Discovery Log entry.
 - **Re-split** — the Plan Index itself changes: reorder, retire, add. Discovery Log entry with `Index changes:`.
+- **Reprioritize** — a criterion's word changes, up or down. Discovery Log entry with `Priority:`. Demoting a Must is the one move that must come *before* accepting it as a gap; it is a one-line entry, not a negotiation.
 
-Only Amend, Queue, Abandon, and Re-split get Discovery Log entries. There is no "Note" decision — an entry that records no decision is a journal, and the log is not a journal.
+Only Amend, Queue, Abandon, Re-split, and Reprioritize get Discovery Log entries. There is no "Note" decision — an entry that records no decision is a journal, and the log is not a journal.
 
 **When the Goal itself shifts (rare):** stop and ask. Sometimes the right move is a sibling todo. If the Goal genuinely shifts, update Goal and Acceptance Criteria together, note it in the triggering entry, and re-verify queued plans.
 
@@ -253,10 +294,10 @@ Only Amend, Queue, Abandon, and Re-split get Discovery Log entries. There is no 
 
 **Pre-flight 2 — run build + test ONCE and pass log paths.** Redirect full output to `reviews/{NNN}-build.log` / `reviews/{NNN}-test.log`. Reviewers grep the logs; they never run build or test themselves.
 
-**Invoke `test-reviewer`** with a brief. It returns CLEAN or CONCERNS with must-cover findings (an Acceptance bullet unpinned, a cited test that asserts nothing, a sacred test weakened, a red log), should-cover findings (a reachable plan-introduced path with no test), and tech-debt (one line each, untiered, capped). Then:
+**Invoke `test-reviewer`** with a brief. It returns CLEAN or CONCERNS with must-cover findings (a **Must** bullet unpinned, vacuous, or wrong-tier; a sacred test weakened; a red log), should-cover findings (a Should or Could bullet unpinned, carrying its word; a reachable plan-introduced path with no test, with the AC-n it affects), and tech-debt (one line each, untiered, capped). Present them as a triage table. Then:
 
-1. **Round 1.** Must-cover plan-related findings are addressed. Should-cover: the user picks. Tech-debt: triaged — punchlist, dismissed, or (rarely, if plan-sized) queued.
-2. **Round 2** re-invokes to confirm must-cover closed. **Round 2 is the last round.** Anything still open is punched or accepted with a one-line reason. The plan is Done.
+1. **Round 1.** Must-cover findings are addressed. Should-cover: the user picks — a Should is a judgment call, a Could defaults to Follow-on. Tech-debt: triaged — punchlist, dismissed, or (rarely, if plan-sized) queued.
+2. **Round 2** re-invokes to confirm must-cover closed. **Round 2 is the last round.** Anything still open is punched or accepted with a one-line reason — except a Must bullet, which is never accepted: it is pinned, or demoted in the Gate Record with the reason and then accepted. The plan is Done.
 3. Write `reviews/{NNN}-test-review.md` (closing tier, what was added, what was punched, what was accepted and why) and the plan's **Gate Record** — one line per round.
 
 **If the plan opted into code review**, invoke `code-reviewer` for a findings-only pass on the same logs (CLEAN / CONCERNS). Veto-tier findings are fixed before Done; callouts are triaged the same way. Write `reviews/{NNN}-code-review.md`.
@@ -267,11 +308,11 @@ A plan reaches `Done` when the gate closes or its leftovers are accepted. Not be
 
 ### Step 6 — Loop, Sweep, or Fall Through
 
-**Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **the punchlist sweep below, then Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list.
+**Check the Acceptance Criteria first.** Every criterion met or explicitly accepted as a gap → **the punchlist sweep below, then Step 7**, regardless of queued Drafts; queued Drafts move to the Follow-on list. This is where the timeline is applied: the user may accept every unmet Could as a gap in one line each, every unmet Should with a reason, and demote any Must they are letting go with a `Reprioritize` entry — then the criteria are "met or accepted" and the todo goes to close-out on what was actually important. The orchestrator lays that choice out; it does not make it.
 
-Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all. **If the plan about to be drafted is the todo's last** — nothing else queued and no unmet criterion beyond its Serves — run the sweep first: its rows are about to lose their final in-path chance, and one of them may gate that plan.
+Otherwise, check the Plan Index: a queued `Draft` that serves an unmet criterion → Step 2 — the Draft serving the highest-priority unmet criterion first. No queued Draft serves an unmet criterion → draft one (against the cap), or confirm with the user that the criterion is met after all. **If the plan about to be drafted is the todo's last** — nothing else queued and no unmet criterion beyond its Serves — run the sweep first: its rows are about to lose their final in-path chance, and one of them may gate that plan.
 
-**The punchlist sweep — once per todo.** Cut a punchlist branch and **work or dismiss every open todo-level row** in one batch: no per-row gate, one PR, each row closed with the PR number (a run of related rows may share a short commit). A row only the remaining plan can close (rig evidence, an artifact that does not exist yet) records that explicitly and survives; nothing else does. The sweep is deliberately late — after it, the punchlist stops being a queue and Step 8's "all `[x]` or moved to Follow-on" check is a verification rather than a triage.
+**The punchlist sweep — once per todo.** Cut a punchlist branch and **work or dismiss every open Must and Should row** in one batch: no per-row gate, one PR, each row closed with the PR number (a run of related rows may share a short commit). A Could row is worked if it is cheap and in reach; otherwise it moves to the Follow-on list with its word — it passed the reachability test, so it is not dismissed, but it does not hold the todo either. A row only the remaining plan can close (rig evidence, an artifact that does not exist yet) records that explicitly and survives; nothing else does. The sweep is deliberately late — after it, the punchlist stops being a queue and Step 8's "all `[x]` or moved to Follow-on" check is a verification rather than a triage.
 
 Step 2 starts from the arc, freshly pulled — after the previous PR has merged and `/closeBranch` has run.
 
@@ -280,8 +321,8 @@ Step 2 starts from the arc, freshly pulled — after the previous PR has merged 
 **On the arc branch, with every plan PR merged** — an open plan PR is a container miss, not an audit input. Run build + test once each (`reviews/final-build.log`, `reviews/final-test.log`) and invoke **code-reviewer** in close-out mode with the whole arc — the todo, every plan, every review file, the log paths. Per `references/close-out-audit.md`, the auditor traces every Acceptance Criterion to code, walks container integrity, spot-checks Test Evidence honesty, greps the logs, and returns a **grade**:
 
 - **A** — every criterion traced to code with evidence; no veto-tier findings.
-- **B** — every criterion traced or explicitly accepted as a gap with a reason; no veto-tier findings; gaps on the Follow-on list.
-- **C** — a criterion neither met nor accepted, or a veto-tier finding open.
+- **B** — every criterion traced or explicitly accepted as a gap with a reason; every accepted gap is a Should or Could; no veto-tier findings; gaps on the Follow-on list.
+- **C** — a criterion neither met nor accepted, a Must accepted as a gap without a `Reprioritize` entry, or a veto-tier finding open.
 
 **A and B close the todo.** C does not — and C is not "keep iterating": the user picks one of fix-the-named-thing, accept-the-gap (→ B), or close as `Blocked`. There is no "to reach A" list. The grade is a statement about what was done, not a target for what is left.
 
@@ -293,7 +334,7 @@ Verify: the audit exists with grade A or B and the user acknowledged it; every p
 
 **Documentation check:** confirm doc deltas shipped with the behavior they describe. Reconcile any internal-contradiction callouts parked by reviewers. Remaining doc debt goes on the Follow-on list or, if large, to `business-requirements-documenter` ad hoc.
 
-**Follow-on list:** everything this todo did not do — queued Drafts, accepted gaps, unpinned tests. One line each. It is a list, not a commitment; a successor todo that adopts an item writes it as an acceptance bullet there.
+**Follow-on list:** everything this todo did not do — queued Drafts, accepted gaps, unpinned tests, Could rows the sweep passed over. One line each, ending with the item's priority word so a successor knows what it is picking up. It is a list, not a commitment; a successor todo that adopts an item writes it as an acceptance bullet there.
 
 **Retro (one paragraph):** what this todo taught about the workflow itself. Route lessons to the project's CLAUDE.md, this skill's backlog, or persistent memory. Include the numbers: plans issued vs. cap, findings dismissed vs. punched vs. queued.
 
@@ -306,25 +347,26 @@ Set status `Complete`. Move the folder to `docs/todos/completed/{ID}-{todo-name}
 ```
 ### YYYY-MM-DD — {ID}-{NNN} · serves AC-{n}
 - **Finding:** [one sentence]
-- **Decision:** [Amend | Queue | Abandon | Re-split]
+- **Decision:** [Amend | Queue | Abandon | Re-split | Reprioritize]
 - **Index changes:** [Re-split / Queue only; else omit]
+- **Priority:** [Reprioritize only: AC-n Must → Should; else omit]
 - **Follow-up:** [{ID}-{NNN} or "n/a"]
 ```
 
-**≤ 60 words.** The long form lives on the affected plan; the entry points at it. No review output, no PR descriptions, no file-change lists. Dismissed and punched findings do not get entries — they have their own one-line homes.
+**≤ 60 words.** The long form lives on the affected plan; the entry points at it. No review output, no PR descriptions, no file-change lists. Dismissed and punched findings do not get entries — they have their own one-line homes. A `Reprioritize` made between plans heads with `{ID}` alone in place of the plan ID.
 
 ## Punchlist, Dismissed, Follow-on Formats
 
 ```
 ## Punchlist
-- [ ] <what> · <where> · done when <observable>            (open)
-- [x] <what> · <where> · <commit or PR>                     (closed)
+- [ ] <what> · <where> · done when <observable> · AC-n · <word>   (open)
+- [x] <what> · <where> · <commit or PR> · AC-n · <word>            (closed)
 
 ## Dismissed
 - {ID}-{NNN} · <finding, ≤ 15 words> · <reason, ≤ 15 words>
 
 ## Follow-on   (close-out only)
-- <item, one line> · <origin: {ID}-{NNN} or review file>
+- <item, one line> · <origin: {ID}-{NNN} or review file> · <word>
 ```
 
 ## Plan Amendments, Abandonment, Retirement
@@ -361,7 +403,7 @@ All criteria met → Step 7.
 
 ## Converting an Older Todo
 
-Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: adding Punchlist / Dismissed sections; triaging every queued Draft through the discovery protocol (most become punchlist rows or dismissals); declaring the cap at the current issued count; and checking the Acceptance Criteria — if they are met, go to Step 7 now. A 0.8.0-era todo picks up 0.9.0 by recording its arc branch in the header and adding the PR column to the Plan Index — the checklist's last section.
+Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: adding Punchlist / Dismissed sections; triaging every queued Draft through the discovery protocol (most become punchlist rows or dismissals); declaring the cap at the current issued count; and checking the Acceptance Criteria — if they are met, go to Step 7 now. A 0.8.0-era todo picks up 0.9.0 by recording its arc branch in the header and adding the PR column to the Plan Index. A 0.10.0-era todo picks up 0.11.0 by putting a priority word on every Acceptance Criterion with the user — the checklist's last section.
 
 ## Best Practices
 
@@ -373,6 +415,7 @@ Follow `references/conversion-checklist.md`. A 0.7.0-era todo converts by: addin
 6. **Review output lives in `reviews/`.** The Index cell stays terse.
 7. **Project-specific framework idioms live in the project repo**, not this skill: `<repo>/docs/code-review-calibration.md` (what clean means here) and `<repo>/docs/code-review-rubric.md` (audit overlay).
 8. **One arc; one PR per plan; `/closeBranch` after every merge.** Code reaches the arc by PR only, and the arc reaches `main` once.
+9. **Priority is set on the criterion and inherited by everything that names it.** Propose the word; never set it. A Must is pinned or demoted — never an accepted gap.
 
 ## Reference Files
 

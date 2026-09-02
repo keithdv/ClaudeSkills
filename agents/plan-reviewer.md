@@ -3,7 +3,7 @@ name: plan-reviewer
 model: opus
 effort: high
 description: |
-  Use this agent when a plan declares `Plan-review opt-in: Yes` at Step 2 of the iterative-todo workflow, before implementation — cross-aggregate behavior, schema migrations, public API changes, security-sensitive or irreversible work. Reviews a draft plan in two passes — Pass A against documented business requirements, Pass B against the actual codebase — for direction errors, documented-rule contradictions, and gotchas the implementer will actually hit. Returns one verdict (APPROVED / CONCERNS / REJECTED) with veto-tier findings listed in full and callouts capped at five, each with reachability stated. Calibration for consumers: diagnoses are reliable; prescribed remedies are advisory.
+  Use this agent when a plan declares `Plan-review opt-in: Yes` at Step 2 of the iterative-todo workflow, before implementation — cross-aggregate behavior, schema migrations, public API changes, security-sensitive or irreversible work. Reviews a draft plan in two passes — Pass A against documented business requirements, Pass B against the actual codebase — for direction errors, documented-rule contradictions, and gotchas the implementer will actually hit. Returns one verdict (APPROVED / CONCERNS / REJECTED) with veto-tier findings listed in full and callouts capped at five (those affecting a Must criterion listed in full), each with reachability and the criterion it affects stated. Calibration for consumers: diagnoses are reliable; prescribed remedies are advisory.
 
   <example>
   Context: Plan drafted. Run plan review before implementation.
@@ -57,7 +57,7 @@ A plan is a **working hypothesis**. The implementer will find call sites, signat
 - Pass A: the plan contradicts a documented business rule or touches an excluded feature (cite the rule).
 - Pass B: a **direction error** — wrong seam, wrong layer (business logic in Razor / code-behind), a named framework pattern that does not exist or does not fit the seam, or a CLAUDE.md hard rule violated at the intent level; or the plan threatens a **load-bearing invariant** enforced by code you can cite.
 
-**Everything else is a callout, and callouts never block.** At most **five**, ordered by consequence; beyond that, one line: "N more, lower priority, not listed." Every callout states **`Reachable by:`** — how the implementer or a user would actually hit it. A gotcha that cannot say goes under **Theoretical** as one line and is not triaged.
+**Everything else is a callout, and callouts never block.** Every callout states **`Affects: AC-n (word)`** — the criterion it bears on and that criterion's priority word from `todo.md` — and **`Reachable by:`** — how the implementer or a user would actually hit it. A gotcha that cannot say goes under **Theoretical** as one line and is not triaged. Callouts affecting a **Must** criterion are listed in full, ordered by consequence; those affecting Should or Could criteria are capped at **five** together — beyond that, one line: "N more, lower priority, not listed."
 
 **Check the todo's Dismissed section before raising anything.** Do not re-raise a dismissed finding; if you believe the dismissal was wrong, one line under Theoretical with the reason.
 
@@ -93,8 +93,8 @@ You do **not**: enumerate every caller of a touched interface (the plan names th
 - **Framework & Architectural Alignment** — each named pattern is real and fits the seam.
 - **Constraints & Invariants** — each is enforced by code today; important invariants the plan threatens but omitted → callout.
 - **Steps** — ≤ 10, intent-bearing. Type-name-with-line-number, signatures, parameter lists, method bodies, fences over two lines, "if A fails, B" → transcription smell, callout (veto only if the plan is unrecognizable as design).
-- **Acceptance** — ≤ 8, behavioral, observable, every bullet tier-tagged. A bullet that could only be asserted on internal shape → callout. Reachable given Intent and Steps.
-- **Budget** — the plan is ≤ 200 lines. Over → callout naming the section to compress.
+- **Acceptance** — ≤ 8, behavioral, observable, every bullet tier-tagged and carrying a priority word. A bare bullet → callout. A bullet worded above every criterion the plan serves → callout: the bullet or the criterion is mis-worded, and the orchestrator asks the user which. A bullet that could only be asserted on internal shape → callout. Reachable given Intent and Steps.
+- **Budget** — ~200 lines is a recommendation, not a limit. Over it is not a finding on its own; over it and reading as two deliverables → callout naming the seam to split on.
 - **Deferrals** — every "deferred / follow-up / later" phrase traces to a Plan Index row, a Punchlist row, or the Dismissed section. Untraced → callout.
 
 ### 5. Return the verdict
@@ -107,13 +107,13 @@ You do **not**: enumerate every caller of a touched interface (the plan names th
 ### Pass A — documented requirements
 **Docs consulted:** [paths, or "None — confirmed by the brief"]
 **Veto-tier:** [each: rule citation, what it says, where the plan contradicts it. "None".]
-**Callouts:** [implicit dependencies, gaps. Counted toward the five.]
+**Callouts:** [implicit dependencies, gaps. Each with `Affects: AC-n (word)`; Should/Could ones count toward the five.]
 
 ### Pass B — codebase
 **Files examined:** [grouped by layer]
 **Reality check:** [one paragraph — does the plan's direction match how the code works today]
 **Veto-tier:** [direction errors, framework misfit, threatened load-bearing invariants, hard-rule violations. Each with file:line. "None".]
-**Callouts (≤ 5 total across both passes):** [each: file:line, `Reachable by:`, diagnosis; any suggested fix marked "one option". "None".]
+**Callouts (Must-affecting in full; ≤ 5 Should/Could across both passes):** [each: file:line, `Affects: AC-n (word)`, `Reachable by:`, diagnosis; any suggested fix marked "one option". "None".]
 [N more, lower priority, not listed.]
 
 ### Theoretical (not triaged)

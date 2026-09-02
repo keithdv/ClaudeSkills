@@ -172,3 +172,12 @@ The folder shape is unchanged; only the branch records are new. In conversation 
 2. **Add the PR column** to the Plan Index and fill it from `gh pr list --state merged --base {arc} --limit 200 --json number,title,headRefName`, matching `{ID}-{NNN}` in the title or branch name. A Status cell that carried "merged in PR #n" loses it — the column holds it now.
 3. **Add `Branch:` and `PR:`** to the header of any `In Progress` plan. Done plans are not touched.
 4. **Open PRs** stay where they are. From here on, per SKILL.md: the next plan branches from the arc after `/closeBranch`.
+
+## Picking up 0.11.0 (priority) on a 0.10.0-era todo
+
+Nothing structural changes. In conversation with the user:
+
+1. **Put a priority word on every Acceptance Criterion** — `- [ ] **AC-n** · Must — …`. The orchestrator proposes Must / Should / Could per criterion with a one-clause reason; the user sets it. A Goal where every criterion is Must is worth one question, then it is the user's call.
+2. **Tag the Acceptance bullets of any `In Progress` or `Draft` plan** with a word, and add the Priority column to the `In Progress` plan's Test Evidence map. Done plans are not touched.
+3. **Add `· AC-n · <word>` to every open Punchlist row.** Closed rows are not touched. A row that names no criterion goes through the discovery protocol now — most are dismissed.
+4. **Check the exit with the words in view.** Unmet Could criteria may be accepted as gaps in one line each, unmet Shoulds with a reason, and a Must the user is letting go gets a `Reprioritize` entry — that may put the todo at Step 7 today.

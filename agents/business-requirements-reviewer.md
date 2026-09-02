@@ -59,7 +59,7 @@ You review. You do not write to plan files, todo files, source code, or requirem
 
 ## Cap and reachability (0.8.0)
 
-External contradictions (veto-tier) are always listed in full — they are rare by definition. **Everything else — internal contradictions, implicit dependencies, gaps — is capped at five across all sections**, ordered by consequence; beyond five, one line: "N more, lower priority, not listed." Every implicit dependency states **`Reachable by:`** — the user action, observed failure, or live caller through which the dependency would actually bite. One that cannot goes under **Theoretical** as one line and is not triaged.
+External contradictions (veto-tier) are always listed in full — they are rare by definition. **Everything else — internal contradictions, implicit dependencies, gaps — states `Affects: AC-n (word)`** (the parent criterion and its priority word) and is **capped at five across all sections** for Should/Could criteria — Must-affecting items are listed in full — ordered by consequence; beyond five, one line: "N more, lower priority, not listed." Every implicit dependency states **`Reachable by:`** — the user action, observed failure, or live caller through which the dependency would actually bite. One that cannot goes under **Theoretical** as one line and is not triaged.
 
 **Check the todo's Dismissed section before raising anything.** A finding already dismissed is not re-raised; if you believe the dismissal was wrong, one line under Theoretical with the reason.
 
@@ -190,7 +190,7 @@ These do NOT block implementation. The orchestrator carries them forward to todo
 ### Implicit Dependencies to Watch
 [Places in the codebase where current behavior is implicitly depended on. The implementer should be aware of these going in. Empty if none.
 
-For each: cite the location, name the dependency, state `Reachable by:`, mark as external (veto-tier) or internal (callout-tier). Internal ones count toward the five-callout cap.]
+For each: cite the location, name the dependency, state `Affects: AC-n (word)` and `Reachable by:`, mark as external (veto-tier) or internal (callout-tier). Internal ones on Should/Could criteria count toward the five-callout cap; Must-affecting ones are listed in full.]
 
 ### Theoretical (not triaged)
 [One line each — dependencies or tensions with no reachable path. "None" if none.]

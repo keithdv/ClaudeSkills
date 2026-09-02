@@ -18,11 +18,11 @@
 
 ## Acceptance Criteria
 
-[Observable, testable, **one sentence each, no parentheticals**. Numbered so plans and discoveries cite `AC-n`. This is the exit gate: when every criterion is checked or explicitly accepted as a gap, the todo goes to close-out regardless of what is queued. A criterion that needs a paragraph is being renegotiated — renegotiate it in one Discovery Log entry and rewrite the sentence.]
+[Observable, testable, **one sentence each, no parentheticals**, and **one priority word each** — Must / Should / Could (SKILL.md Core Principle 7), proposed by the orchestrator at Goal definition and set by the user. Numbered so plans and discoveries cite `AC-n`; everything that cites a criterion inherits its word. This is the exit gate: when every criterion is checked or explicitly accepted as a gap, the todo goes to close-out regardless of what is queued. A Could gap is one line; a Should gap is one line with a reason; a Must is never an accepted gap — demote it first with a `Reprioritize` Discovery Log entry. A criterion that needs a paragraph is being renegotiated — renegotiate it in one Discovery Log entry and rewrite the sentence.]
 
-- [ ] **AC-1** — 
-- [ ] **AC-2** — 
-- [ ] **AC-3** — 
+- [ ] **AC-1** · Must — 
+- [ ] **AC-2** · Should — 
+- [ ] **AC-3** · Could — 
 
 ## Out of Scope
 
@@ -34,7 +34,7 @@
 
 ## Plan Index
 
-[Monotonic numbering; Abandoned and Retired plans keep their numbers. Pre-populated at Step 1 with the initial split — 2–6 stubs for contained todos, 6–12 for large restructures. Every row names the criteria it serves. **Status cell = status word + at most five words.** Narrative lives in the plan; review output lives in `reviews/`. There is no "gates run, findings addressed" state — after two gate rounds a plan is Done. **PR** is the number once merged into the arc (`—` until then); the Status cell does not carry it.]
+[Monotonic numbering; Abandoned and Retired plans keep their numbers. Pre-populated at Step 1 with the initial split — 2–6 stubs for contained todos, 6–12 for large restructures. Every row names the criteria it serves; a plan's priority is the highest word among them — no column, read it from the criteria. **Status cell = status word + at most five words.** Narrative lives in the plan; review output lives in `reviews/`. There is no "gates run, findings addressed" state — after two gate rounds a plan is Done. **PR** is the number once merged into the arc (`—` until then); the Status cell does not carry it.]
 
 | # | File | Title (≤ 8 words) | Serves | Status | PR |
 |---|------|-------|--------|--------|----|
@@ -47,10 +47,10 @@
 
 ## Punchlist
 
-[Cross-plan items only — plan-scoped items live in the plan. **One line each**: what · where · done-when. Worked inline, plan mode (`Shift+Tab`) if it needs a moment's design; no gate, no review, no log entry. Work inherited from a prior arc is seeded here at Step 1, one line per item. Close with `[x]` and a commit or PR.]
+[Cross-plan items only — plan-scoped items live in the plan. **One line each**: what · where · done-when · AC-n · word — the word is the criterion's unless the user set a higher one. Worked inline, plan mode (`Shift+Tab`) if it needs a moment's design; no gate, no review, no log entry. Work inherited from a prior arc is seeded here at Step 1, one line per item. Close with `[x]` and a commit or PR.]
 
-- [ ] <what> · <where> · done when <observable>
-- [x] <what> · <where> · <commit or PR>
+- [ ] <what> · <where> · done when <observable> · AC-n · <word>
+- [x] <what> · <where> · <commit or PR> · AC-n · <word>
 
 ## Dismissed
 
@@ -62,7 +62,13 @@
 
 ## Discovery Log
 
-[Append-only. **≤ 60 words per entry.** Only decisions that change files get entries: `Amend` / `Queue` / `Abandon` / `Re-split`. Dismissed and punched findings have their own one-line sections above. No "Note" entries — an entry with no decision is a journal. Review output lives in `reviews/`; an entry may link a review in one line. Cite plans as `{ID}-{NNN}`.]
+[Append-only. **≤ 60 words per entry.** Only decisions that change files get entries: `Amend` / `Queue` / `Abandon` / `Re-split` / `Reprioritize`. Dismissed and punched findings have their own one-line sections above. No "Note" entries — an entry with no decision is a journal. Review output lives in `reviews/`; an entry may link a review in one line. Cite plans as `{ID}-{NNN}`.]
+
+### YYYY-MM-DD — {ID} · AC-4
+- **Finding:** [one sentence — why the timeline no longer supports this criterion at Must]
+- **Decision:** Reprioritize
+- **Priority:** AC-4 Must → Should
+- **Follow-up:** n/a
 
 ### YYYY-MM-DD — {ID}-003 · serves AC-1
 - **Finding:** [one sentence]
@@ -106,7 +112,7 @@
 
 **Veto-tier findings:** [one line each, or "None"]
 **Callouts:** [≤ 5, each with disposition: punched / dismissed / accepted with reason]
-**Accepted gaps (B only):** [AC-n — reason]
+**Accepted gaps (B only):** [AC-n (Should | Could) — reason; a Must here without a Reprioritize entry is a C]
 **User acknowledgment:** [Date — "Accepted" or "Fixing AC-n"]
 **Full audit:** [`reviews/close-out-audit.md`](./reviews/close-out-audit.md)
 
@@ -114,9 +120,9 @@
 
 ## Follow-on
 
-[Filled at Step 8. Everything this todo did not do — queued Drafts at close, accepted gaps, open punchlist rows, unpinned tests, doc debt. **One line each.** A list, not a commitment; a successor todo that adopts an item writes it as an acceptance bullet there.]
+[Filled at Step 8. Everything this todo did not do — queued Drafts at close, accepted gaps, open punchlist rows, unpinned tests, doc debt. **One line each, ending with the item's priority word.** A list, not a commitment; a successor todo that adopts an item writes it as an acceptance bullet there.]
 
-- <item> · <origin: {ID}-{NNN} or review file>
+- <item> · <origin: {ID}-{NNN} or review file> · <word>
 
 ---
 
