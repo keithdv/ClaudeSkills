@@ -1,5 +1,11 @@
 ---
 
+## Plain Terms First
+
+Write so Keith can understand it on one read. Say what happened, what it means, and what is his call - in everyday language, leading with the outcome rather than the mechanism. Explain the *why* the way you would to a smart person outside the code: what the thing does, what would go wrong, who would notice. Keep file paths, line numbers, event ids, PR numbers and command output out of the prose unless they *are* the point - Keith will ask for the details when he wants them. A status table beats a paragraph; a recommendation beats a list of options; a short story of what happened beats a list of facts. Write for the reader who wants to understand and decide, not for the one who has to resume the work.
+
+---
+
 ## Core Rules
 
 - **STOP and ask** when you hit an obstacle - don't push through with workarounds
