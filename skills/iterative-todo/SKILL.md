@@ -1,6 +1,6 @@
 ---
 name: iterative-todo
-version: 0.11.0
+version: 0.11.1
 description: This skill should be used when the user asks to "create a todo", "create an iterative todo", "iterate on this", "start a small plan", "plan this work", "design this feature", "abandon this plan", "next plan in <todo>", "log a discovery", "add to the punchlist", "dismiss that finding", "run the punchlist sweep", "resume the todo", "cut the arc branch", "open this plan's PR", or "run the close-out audit". Use for multi-session, design-heavy work where the plan needs to outlive the conversation. Plans are small working hypotheses; punchlist items are one-line fixes worked inline; the todo is the durable container that exits on its Goal, not on an empty queue. Skip for single-session tasks, trivial fixes, or work that fits in built-in plan mode (Shift+Tab).
 ---
 
@@ -17,6 +17,8 @@ Manage multi-session project work as a durable **todo** with a bounded set of sm
 **0.10.0 schedules the punchlist.** 0.8.0 assumed punchlist rows are worked inline at the moment of discovery, but on TSR/TSP roughly 80% were born at Step 5 gates — after the plan's diff was under review, which is exactly when working an unrelated row would muddy it — so "inline" never triggered for them. The loop consulted only the Acceptance Criteria and the Plan Index, close-out merely carried open rows forward, and the result was rows surviving whole todos untouched (a one-minute file deletion outlived four gated plans; one row crossed two todos). 0.10.0 gives rows two scheduled moments — Step 2's pull-in triage and one Step 6 sweep — **without** putting the punchlist in the exit condition, which would rebuild the 0.7.0 ratchet: the gates are row producers.
 
 **0.11.0 adds priority, and makes it the user's.** Everything that survived triage arrived as an equal: the reviewer tiers say how *wrong* a thing is, the discovery protocol asks *which* criterion and *whether* it is reachable, and nothing said how much it mattered to the Goal — so five callouts read as five equals, and the user, who alone knows the timeline, had to read all five to find the one that counted. 0.11.0 puts one word — Must / Should / Could — on every Acceptance Criterion and plan bullet, proposed by the orchestrator and set by the user, and lets every finding, punchlist row, missing test, and queued plan inherit it through the AC-n it already names. It also demotes the 200-line plan budget from a validation error to a recommendation: crossing it is the cue to ask whether the plan is two plans, not a rule to trim to.
+
+**0.11.1 loads the framework skills at Step 2, not Step 4.** The plan template's Framework & Architectural Alignment section names patterns from the project's framework skills and says reviewers check it against them — but nothing loaded those skills for the drafter, so the section was written from memory and the layer each Step lands in was picked by whatever mechanism came to mind. The 2026-09-13 `StageLegacyProtocolForward` case (zTreatment) is the shape: a clinical policy designed into a ViewModel because the VM's machinery made "staged" easy there, caught at review. 0.11.1 adds one load point to Step 2 — the design-shaped skills, as the project's CLAUDE.md names them — so ownership is decided when the Steps are written.
 
 ## When to Use
 
@@ -252,6 +254,8 @@ Create `docs/todos/{ID}-{kebab-name}/todo.md` from `references/todo-template.md`
 ### Step 2 — Draft Next Plan
 
 Pick the next `Draft` stub. **Cut its branch from the freshly pulled arc** — `{id}-{NNN}-{short-name}` — and record it in the plan header; everything this plan touches lands there.
+
+**Load the project's design-guidance framework skills before drafting** — whichever ones the project's CLAUDE.md names for planning (in a Neatoo project, `/neatoo` and `/RemoteFactory`; the test-stub and UI-binding skills wait for Step 4). Framework & Architectural Alignment names patterns from those skills, and the layer and seam each Step lands in are decided here, not at the keyboard. **Decide ownership before mechanism**: for every mutation a plan introduces, name which layer owns it *before* choosing how it is built — a plan drafted from memory of the framework lets the mechanism pick the layer and gets corrected at review.
 
 **Triage the todo's Punchlist against this plan's path.** Any open todo-level row this plan's Steps will touch anyway moves down into the plan's own Punchlist and rides the plan branch — proximity is how cheap rows actually get done, and it should be a rule, not luck. Rows outside this plan's path stay put for the Step 6 sweep. Flesh it out per `references/plan-template.md`: Scope (one paragraph, including what it does NOT do), Intent, Framework & Architectural Alignment (patterns named, not reproduced), Constraints & Invariants, Steps (≤ 10 intent-bearing bullets), Acceptance (≤ 8 behavioral bullets, every one tier-tagged and carrying a priority word — proposed from the criteria the plan serves, confirmed by the user). Check the prose budgets. A plan covers one deliverable — hours of work, a day at most.
 
