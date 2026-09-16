@@ -196,7 +196,7 @@ Release notes live in `docs/release-notes/` with individual version files.
 ##### Versioning
 - Version stored in `Directory.Build.props` (`<Version>` or `<PackageVersion>`)
 - Manual version bumps (no MinVer/GitVersion)
-- Multi-targeting: `net8.0;net9.0;net10.0`
+- Multi-targeting: `net9.0;net10.0`
 - Prerelease versions via suffix input (e.g., `10.2.0-beta1`)
 
 ##### Build Job
